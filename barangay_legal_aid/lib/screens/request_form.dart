@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 
 class RequestForm extends StatefulWidget {
   final String userBarangay;
+  final String? preselectedDocumentType;
 
-  const RequestForm({required this.userBarangay});
+  const RequestForm({
+    required this.userBarangay,
+    this.preselectedDocumentType,
+  });
 
   @override
   _RequestFormState createState() => _RequestFormState();
@@ -28,6 +32,12 @@ class _RequestFormState extends State<RequestForm> {
     'Certificate of Marriage',
     'Certificate of Single Status',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDocumentType = widget.preselectedDocumentType;
+  }
 
   @override
   void dispose() {

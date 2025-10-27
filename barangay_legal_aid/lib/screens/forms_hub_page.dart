@@ -137,7 +137,10 @@ class _FormsHubPageState extends State<FormsHubPage> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => RequestForm(userBarangay: _currentUser?.barangay ?? ''),
+                    builder: (_) => RequestForm(
+                      userBarangay: _currentUser?.barangay ?? '',
+                      preselectedDocumentType: null, // No preselection for general document request
+                    ),
                   ),
                 ),
               ),
@@ -405,7 +408,10 @@ class _FormsHubPageState extends State<FormsHubPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RequestForm(userBarangay: _currentUser?.barangay ?? ''),
+        builder: (_) => RequestForm(
+          userBarangay: _currentUser?.barangay ?? '',
+          preselectedDocumentType: documentType,
+        ),
       ),
     );
   }
