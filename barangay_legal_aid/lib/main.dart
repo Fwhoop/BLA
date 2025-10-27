@@ -1,4 +1,3 @@
-// main.dart - Update the home logic
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:barangay_legal_aid/screens/signup_page.dart';
