@@ -3,6 +3,8 @@ import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/screens/ui/feature_placeholder.dart';
 
 class AdminDashboard extends StatefulWidget {
+  const AdminDashboard({super.key});
+
   @override
   _AdminDashboardState createState() => _AdminDashboardState();
 }

@@ -8,7 +8,7 @@ class ChatHistorySidebar extends StatelessWidget {
   final ChatProvider chatProvider;
   final VoidCallback? onToggle;
 
-  const ChatHistorySidebar({required this.chatProvider, this.onToggle});
+  const ChatHistorySidebar({super.key, required this.chatProvider, this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +129,7 @@ class ChatSessionTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  const ChatSessionTile({
+  const ChatSessionTile({super.key, 
     required this.session,
     required this.isSelected,
     required this.onTap,

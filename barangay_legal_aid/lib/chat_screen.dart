@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/chat_model.dart';
 import 'package:barangay_legal_aid/chat_provider.dart';
+import 'package:barangay_legal_aid/models/user_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ChatScreen extends StatefulWidget {
   final ChatProvider chatProvider;
+  final User currentUser;
 
-  const ChatScreen({required this.chatProvider});
+  const ChatScreen({
+    super.key,
+    required this.chatProvider,
+    required this.currentUser,
+  });
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
@@ -14,6 +22,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -46,41 +55,65 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
-    if (message.isEmpty) return;
+    if (message.isEmpty || _isSending) return;
 
     widget.chatProvider.addMessage(message, true);
-    
-    Future.delayed(Duration(seconds: 1), () {
-      widget.chatProvider.addMessage(
-        "I received your message: '$message'. How can I assist you further?",
-        false,
-      );
+    _messageController.clear();
+
+    setState(() {
+      _isSending = true;
     });
 
-    _messageController.clear();
+    try {
+      final url = Uri.parse('http://127.0.0.1:8000/chats/ai'); 
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'sender_id': widget.currentUser.id,
+          'receiver_id': 1, // Use 1 for bot user
+          'message': message,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final botReply = data['message'] ?? "Sorry, I couldn't understand that.";
+
+        widget.chatProvider.addMessage(botReply, false);
+      } else {
+        print('Error status code: ${response.statusCode}');
+        print('Error response: ${response.body}');
+        final errorMsg = "Error ${response.statusCode}: Could not reach chatbot. ${response.body}";
+        widget.chatProvider.addMessage(errorMsg, false);
+      }
+    } catch (e) {
+      print('Error: $e');
+      widget.chatProvider
+          .addMessage("Error: Could not connect to server. Details: $e", false);
+    } finally {
+      setState(() {
+        _isSending = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final currentSession = widget.chatProvider.currentSession;
-    
+
     return Container(
       color: Color(0xFFFFFFFF),
       child: Column(
         children: [
+          // Header
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Color(0xFF99272D),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 2,
-                  offset: Offset(0, 1),
-                ),
-              ],
             ),
             child: Row(
               children: [
@@ -111,42 +144,12 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
           ),
+
+          // Messages list
           Expanded(
             child: currentSession == null || currentSession.messages.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Color(0xFF36454F).withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '💬',
-                            style: TextStyle(fontSize: 32),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Start a new conversation',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Color(0xFF36454F),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Type a message to begin chatting',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF36454F).withOpacity(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: Text('Start a new conversation'),
                   )
                 : ListView.builder(
                     controller: _scrollController,
@@ -158,11 +161,15 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                   ),
           ),
+
+          // Input
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Color(0xFFFFFFFF),
-              border: Border(top: BorderSide(color: Color(0xFF36454F).withOpacity(0.2))),
+              border: Border(
+                top: BorderSide(color: Color(0xFF36454F).withOpacity(0.2)),
+              ),
             ),
             child: Row(
               children: [
@@ -173,34 +180,19 @@ class _ChatScreenState extends State<ChatScreen> {
                       hintText: 'Type your message...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Color(0xFF36454F).withOpacity(0.3)),
+                        borderSide: BorderSide(
+                            color: Color(0xFF36454F).withOpacity(0.3)),
                       ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      filled: true,
-                      fillColor: Color(0xFFFFFFFF),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Color(0xFF99272D),
-                    shape: BoxShape.circle,
-                  ),
-                  child: TextButton(
+                CircleAvatar(
+                  backgroundColor: Color(0xFF99272D),
+                  child: IconButton(
+                    icon: Icon(Icons.send, color: Colors.white),
                     onPressed: _sendMessage,
-                    child: Text(
-                      'SEND',
-                      style: TextStyle(
-                        color: Color(0xFFFFFFFF),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -215,7 +207,7 @@ class _ChatScreenState extends State<ChatScreen> {
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
 
-  const ChatBubble({required this.message});
+  const ChatBubble({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -224,91 +216,31 @@ class ChatBubble extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!message.isUser) ...[
-            Container(
-              decoration: BoxDecoration(
-                color: Color(0xFF99272D),
-                shape: BoxShape.circle,
-              ),
-              child: CircleAvatar(
-                backgroundColor: Colors.transparent,
-                child: Text(
-                  'BOT',
-                  style: TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                radius: 16,
-              ),
+          if (!message.isUser)
+            CircleAvatar(
+              backgroundColor: Color(0xFF99272D),
+              child: Text('BOT', style: TextStyle(color: Colors.white, fontSize: 10)),
             ),
-            SizedBox(width: 8),
-          ],
+          if (!message.isUser) SizedBox(width: 8),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final maxBubbleWidth = constraints.maxWidth * 0.85;
-                return Column(
-                  crossAxisAlignment: message.isUser
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      constraints: BoxConstraints(
-                        maxWidth: maxBubbleWidth.clamp(200.0, 600.0),
-                        minWidth: 120,
-                      ),
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: message.isUser
-                            ? Color(0xFF99272D)
-                            : Color(0xFF36454F),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        message.content,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFFFFFFFF),
-                        ),
-                        softWrap: true,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF36454F).withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                );
-              },
+            child: Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: message.isUser ? Color(0xFF99272D) : Color(0xFF36454F),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                message.content,
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
             ),
           ),
-          if (message.isUser) ...[
-            SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Color(0xFF99272D),
-                shape: BoxShape.circle,
-              ),
-              child: CircleAvatar(
-                backgroundColor: Colors.transparent,
-                child: Text(
-                  'YOU',
-                  style: TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                radius: 16,
-              ),
+          if (message.isUser) SizedBox(width: 8),
+          if (message.isUser)
+            CircleAvatar(
+              backgroundColor: Color(0xFF99272D),
+              child: Text('YOU', style: TextStyle(color: Colors.white, fontSize: 10)),
             ),
-          ],
         ],
       ),
     );

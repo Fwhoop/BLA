@@ -2,6 +2,14 @@ from fastapi import Depends, FastAPI
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 from app.db import Base, engine
 from app.deps import get_current_user

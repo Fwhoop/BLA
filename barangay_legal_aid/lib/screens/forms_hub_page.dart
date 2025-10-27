@@ -5,6 +5,8 @@ import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
 class FormsHubPage extends StatefulWidget {
+  const FormsHubPage({super.key});
+
   @override
   _FormsHubPageState createState() => _FormsHubPageState();
 }

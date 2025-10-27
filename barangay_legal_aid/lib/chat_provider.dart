@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'chat_model.dart';
+import '../models/user_model.dart';
 
 class ChatProvider with ChangeNotifier {
   List<ChatSession> _chatSessions = [];
@@ -65,16 +68,14 @@ class ChatProvider with ChangeNotifier {
     );
 
     _currentSession!.messages.add(message);
-    
+
     if (_currentSession!.messages.length == 1 && isUser) {
-      _currentSession!.title = content.length > 30 ? '${content.substring(0, 30)}...' : content;
-      
+      _currentSession!.title =
+          content.length > 30 ? '${content.substring(0, 30)}...' : content;
       final index = _chatSessions.indexWhere((s) => s.id == _currentSession!.id);
-      if (index != -1) {
-        _chatSessions[index] = _currentSession!;
-      }
+      if (index != -1) _chatSessions[index] = _currentSession!;
     }
-    
+
     notifyListeners();
   }
 
@@ -84,5 +85,39 @@ class ChatProvider with ChangeNotifier {
       _currentSession = _chatSessions.isNotEmpty ? _chatSessions.first : null;
     }
     notifyListeners();
+  }
+
+  
+  Future<void> sendMessageToBot(String content, User currentUser) async {
+    if (_currentSession == null) createNewSession();
+
+    addMessage(content, true);
+
+    try {
+      final url = Uri.parse('http://127.0.0.1:8000/chats/ai');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'sender_id': currentUser.id,
+          'receiver_id': 1,
+          'message': content,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final aiMessage = data['message'] as String;
+
+        addMessage(aiMessage, false);
+      } else {
+        print('Error status code: ${response.statusCode}');
+        print('Error response: ${response.body}');
+        addMessage('Failed to get AI response', false);
+      }
+    } catch (e) {
+      print('Error: $e');
+      addMessage('Error connecting to AI: $e', false);
+    }
   }
 }

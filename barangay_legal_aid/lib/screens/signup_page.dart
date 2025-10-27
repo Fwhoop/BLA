@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 
 class SignupPage extends StatefulWidget {
+  const SignupPage({super.key});
+
   @override
   _SignupPageState createState() => _SignupPageState();
 }
@@ -371,7 +373,7 @@ class _SignupPageState extends State<SignupPage> {
 
   Widget _buildBarangayDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedBarangay,
+      initialValue: _selectedBarangay,
       decoration: InputDecoration(
         labelText: 'Select barangay',
         prefixIcon: Icon(Icons.location_on_outlined),

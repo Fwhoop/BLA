@@ -3,6 +3,8 @@ import 'package:barangay_legal_aid/screens/ui/feature_placeholder.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 
 class SuperAdminDashboard extends StatelessWidget {
+  const SuperAdminDashboard({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

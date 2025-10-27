@@ -4,7 +4,7 @@ class RequestForm extends StatefulWidget {
   final String userBarangay;
   final String? preselectedDocumentType;
 
-  const RequestForm({
+  const RequestForm({super.key, 
     required this.userBarangay,
     this.preselectedDocumentType,
   });
@@ -175,7 +175,7 @@ class _RequestFormState extends State<RequestForm> {
 
   Widget _buildDocumentTypeDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedDocumentType,
+      initialValue: _selectedDocumentType,
       decoration: InputDecoration(
         labelText: 'Document Type',
         prefixIcon: Icon(Icons.description_outlined),

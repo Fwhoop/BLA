@@ -3,6 +3,8 @@ import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
 class UserProfilePage extends StatefulWidget {
+  const UserProfilePage({super.key});
+
   @override
   _UserProfilePageState createState() => _UserProfilePageState();
 }
@@ -487,7 +489,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Widget _buildBarangayDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedBarangay,
+      initialValue: _selectedBarangay,
       decoration: InputDecoration(
         labelText: 'Barangay',
         prefixIcon: Icon(Icons.location_on_outlined),
