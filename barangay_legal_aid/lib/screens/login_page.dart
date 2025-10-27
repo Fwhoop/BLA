@@ -122,31 +122,54 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildLogo() {
-    return Column(
-      children: [
-        Icon(
-          Icons.gavel,
-          size: 80,
-          color: Color(0xFF99272D),
-        ),
-        SizedBox(height: 10),
-        Text(
-          'Barangay Legal Aid',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF36454F),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [Color(0xFF99272D), Color(0xFF36454F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-        Text(
-          'Welcome back! Please login to continue',
-          style: TextStyle(
-            fontSize: 16,
-            color: Color(0xFF36454F).withOpacity(0.7),
-          ),
-          textAlign: TextAlign.center,
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.gavel,
+                size: 60,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Barangay Legal Aid',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Welcome back! Please login to continue',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.9),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

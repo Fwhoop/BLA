@@ -1,5 +1,6 @@
 // main.dart - Update the home logic
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:barangay_legal_aid/screens/signup_page.dart';
 import 'package:barangay_legal_aid/screens/login_page.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
@@ -9,6 +10,8 @@ import 'chat_provider.dart';
 import 'chat_history.dart';
 import 'package:barangay_legal_aid/screens/admin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/superadmin_dashboard.dart';
+import 'package:barangay_legal_aid/screens/user_profile_page.dart';
+import 'package:barangay_legal_aid/screens/forms_hub_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -109,6 +112,8 @@ class MyApp extends StatelessWidget {
         '/home': (context) => HomeScreen(),
         '/admin': (context) => AdminDashboard(),
         '/superadmin': (context) => SuperAdminDashboard(),
+        '/profile': (context) => UserProfilePage(),
+        '/forms': (context) => FormsHubPage(),
       },
     );
   }
@@ -123,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ChatProvider _chatProvider = ChatProvider();
   final AuthService _authService = AuthService();
   User? _currentUser;
-  bool _showHistory = true;
+  bool _showHistory = false;
 
   @override
   void initState() {
@@ -163,6 +168,16 @@ class _HomeScreenState extends State<HomeScreen> {
           title: Text('Barangay Legal Aid Chatbot'),
           backgroundColor: Color(0xFF99272D),
           actions: [
+            IconButton(
+              icon: Icon(Icons.dashboard),
+              tooltip: 'Forms Hub',
+              onPressed: () => Navigator.pushNamed(context, '/forms'),
+            ),
+            IconButton(
+              icon: Icon(Icons.person),
+              tooltip: 'My Profile',
+              onPressed: () => Navigator.pushNamed(context, '/profile'),
+            ),
             TextButton(
               onPressed: _logout,
               child: Text(

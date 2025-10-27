@@ -24,8 +24,17 @@ class _SignupPageState extends State<SignupPage> {
   bool _obscureConfirmPassword = true;
 
   final List<String> _barangays = [
-    'Barangay 1', 'Barangay 2', 'Barangay 3', 'Barangay 4',
-    'Barangay 5', 'Barangay 6', 'Barangay 7', 'Barangay 8',
+    'Barangay Cabaluay',
+    'Barangay Cabatangan',
+    'Barangay Culianan',
+    'Barangay Mercedes',
+    'Barangay Pasonanca',
+    'Barangay San Jose Cawa-Cawa',
+    'Barangay San Jose Gusu',
+    'Barangay San Roque',
+    'Barangay Sta. Maria',
+    'Barangay Talabaan',
+    'Barangay Taluksangay',
   ];
 
   @override
@@ -161,30 +170,53 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildLogo() {
-    return Column(
-      children: [
-        Icon(
-          Icons.gavel,
-          size: 80,
-          color: Color(0xFF99272D),
-        ),
-        SizedBox(height: 10),
-        Text(
-          'Barangay Legal Aid',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF36454F),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [Color(0xFF99272D), Color(0xFF36454F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-        Text(
-          'Create your account',
-          style: TextStyle(
-            fontSize: 16,
-            color: Color(0xFF36454F).withOpacity(0.7),
-          ),
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.gavel,
+                size: 60,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Barangay Legal Aid',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Create your account',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.9),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

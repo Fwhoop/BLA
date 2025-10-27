@@ -7,6 +7,8 @@ class UserBase(BaseModel):
     username: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
     barangay_id: Optional[int] = None
     role: Optional[str] = "user"
 
@@ -19,6 +21,8 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
     barangay_id: Optional[int] = None
     role: Optional[str] = None
 
@@ -81,6 +85,28 @@ class ChatCreate(BaseModel):
 class ChatRead(ChatCreate):
     id: int
     created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+# REQUEST SCHEMAS
+class RequestBase(BaseModel):
+    document_type: str
+    purpose: str
+    barangay_id: int
+
+class RequestCreate(RequestBase):
+    pass
+
+class RequestUpdate(BaseModel):
+    status: Optional[str] = None
+
+class RequestRead(RequestBase):
+    id: int
+    requester_id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         orm_mode = True

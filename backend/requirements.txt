@@ -5,3 +5,5 @@ sqlalchemy
 pydantic
 pydantic-settings
 pymysql
+passlib[bcrypt]
+python-jose[cryptography]

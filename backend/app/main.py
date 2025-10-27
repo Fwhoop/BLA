@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db import Base, engine
 from app.deps import get_current_user
 from app.models import User
-from app.routers import auth, barangays, cases, chat, users
+from app.routers import auth, barangays, cases, chat, users, requests
 from app.schemas import UserRead
 
 app = FastAPI(title="Barangay Legal Aid API", version="0.1.0")
@@ -32,3 +32,4 @@ app.include_router(users.router)
 app.include_router(barangays.router)
 app.include_router(cases.router)
 app.include_router(chat.router)
+app.include_router(requests.router)
