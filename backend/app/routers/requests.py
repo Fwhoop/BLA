@@ -34,20 +34,26 @@ def get_requests(
     current_user: models.User = Depends(get_current_user)
 ):
     """Get all requests - filtered by role"""
-    if current_user.role == "superadmin":
-        return db.query(models.Request).all()
-    elif current_user.role == "admin":
-        # Admins only see requests from their barangay
-        if not current_user.barangay_id:
-            return []
-        return db.query(models.Request).filter(
-            models.Request.barangay_id == current_user.barangay_id
-        ).all()
-    else:
-        # Users only see their own requests
-        return db.query(models.Request).filter(
-            models.Request.requester_id == current_user.id
-        ).all()
+    try:
+        if current_user.role == "superadmin":
+            return db.query(models.Request).all()
+        elif current_user.role == "admin":
+            # Admins only see requests from their barangay
+            if not current_user.barangay_id:
+                return []
+            return db.query(models.Request).filter(
+                models.Request.barangay_id == current_user.barangay_id
+            ).all()
+        else:
+            # Users only see their own requests
+            return db.query(models.Request).filter(
+                models.Request.requester_id == current_user.id
+            ).all()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching requests: {str(e)}"
+        )
 
 @router.get("/{request_id}", response_model=schemas.RequestRead)
 def get_request(

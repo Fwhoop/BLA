@@ -74,7 +74,7 @@ class ChatHistorySidebar extends StatelessWidget {
                               MaterialPageRoute(
                                 builder: (context) => RequestForm(
                                   userBarangay: user.barangay,
-                                  preselectedDocumentType: null, // No preselection from chat history
+                                  preselectedDocumentType: null, 
                                 ),
                               ),
                             );

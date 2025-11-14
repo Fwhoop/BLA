@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
 import 'package:barangay_legal_aid/services/auth_service.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -11,6 +14,7 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
   final _authService = AuthService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -24,6 +28,7 @@ class _SignupPageState extends State<SignupPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  File? _idPhotoFile;
 
   final List<String> _barangays = [
     'Barangay Cabaluay',
@@ -51,6 +56,28 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
+  Future<void> _pickIdPhoto() async {
+    try {
+      final pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _idPhotoFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to pick ID photo: $e'),
+          backgroundColor: Color(0xFF99272D),
+        ),
+      );
+    }
+  }
+
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       if (_passwordController.text != _confirmPasswordController.text) {
@@ -73,6 +100,16 @@ class _SignupPageState extends State<SignupPage> {
         return;
       }
 
+      if (_idPhotoFile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please upload a valid ID photo'),
+            backgroundColor: Color(0xFF99272D),
+          ),
+        );
+        return;
+      }
+
       setState(() => _isLoading = true);
 
       try {
@@ -84,12 +121,13 @@ class _SignupPageState extends State<SignupPage> {
           phone: _phoneController.text,
           address: _addressController.text,
           barangay: _selectedBarangay!,
+          idPhotoPath: _idPhotoFile!.path,
         );
 
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Account created successfully! Please login.'),
+              content: Text('Application submitted! An admin will review your ID for approval.'),
               backgroundColor: Color(0xFF36454F),
               duration: Duration(seconds: 3),
             ),
@@ -155,6 +193,8 @@ class _SignupPageState extends State<SignupPage> {
                     _buildPhoneField(),
                     SizedBox(height: 16),
                     _buildAddressField(),
+                    SizedBox(height: 16),
+                    _buildIdPhotoUploader(),
                     SizedBox(height: 16),
                     _buildBarangayDropdown(),
                     SizedBox(height: 24),
@@ -368,6 +408,66 @@ class _SignupPageState extends State<SignupPage> {
         }
         return null;
       },
+    );
+  }
+
+  Widget _buildIdPhotoUploader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Valid ID Photo',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF36454F),
+          ),
+        ),
+        SizedBox(height: 8),
+        Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _idPhotoFile == null ? Color(0xFF99272D) : Color(0xFFCDD5DF),
+            ),
+            color: Colors.white,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_idPhotoFile != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    _idPhotoFile!,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    Icon(Icons.badge_outlined, size: 48, color: Color(0xFF99272D)),
+                    SizedBox(height: 8),
+                    Text(
+                      'Upload a clear photo of your valid ID.\nPNG or JPG formats are accepted.',
+                      style: TextStyle(color: Color(0xFF36454F)),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _isLoading ? null : _pickIdPhoto,
+                icon: Icon(Icons.upload_file),
+                label: Text(_idPhotoFile == null ? 'Upload ID Photo' : 'Replace ID Photo'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

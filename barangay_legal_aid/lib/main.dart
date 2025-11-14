@@ -39,6 +39,34 @@ class MyApp extends StatelessWidget {
           surface: Color(0xFFFFFFFF),
           error: Color(0xFFB3261E),
         ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Color(0xFFCDD5DF)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Color(0xFF99272D), width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Color(0xFFB3261E)),
+          ),
+          filled: true,
+          fillColor: Color(0xFFFFFFFF),
+          labelStyle: TextStyle(color: Color(0xFF36454F)),
+          contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color(0xFF99272D),
+            foregroundColor: Color(0xFFFFFFFF),
+            textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
       ),
       home: isLoggedIn ? HomeScreen() : LoginPage(),
       routes: {

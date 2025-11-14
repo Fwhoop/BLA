@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:barangay_legal_aid/screens/ui/feature_placeholder.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
+import 'package:barangay_legal_aid/screens/superadmin/barangays_screen.dart';
+import 'package:barangay_legal_aid/screens/superadmin/admins_screen.dart';
+import 'package:barangay_legal_aid/screens/superadmin/system_screen.dart';
+import 'package:barangay_legal_aid/screens/superadmin/backup_screen.dart';
+import 'package:barangay_legal_aid/screens/superadmin/analytics_screen.dart';
+import 'package:barangay_legal_aid/screens/superadmin/logs_screen.dart';
 
 class SuperAdminDashboard extends StatelessWidget {
   const SuperAdminDashboard({super.key});
@@ -49,60 +54,42 @@ class SuperAdminDashboard extends StatelessWidget {
                 'icon': '🏢',
                 'desc': 'Manage all barangays',
                 'color': Color(0xFF99272D),
-                'route': FeaturePlaceholder(
-                  title: 'Barangays',
-                  description: 'Manage all barangays',
-                ),
+                'route': BarangaysScreen(),
               },
               {
                 'title': 'Admins',
                 'icon': '👑',
                 'desc': 'Manage administrators',
                 'color': Color(0xFF36454F),
-                'route': FeaturePlaceholder(
-                  title: 'Admins',
-                  description: 'Manage administrators',
-                ),
+                'route': AdminsScreen(),
               },
               {
                 'title': 'System',
                 'icon': '⚙️',
                 'desc': 'System configuration',
                 'color': Color(0xFF99272D),
-                'route': FeaturePlaceholder(
-                  title: 'System Configuration',
-                  description: 'Configure system-wide settings',
-                ),
+                'route': SystemScreen(),
               },
               {
                 'title': 'Backup',
                 'icon': '💾',
                 'desc': 'Data management',
                 'color': Color(0xFF36454F),
-                'route': FeaturePlaceholder(
-                  title: 'Backup',
-                  description: 'Manage data backups',
-                ),
+                'route': BackupScreen(),
               },
               {
                 'title': 'Analytics',
                 'icon': '📈',
                 'desc': 'System-wide analytics',
                 'color': Color(0xFF99272D),
-                'route': FeaturePlaceholder(
-                  title: 'Analytics',
-                  description: 'View system-wide analytics',
-                ),
+                'route': AnalyticsScreen(),
               },
               {
                 'title': 'Logs',
                 'icon': '📋',
                 'desc': 'System logs',
                 'color': Color(0xFF36454F),
-                'route': FeaturePlaceholder(
-                  title: 'Logs',
-                  description: 'View system logs',
-                ),
+                'route': LogsScreen(),
               },
             ];
             final item = items[index];

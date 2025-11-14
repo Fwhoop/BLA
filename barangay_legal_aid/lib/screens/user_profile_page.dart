@@ -32,6 +32,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   User? _currentUser;
 
   final List<String> _barangays = [
+    'Barangay 1',
+    'Barangay 2',
     'Barangay Cabaluay',
     'Barangay Cabatangan',
     'Barangay Culianan',
@@ -43,6 +45,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     'Barangay Sta. Maria',
     'Barangay Talabaan',
     'Barangay Taluksangay',
+    'System',
   ];
 
   @override
@@ -65,18 +68,31 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    final user = await _authService.getCurrentUser();
-    final userData = await _authService.getUserData();
-    
-    setState(() {
-      _currentUser = user;
-      _firstNameController.text = userData['firstName'] ?? '';
-      _lastNameController.text = userData['lastName'] ?? '';
-      _emailController.text = userData['email'] ?? '';
-      _phoneController.text = userData['phone'] ?? '';
-      _addressController.text = userData['address'] ?? '';
-      _selectedBarangay = userData['barangay'] ?? '';
-    });
+    try {
+      final user = await _authService.getCurrentUser();
+      final userData = await _authService.getUserData();
+      
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _firstNameController.text = userData['firstName'] ?? '';
+          _lastNameController.text = userData['lastName'] ?? '';
+          _emailController.text = userData['email'] ?? '';
+          _phoneController.text = userData['phone'] ?? '';
+          _addressController.text = userData['address'] ?? '';
+          _selectedBarangay = userData['barangay'] ?? '';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading user data: $e'),
+            backgroundColor: Color(0xFF99272D),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _updateProfile() async {
@@ -186,6 +202,34 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUser == null && !_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('My Profile'),
+          backgroundColor: Color(0xFF99272D),
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Color(0xFF99272D)),
+              SizedBox(height: 16),
+              Text(
+                'Unable to load user data',
+                style: TextStyle(fontSize: 18, color: Color(0xFF36454F)),
+              ),
+              SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _loadUserData,
+                child: Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('My Profile'),
@@ -202,24 +246,26 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
       body: Container(
         color: Color(0xFFFFFFFF),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildProfileHeader(),
-                SizedBox(height: 24),
-                _buildProfileInfoCard(),
-                SizedBox(height: 20),
-                _buildPasswordCard(),
-                SizedBox(height: 20),
-                _buildActionButtons(),
-              ],
-            ),
-          ),
-        ),
+        child: _isLoading && _currentUser == null
+            ? Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildProfileHeader(),
+                      SizedBox(height: 24),
+                      _buildProfileInfoCard(),
+                      SizedBox(height: 20),
+                      _buildPasswordCard(),
+                      SizedBox(height: 20),
+                      _buildActionButtons(),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -233,7 +279,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
-            colors: [Color(0xFF99272D), Color(0xFF36454F)],
+            colors: [Color(0xFF99272D), Color(0xFFCC3A47)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -263,17 +309,19 @@ class _UserProfilePageState extends State<UserProfilePage> {
               _currentUser?.roleDisplay ?? 'User',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withOpacity(0.9),
               ),
             ),
-            SizedBox(height: 4),
-            Text(
-              _currentUser?.barangay ?? '',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.7),
+            if (_currentUser?.barangay != null && _currentUser!.barangay.isNotEmpty) ...[
+              SizedBox(height: 4),
+              Text(
+                _currentUser!.barangay,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.8),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -488,8 +536,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Widget _buildBarangayDropdown() {
+    // Ensure the selected barangay is in the list, or set to null if not found
+    String? validSelectedBarangay = _selectedBarangay;
+    if (_selectedBarangay != null && !_barangays.contains(_selectedBarangay)) {
+      validSelectedBarangay = null;
+    }
+
     return DropdownButtonFormField<String>(
-      initialValue: _selectedBarangay,
+      value: validSelectedBarangay,
       decoration: InputDecoration(
         labelText: 'Barangay',
         prefixIcon: Icon(Icons.location_on_outlined),

@@ -1,5 +1,10 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:barangay_legal_aid/models/user_model.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   final Map<String, Map<String, dynamic>> _demoUsers = {
@@ -49,6 +54,7 @@ class AuthService {
     required String phone,
     required String address,
     required String barangay,
+    required String idPhotoPath,
   }) async {
     await Future.delayed(Duration(seconds: 2));
 
@@ -68,8 +74,21 @@ class AuthService {
     await prefs.setString('role', UserRole.user.toString().split('.').last);
     await prefs.setBool('isLoggedIn', true);
     await prefs.setString('lastLogin', DateTime.now().toString());
+    await _storeIdPhoto(prefs, idPhotoPath);
+    await prefs.setBool('idPhotoApproved', false);
 
     return true;
+  }
+
+  Future<void> _storeIdPhoto(SharedPreferences prefs, String idPhotoPath) async {
+    final file = File(idPhotoPath);
+    if (!await file.exists()) {
+      throw Exception('ID photo file not found. Please try again.');
+    }
+    final bytes = await file.readAsBytes();
+    final base64Photo = base64Encode(bytes);
+    await prefs.setString('idPhotoBase64', base64Photo);
+    await prefs.setString('idPhotoFilename', p.basename(idPhotoPath));
   }
 
   Future<bool> _isEmailRegistered(SharedPreferences prefs, String email) async {
@@ -82,10 +101,87 @@ class AuthService {
     required String password,
     required bool rememberMe,
   }) async {
-    await Future.delayed(Duration(seconds: 1));
-
     final prefs = await SharedPreferences.getInstance();
     
+    try {
+      // backend login
+      final loginUrl = Uri.parse('http://127.0.0.1:8000/auth/login');
+      final loginResponse = await http.post(
+        loginUrl,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'username=${Uri.encodeComponent(email)}&password=${Uri.encodeComponent(password)}',
+      );
+
+      if (loginResponse.statusCode == 200) {
+        final tokenData = jsonDecode(loginResponse.body);
+        final accessToken = tokenData['access_token'] as String;
+        
+        await prefs.setString('access_token', accessToken);
+        
+        // Get user info
+        try {
+          final userUrl = Uri.parse('http://127.0.0.1:8000/auth/me');
+          final userResponse = await http.get(
+            userUrl,
+            headers: {
+              'Authorization': 'Bearer $accessToken',
+              'Content-Type': 'application/json',
+            },
+          );
+
+          if (userResponse.statusCode == 200) {
+            final userData = jsonDecode(userResponse.body);
+            final user = User(
+              id: userData['id'].toString(),
+              email: userData['email'] ?? email,
+              firstName: userData['first_name'] ?? '',
+              lastName: userData['last_name'] ?? '',
+              role: _getRoleFromString(userData['role'] ?? 'user'),
+              barangay: userData['barangay_id']?.toString() ?? 'Barangay 1',
+              createdAt: DateTime.now(),
+            );
+            
+            await _setLoginState(prefs, user, rememberMe);
+            return user;
+          }
+        } catch (e) {
+          print('Error fetching user info: $e');
+        }
+        
+        
+        final user = User(
+          id: email.hashCode.toString(),
+          email: email,
+          firstName: email.split('@')[0],
+          lastName: '',
+          role: UserRole.user,
+          barangay: 'Barangay 1',
+          createdAt: DateTime.now(),
+        );
+        
+        await _setLoginState(prefs, user, rememberMe);
+        return user;
+      } else {
+        final errorBody = loginResponse.body;
+        print('Backend login failed: ${loginResponse.statusCode} - $errorBody');
+        if (loginResponse.statusCode == 401) {
+          throw Exception('Invalid email or password. Please check your credentials or create an account in the backend.');
+        }
+        return _tryDemoLogin(email, password, rememberMe, prefs);
+      }
+    } catch (e) {
+      print('Backend login error: $e');
+      if (e.toString().contains('Failed host lookup') || 
+          e.toString().contains('Connection refused') ||
+          e.toString().contains('Network is unreachable')) {
+        print('Backend unavailable, using demo login');
+        return _tryDemoLogin(email, password, rememberMe, prefs);
+      }
+      rethrow;
+    }
+  }
+
+  Future<User?> _tryDemoLogin(String email, String password, bool rememberMe, SharedPreferences prefs) async {
     if (_demoUsers.containsKey(email) && _demoUsers[email]!['password'] == password) {
       final userData = _demoUsers[email]!;
       final user = User(
@@ -98,7 +194,9 @@ class AuthService {
         createdAt: DateTime.now(),
       );
       
+      await prefs.remove('access_token');
       await _setLoginState(prefs, user, rememberMe);
+      print(' Demo login - backend features will not be available');
       return user;
     }
 
@@ -116,7 +214,9 @@ class AuthService {
         createdAt: DateTime.now(),
       );
       
+      await prefs.remove('access_token');
       await _setLoginState(prefs, user, rememberMe);
+      print(' Stored user login - backend features will not be available');
       return user;
     }
 
@@ -129,6 +229,7 @@ class AuthService {
     await prefs.setString('lastLogin', DateTime.now().toString());
     await prefs.setString('currentUserEmail', user.email);
     await prefs.setString('currentUserRole', user.role.toString().split('.').last);
+    await prefs.setString('currentUserId', user.id);
   }
 
   Future<User?> getCurrentUser() async {
@@ -206,7 +307,9 @@ class AuthService {
       await prefs.remove('lastLogin');
       await prefs.remove('currentUserEmail');
       await prefs.remove('currentUserRole');
+      await prefs.remove('currentUserId');
     }
+    await prefs.remove('access_token');
   }
 
   Future<Map<String, String>> getUserData() async {

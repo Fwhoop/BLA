@@ -1,6 +1,5 @@
 import os
 
-# Try to import ML libraries, but don't fail if they're not installed
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM
     from sentence_transformers import SentenceTransformer
@@ -13,13 +12,11 @@ except ImportError as e:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "bla_chatbot_model")
 
-# Initialize variables
 sbert_model = None
 tokenizer = None
 model = None
 model_loaded = False
 
-# Try to load the model, but don't fail if it doesn't exist
 if ML_AVAILABLE:
     try:
         if os.path.exists(MODEL_DIR):
@@ -42,9 +39,7 @@ def generate_chat_response(user_input: str) -> str:
     logger = logging.getLogger(__name__)
     
     try:
-        # Check if ML is available and model is loaded
         if not ML_AVAILABLE or not model_loaded or model is None:
-            # Fallback response - simpler and safer
             logger.info(f"Model not loaded, using fallback for: {user_input}")
             return f"Thank you for your message. I'm the Barangay Legal Aid chatbot. Currently, I'm being set up with advanced AI capabilities. Please contact the barangay office directly for immediate assistance."
         

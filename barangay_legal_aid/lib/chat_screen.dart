@@ -74,7 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'sender_id': widget.currentUser.id,
-          'receiver_id': 1, // Use 1 for bot user
+          'receiver_id': 1, 
           'message': message,
         }),
       );
@@ -126,19 +126,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Text(
                     'BOT',
                     style: TextStyle(
-                      color: Color(0xFFFFFFFF),
+                      color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 SizedBox(width: 12),
-                Text(
-                  currentSession?.title ?? 'New Chat',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFFFFFF),
+                Expanded(
+                  child: Text(
+                    currentSession?.title ?? 'New Chat',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],

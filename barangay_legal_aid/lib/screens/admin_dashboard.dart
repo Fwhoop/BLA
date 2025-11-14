@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
-import 'package:barangay_legal_aid/screens/ui/feature_placeholder.dart';
+import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
+import 'package:barangay_legal_aid/screens/admin/cases_screen.dart';
+import 'package:barangay_legal_aid/screens/admin/chats_screen.dart';
+import 'package:barangay_legal_aid/screens/admin/reports_screen.dart';
+import 'package:barangay_legal_aid/screens/admin/settings_screen.dart';
+import 'package:barangay_legal_aid/screens/admin/requests_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -55,57 +60,42 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 'icon': '📝',
                 'desc': 'View document requests',
                 'color': Color(0xFF99272D),
-                'route': _RequestsListPage(),
+                'route': AdminRequestsScreen(),
               },
               {
                 'title': 'Users',
                 'icon': '👥',
                 'desc': 'Manage users',
                 'color': Color(0xFF36454F),
-                'route': FeaturePlaceholder(
-                  title: 'Users',
-                  description: 'Manage users',
-                ),
+                'route': AdminUsersScreen(),
               },
               {
                 'title': 'Cases',
                 'icon': '📋',
                 'desc': 'Track legal cases',
                 'color': Color(0xFF99272D),
-                'route': FeaturePlaceholder(
-                  title: 'Cases',
-                  description: 'Track and manage cases',
-                ),
+                'route': AdminCasesScreen(),
               },
               {
                 'title': 'Chats',
                 'icon': '💬',
                 'desc': 'Monitor conversations',
                 'color': Color(0xFF36454F),
-                'route': FeaturePlaceholder(
-                  title: 'Chats',
-                  description: 'Monitor conversations',
-                ),
+                'route': AdminChatsScreen(),
               },
               {
                 'title': 'Reports',
                 'icon': '📊',
                 'desc': 'View analytics',
                 'color': Color(0xFF99272D),
-                'route': FeaturePlaceholder(
-                  title: 'Reports',
-                  description: 'View analytics and reports',
-                ),
+                'route': AdminReportsScreen(),
               },
               {
                 'title': 'Settings',
                 'icon': '⚙️',
                 'desc': 'Barangay settings',
                 'color': Color(0xFF36454F),
-                'route': FeaturePlaceholder(
-                  title: 'Settings',
-                  description: 'Barangay settings',
-                ),
+                'route': AdminSettingsScreen(),
               },
             ];
             final item = items[index];
@@ -176,121 +166,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RequestsListPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Demo requests data
-    final requests = [
-      {
-        'id': 1,
-        'requester': 'Juan Dela Cruz',
-        'documentType': 'Barangay Clearance',
-        'purpose': 'For employment',
-        'status': 'pending',
-        'date': DateTime.now().subtract(Duration(days: 2)),
-      },
-      {
-        'id': 2,
-        'requester': 'Maria Santos',
-        'documentType': 'Certificate of Residency',
-        'purpose': 'For school enrollment',
-        'status': 'approved',
-        'date': DateTime.now().subtract(Duration(days: 5)),
-      },
-      {
-        'id': 3,
-        'requester': 'Carlos Ramirez',
-        'documentType': 'Certificate of Good Moral Character',
-        'purpose': 'For travel',
-        'status': 'pending',
-        'date': DateTime.now().subtract(Duration(days: 1)),
-      },
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Document Requests'),
-        backgroundColor: Color(0xFF99272D),
-      ),
-      body: Container(
-        color: Color(0xFFFFFFFF),
-        child: ListView.builder(
-          padding: EdgeInsets.all(16),
-          itemCount: requests.length,
-          itemBuilder: (context, index) {
-            final request = requests[index];
-            final status = request['status'] as String;
-            final statusColor = status == 'pending'
-                ? Colors.orange
-                : status == 'approved'
-                    ? Colors.green
-                    : Colors.red;
-
-            return Card(
-              elevation: 2,
-              margin: EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                contentPadding: EdgeInsets.all(16),
-                leading: CircleAvatar(
-                  backgroundColor: Color(0xFF99272D).withOpacity(0.1),
-                  child: Icon(
-                    Icons.description,
-                    color: Color(0xFF99272D),
-                  ),
-                ),
-                title: Text(
-                  request['requester'] as String,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 4),
-                    Text(
-                      request['documentType'] as String,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF36454F),
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      request['purpose'] as String,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF36454F).withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-                trailing: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor, width: 1),
-                  ),
-                  child: Text(
-                    status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
         ),
       ),
     );

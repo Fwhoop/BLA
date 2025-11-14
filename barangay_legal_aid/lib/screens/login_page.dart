@@ -76,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Forgot password feature coming soon!'),
-        backgroundColor: Color(0xFF36454F),
+        backgroundColor: Color(0xFF99272D),
       ),
     );
   }
@@ -86,6 +86,8 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Login to Legal Aid'),
+        backgroundColor: Color(0xFF99272D),
+        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: Center(
@@ -132,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
-            colors: [Color(0xFF99272D), Color(0xFF36454F)],
+            colors: [Color(0xFF99272D), Color(0xFFCC3A47)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -233,8 +235,9 @@ class _LoginPageState extends State<LoginPage> {
           onChanged: (value) {
             setState(() => _rememberMe = value ?? false);
           },
+          activeColor: Color(0xFF99272D),
         ),
-        Text('Remember me'),
+        Text('Remember me', style: TextStyle(color: Color(0xFF99272D))),
         Spacer(),
       ],
     );
@@ -262,12 +265,12 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: Color(0xFF36454F).withOpacity(0.3))),
+        Expanded(child: Divider(color: Color(0xFF99272D).withOpacity(0.3))),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Text('OR', style: TextStyle(color: Color(0xFF36454F))),
+          child: Text('OR', style: TextStyle(color: Color(0xFF99272D))),
         ),
-        Expanded(child: Divider(color: Color(0xFF36454F).withOpacity(0.3))),
+        Expanded(child: Divider(color: Color(0xFF99272D).withOpacity(0.3))),
       ],
     );
   }
@@ -276,7 +279,7 @@ class _LoginPageState extends State<LoginPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text("Don't have an account?", style: TextStyle(color: Color(0xFF36454F))),
+        Text("Don't have an account?", style: TextStyle(color: Color(0xFF99272D))),
         SizedBox(width: 5),
         TextButton(
           onPressed: _navigateToSignup,

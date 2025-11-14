@@ -57,7 +57,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Could not validate credentials. Please login again.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -65,9 +65,17 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {str(e)}. Please login again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User with email {email} not found. Please login again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
