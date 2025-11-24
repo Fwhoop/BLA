@@ -48,10 +48,8 @@ def chat_with_ai(chat: schemas.ChatCreate, db: Session = Depends(get_db)):
     try:
         logger.info(f"Received chat request: sender_id={chat.sender_id}, message={chat.message}")
         
-        # Don't query database - just generate response
         logger.info("Generating AI response...")
         
-        # Try to generate AI response, with fallback
         try:
             ai_response = generate_chat_response(chat.message)
             logger.info(f"Generated response: {ai_response[:50]}...")
@@ -59,7 +57,6 @@ def chat_with_ai(chat: schemas.ChatCreate, db: Session = Depends(get_db)):
             logger.error(f"Error generating AI response: {ai_error}")
             ai_response = f"Thank you for your message: '{chat.message}'. I'm the Barangay Legal Aid chatbot. Please contact the barangay office directly for assistance."
         
-        # Return response in JSON format that Flutter expects
         return {
             "message": ai_response,
             "sender_id": chat.sender_id,
@@ -67,7 +64,6 @@ def chat_with_ai(chat: schemas.ChatCreate, db: Session = Depends(get_db)):
         }
     except Exception as e:
         logger.error(f"Unexpected error in chat_with_ai: {str(e)}", exc_info=True)
-        # Return a simple fallback response instead of raising an error
         return {
             "message": "I apologize, but I encountered an error. Please try again or contact the barangay office directly.",
             "sender_id": chat.sender_id,

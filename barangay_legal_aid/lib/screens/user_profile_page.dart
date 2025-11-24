@@ -487,7 +487,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
-      readOnly: true, // Email cannot be changed
+      readOnly: true, 
       decoration: InputDecoration(
         labelText: 'Email address',
         prefixIcon: Icon(Icons.email_outlined),
@@ -536,7 +536,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Widget _buildBarangayDropdown() {
-    // Ensure the selected barangay is in the list, or set to null if not found
     String? validSelectedBarangay = _selectedBarangay;
     if (_selectedBarangay != null && !_barangays.contains(_selectedBarangay)) {
       validSelectedBarangay = null;
@@ -652,7 +651,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             child: OutlinedButton(
               onPressed: () {
                 setState(() => _isEditing = false);
-                _loadUserData(); // Reset to original values
+                _loadUserData(); 
               },
               child: Text('Cancel'),
             ),

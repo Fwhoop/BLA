@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from datetime import datetime
 from typing import Optional
 
@@ -28,8 +28,16 @@ class UserUpdate(BaseModel):
 
 class UserRead(UserBase):
     id: int
-    is_active: bool
+    is_active: bool = True
     created_at: datetime
+
+    @field_validator('is_active', mode='before')
+    @classmethod
+    def ensure_bool(cls, v):
+        """Ensure is_active is always a boolean"""
+        if v is None:
+            return True
+        return bool(v)
 
     class Config:
         from_attributes = True

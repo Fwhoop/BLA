@@ -11,7 +11,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from app.db import Base, engine
-from app.deps import get_current_user
+from app.routers.auth import get_current_user
 from app.models import User
 from app.routers import auth, barangays, cases, chat, users, requests
 from app.schemas import UserRead
@@ -32,6 +32,9 @@ Base.metadata.create_all(bind=engine)
 
 @app.get("/auth/me", response_model=UserRead)
 async def me(current: User = Depends(get_current_user)):
+    # Ensure is_active is a boolean, not None
+    if current.is_active is None:
+        current.is_active = True
     return current
 
 app.include_router(auth.router)

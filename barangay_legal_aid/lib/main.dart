@@ -68,7 +68,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: isLoggedIn ? HomeScreen() : LoginPage(),
+      initialRoute: isLoggedIn ? '/home' : '/login',
       routes: {
         '/login': (context) => LoginPage(),
         '/signup': (context) => SignupPage(),
@@ -104,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _loadCurrentUser() async {
     final user = await _authService.getCurrentUser();
+    print('HomeScreen - Loaded user: ${user?.email}, role: ${user?.role}, isSuperAdmin: ${user?.isSuperAdmin}');
     setState(() {
       _currentUser = user;
       _isLoading = false;
@@ -123,10 +124,21 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    
     if (_currentUser?.isSuperAdmin == true) {
-      return SuperAdminDashboard();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/superadmin');
+      });
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     } else if (_currentUser?.isAdmin == true) {
-      return AdminDashboard();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/admin');
+      });
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     return Scaffold(

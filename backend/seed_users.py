@@ -9,12 +9,22 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.db import SessionLocal
 from app.models import User, Barangay
 from passlib.context import CryptContext
-from datetime import datetime
+from datetime import datetime, timezone
 
+# Use the same password context as auth router
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash password using passlib (compatible with auth router)"""
+    try:
+        return pwd_context.hash(password)
+    except Exception as e:
+        # Fallback to bcrypt directly if passlib fails
+        import bcrypt
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
 
 def seed_users():
     db = SessionLocal()
@@ -39,31 +49,71 @@ def seed_users():
                 role="admin",
                 barangay_id=barangay.id,
                 is_active=True,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(admin)
             print(f"Created admin user: {admin_email}")
         else:
             print(f"Admin user already exists: {admin_email}")
         
-        superadmin_email = "superadmin@legalaid.com"
-        superadmin = db.query(User).filter(User.email == superadmin_email).first()
-        if not superadmin:
-            superadmin = User(
-                email=superadmin_email,
-                username="superadmin",
-                hashed_password=get_password_hash("superadmin123"),
-                first_name="Super",
-                last_name="Admin",
+        # Create the main superadmin account (only one allowed)
+        mysuperadmin_email = "mysuperadmin@legalaid.com"
+        mysuperadmin = db.query(User).filter(User.email == mysuperadmin_email).first()
+        if not mysuperadmin:
+            mysuperadmin = User(
+                email=mysuperadmin_email,
+                username="mysuperadmin",
+                hashed_password=get_password_hash("mysuper123"),
+                first_name="My",
+                last_name="SuperAdmin",
                 role="superadmin",
                 barangay_id=None,
                 is_active=True,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
-            db.add(superadmin)
-            print(f"Created superadmin user: {superadmin_email}")
+            db.add(mysuperadmin)
+            print(f"Created superadmin user: {mysuperadmin_email}")
         else:
-            print(f"Superadmin user already exists: {superadmin_email}")
+            print(f"Superadmin user already exists: {mysuperadmin_email}")
+        
+        # Create test accounts
+        testuser_email = "testuser@legalaid.com"
+        testuser = db.query(User).filter(User.email == testuser_email).first()
+        if not testuser:
+            testuser = User(
+                email=testuser_email,
+                username="testuser",
+                hashed_password=get_password_hash("testuser123"),
+                first_name="Test",
+                last_name="User",
+                role="user",
+                barangay_id=barangay.id,
+                is_active=True,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.add(testuser)
+            print(f"Created test user: {testuser_email}")
+        else:
+            print(f"Test user already exists: {testuser_email}")
+        
+        testadmin_email = "testadmin@legalaid.com"
+        testadmin = db.query(User).filter(User.email == testadmin_email).first()
+        if not testadmin:
+            testadmin = User(
+                email=testadmin_email,
+                username="testadmin",
+                hashed_password=get_password_hash("testadmin123"),
+                first_name="Test",
+                last_name="Admin",
+                role="admin",
+                barangay_id=barangay.id,
+                is_active=True,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.add(testadmin)
+            print(f"Created test admin: {testadmin_email}")
+        else:
+            print(f"Test admin already exists: {testadmin_email}")
         
         user_email = "user@legalaid.com"
         user = db.query(User).filter(User.email == user_email).first()
@@ -77,7 +127,7 @@ def seed_users():
                 role="user",
                 barangay_id=barangay.id,
                 is_active=True,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(user)
             print(f"Created regular user: {user_email}")
@@ -85,11 +135,13 @@ def seed_users():
             print(f"Regular user already exists: {user_email}")
         
         db.commit()
-        print("\n Users seeded successfully!")
-        print("\nLogin credentials:")
-        print("  Admin: admin@legalaid.com / admin123")
-        print("  Superadmin: superadmin@legalaid.com / superadmin123")
-        print("  User: user@legalaid.com / password123")
+        print("\n✅ Users seeded successfully!")
+        print("\n📋 Login credentials:")
+        print("  🔑 SuperAdmin: mysuperadmin@legalaid.com / mysuper123")
+        print("  👤 Admin: admin@legalaid.com / admin123")
+        print("  👤 Test Admin: testadmin@legalaid.com / testadmin123")
+        print("  👤 User: user@legalaid.com / password123")
+        print("  👤 Test User: testuser@legalaid.com / testuser123")
         
     except Exception as e:
         db.rollback()

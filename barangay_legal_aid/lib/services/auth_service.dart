@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -26,15 +27,6 @@ class AuthService {
       'phone': '09123456788',
       'address': '456 Admin Avenue'
     },
-    'superadmin@legalaid.com': {
-      'password': 'super123',
-      'firstName': 'Pedro',
-      'lastName': 'Reyes',
-      'role': UserRole.superadmin,
-      'barangay': 'System',
-      'phone': '09123456777',
-      'address': '789 System Road'
-    },
     'test@legalaid.com': {
       'password': 'test123',
       'firstName': 'Test',
@@ -43,6 +35,35 @@ class AuthService {
       'barangay': 'Barangay 2',
       'phone': '09123456766',
       'address': '321 Test Street'
+    },
+    
+    'testuser@legalaid.com': {
+      'password': 'testuser123',
+      'firstName': 'Test',
+      'lastName': 'User',
+      'role': UserRole.user,
+      'barangay': 'Barangay Cabaluay',
+      'phone': '09123456765',
+      'address': '123 Test User Street'
+    },
+    'testadmin@legalaid.com': {
+      'password': 'testadmin123',
+      'firstName': 'Test',
+      'lastName': 'Admin',
+      'role': UserRole.admin,
+      'barangay': 'Barangay Cabatangan',
+      'phone': '09123456764',
+      'address': '456 Test Admin Avenue'
+    },
+    
+    'mysuperadmin@legalaid.com': {
+      'password': 'mysuper123',
+      'firstName': 'My',
+      'lastName': 'SuperAdmin',
+      'role': UserRole.superadmin,
+      'barangay': 'System',
+      'phone': '09123456762',
+      'address': '999 SuperAdmin Headquarters'
     },
   };
 
@@ -104,13 +125,13 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     
     try {
-      // backend login
+      // Backend login
       final loginUrl = Uri.parse('http://127.0.0.1:8000/auth/login');
       final loginResponse = await http.post(
         loginUrl,
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: 'username=${Uri.encodeComponent(email)}&password=${Uri.encodeComponent(password)}',
-      );
+      ).timeout(Duration(seconds: 10));
 
       if (loginResponse.statusCode == 200) {
         final tokenData = jsonDecode(loginResponse.body);
@@ -119,108 +140,56 @@ class AuthService {
         await prefs.setString('access_token', accessToken);
         
         // Get user info
-        try {
-          final userUrl = Uri.parse('http://127.0.0.1:8000/auth/me');
-          final userResponse = await http.get(
-            userUrl,
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-              'Content-Type': 'application/json',
-            },
-          );
+        final userUrl = Uri.parse('http://127.0.0.1:8000/auth/me');
+        final userResponse = await http.get(
+          userUrl,
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(Duration(seconds: 10));
 
-          if (userResponse.statusCode == 200) {
-            final userData = jsonDecode(userResponse.body);
-            final user = User(
-              id: userData['id'].toString(),
-              email: userData['email'] ?? email,
-              firstName: userData['first_name'] ?? '',
-              lastName: userData['last_name'] ?? '',
-              role: _getRoleFromString(userData['role'] ?? 'user'),
-              barangay: userData['barangay_id']?.toString() ?? 'Barangay 1',
-              createdAt: DateTime.now(),
-            );
-            
-            await _setLoginState(prefs, user, rememberMe);
-            return user;
-          }
-        } catch (e) {
-          print('Error fetching user info: $e');
+        if (userResponse.statusCode == 200) {
+          final userData = jsonDecode(userResponse.body);
+          final roleString = userData['role'] ?? 'user';
+          print('Backend returned role: $roleString');
+          final user = User(
+            id: userData['id'].toString(),
+            email: userData['email'] ?? email,
+            firstName: userData['first_name'] ?? '',
+            lastName: userData['last_name'] ?? '',
+            role: _getRoleFromString(roleString),
+            barangay: userData['barangay_id']?.toString() ?? 'System',
+            createdAt: DateTime.now(),
+          );
+          print('Parsed role: ${user.role}, isSuperAdmin: ${user.isSuperAdmin}');
+          
+          await _setLoginState(prefs, user, rememberMe);
+          return user;
+        } else {
+          throw Exception('Failed to fetch user information: ${userResponse.statusCode}');
         }
-        
-        
-        final user = User(
-          id: email.hashCode.toString(),
-          email: email,
-          firstName: email.split('@')[0],
-          lastName: '',
-          role: UserRole.user,
-          barangay: 'Barangay 1',
-          createdAt: DateTime.now(),
-        );
-        
-        await _setLoginState(prefs, user, rememberMe);
-        return user;
       } else {
         final errorBody = loginResponse.body;
-        print('Backend login failed: ${loginResponse.statusCode} - $errorBody');
-        if (loginResponse.statusCode == 401) {
-          throw Exception('Invalid email or password. Please check your credentials or create an account in the backend.');
+        try {
+          final errorData = jsonDecode(errorBody);
+          throw Exception(errorData['detail'] ?? 'Login failed: ${loginResponse.statusCode}');
+        } catch (e) {
+          throw Exception('Login failed: ${loginResponse.statusCode} - $errorBody');
         }
-        return _tryDemoLogin(email, password, rememberMe, prefs);
       }
+    } on http.ClientException {
+      throw Exception('Cannot connect to server. Please make sure the backend is running on http://127.0.0.1:8000');
+    } on TimeoutException {
+      throw Exception('Connection timeout. Please check your network connection.');
+    } on FormatException {
+      throw Exception('Invalid server response. Please check the backend configuration.');
     } catch (e) {
-      print('Backend login error: $e');
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('Network is unreachable')) {
-        print('Backend unavailable, using demo login');
-        return _tryDemoLogin(email, password, rememberMe, prefs);
+      if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
+        throw Exception('Invalid email or password. Please check your credentials.');
       }
       rethrow;
     }
-  }
-
-  Future<User?> _tryDemoLogin(String email, String password, bool rememberMe, SharedPreferences prefs) async {
-    if (_demoUsers.containsKey(email) && _demoUsers[email]!['password'] == password) {
-      final userData = _demoUsers[email]!;
-      final user = User(
-        id: email.hashCode.toString(),
-        email: email,
-        firstName: userData['firstName'] as String,
-        lastName: userData['lastName'] as String,
-        role: userData['role'] as UserRole,
-        barangay: userData['barangay'] as String,
-        createdAt: DateTime.now(),
-      );
-      
-      await prefs.remove('access_token');
-      await _setLoginState(prefs, user, rememberMe);
-      print(' Demo login - backend features will not be available');
-      return user;
-    }
-
-    final storedEmail = prefs.getString('email');
-    final storedPassword = prefs.getString('password');
-    
-    if (storedEmail == email && storedPassword == password) {
-      final user = User(
-        id: storedEmail!.hashCode.toString(),
-        email: storedEmail,
-        firstName: prefs.getString('firstName') ?? 'User',
-        lastName: prefs.getString('lastName') ?? '',
-        role: _getRoleFromString(prefs.getString('role') ?? 'user'),
-        barangay: prefs.getString('barangay') ?? 'Barangay 1',
-        createdAt: DateTime.now(),
-      );
-      
-      await prefs.remove('access_token');
-      await _setLoginState(prefs, user, rememberMe);
-      print(' Stored user login - backend features will not be available');
-      return user;
-    }
-
-    return null;
   }
 
   Future<void> _setLoginState(SharedPreferences prefs, User user, bool rememberMe) async {
@@ -241,6 +210,45 @@ class AuthService {
     final email = prefs.getString('currentUserEmail') ?? prefs.getString('email');
     if (email == null) return null;
 
+    
+    final accessToken = prefs.getString('access_token');
+    if (accessToken != null && accessToken.isNotEmpty) {
+      try {
+        final userUrl = Uri.parse('http://127.0.0.1:8000/auth/me');
+        final userResponse = await http.get(
+          userUrl,
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(Duration(seconds: 5));
+
+        if (userResponse.statusCode == 200) {
+          final userData = jsonDecode(userResponse.body);
+          final roleString = userData['role'] ?? 'user';
+          print('getCurrentUser - Backend returned role: $roleString');
+          final user = User(
+            id: userData['id'].toString(),
+            email: userData['email'] ?? email,
+            firstName: userData['first_name'] ?? '',
+            lastName: userData['last_name'] ?? '',
+            role: _getRoleFromString(roleString),
+            barangay: userData['barangay_id']?.toString() ?? 'System',
+            createdAt: DateTime.now(),
+          );
+          print('getCurrentUser - Parsed role: ${user.role}, isSuperAdmin: ${user.isSuperAdmin}');
+          
+          
+          await prefs.setString('currentUserRole', user.role.toString().split('.').last);
+          return user;
+        }
+      } catch (e) {
+        print('Error fetching user from backend: $e');
+        
+      }
+    }
+
+    
     if (_demoUsers.containsKey(email)) {
       final userData = _demoUsers[email]!;
       return User(

@@ -39,11 +39,15 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         if (user != null) {
+          print('Login successful - User role: ${user.role}, isSuperAdmin: ${user.isSuperAdmin}, isAdmin: ${user.isAdmin}');
           if (user.isSuperAdmin) {
+            print('Navigating to superadmin dashboard');
             Navigator.pushReplacementNamed(context, '/superadmin');
           } else if (user.isAdmin) {
+            print('Navigating to admin dashboard');
             Navigator.pushReplacementNamed(context, '/admin');
           } else {
+            print('Navigating to home (user)');
             Navigator.pushReplacementNamed(context, '/home');
           }
         } else {

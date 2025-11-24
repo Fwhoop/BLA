@@ -116,7 +116,6 @@ class _BackupScreenState extends State<BackupScreen> {
                                   trailing: IconButton(
                                     icon: Icon(Icons.download, color: Color(0xFF99272D)),
                                     onPressed: () {
-                                      // TODO: Implement backup download
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text('Download feature coming soon')),
                                       );

@@ -119,7 +119,7 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getUsers() async {
     try {
-      final headers = await _getHeaders(includeAuth: false); 
+      final headers = await _getHeaders(); 
       final response = await http.get(
         Uri.parse('$baseUrl/users/'),
         headers: headers,
@@ -127,6 +127,10 @@ class ApiService {
       
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+      } else if (response.statusCode == 401) {
+        throw Exception('Authentication required. Please login again.');
+      } else if (response.statusCode == 403) {
+        throw Exception('You do not have permission to access users.');
       } else {
         throw Exception('Failed to load users: ${response.statusCode} - ${response.body}');
       }
@@ -302,6 +306,43 @@ class ApiService {
   }
 
   // Requests API
+  Future<Map<String, dynamic>> createRequest({
+    required int barangayId,
+    required String documentType,
+    required String purpose,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/requests/'),
+        headers: headers,
+        body: jsonEncode({
+          'barangay_id': barangayId,
+          'document_type': documentType,
+          'purpose': purpose,
+        }),
+      );
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        final errorBody = response.body;
+        try {
+          final errorData = jsonDecode(errorBody);
+          throw Exception(errorData['detail'] ?? 'Failed to create request: ${response.statusCode}');
+        } catch (_) {
+          throw Exception('Failed to create request: ${response.statusCode} - $errorBody');
+        }
+      }
+    } catch (e) {
+      if (e.toString().contains('Failed host lookup') || 
+          e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to backend server. Please ensure the backend is running on http://127.0.0.1:8000');
+      }
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getRequests() async {
     try {
       final token = await _getToken();
@@ -388,7 +429,7 @@ class ApiService {
   // Cases API
   Future<List<Map<String, dynamic>>> getCases() async {
     try {
-      final headers = await _getHeaders(includeAuth: false); 
+      final headers = await _getHeaders(); 
       final response = await http.get(
         Uri.parse('$baseUrl/cases/'),
         headers: headers,
@@ -396,6 +437,10 @@ class ApiService {
       
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+      } else if (response.statusCode == 401) {
+        throw Exception('Authentication required. Please login again.');
+      } else if (response.statusCode == 403) {
+        throw Exception('You do not have permission to access cases.');
       } else {
         throw Exception('Failed to load cases: ${response.statusCode} - ${response.body}');
       }
@@ -493,7 +538,7 @@ class ApiService {
     }
   }
 
-  // Get regular users (non-admin)
+  
   Future<List<Map<String, dynamic>>> getRegularUsers() async {
     try {
       final users = await getUsers();
