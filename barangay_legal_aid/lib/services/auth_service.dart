@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthService {
   final Map<String, Map<String, dynamic>> _demoUsers = {
@@ -76,6 +78,7 @@ class AuthService {
     required String address,
     required String barangay,
     required String idPhotoPath,
+    Uint8List? idPhotoBytes,
   }) async {
     await Future.delayed(Duration(seconds: 2));
 
@@ -95,21 +98,35 @@ class AuthService {
     await prefs.setString('role', UserRole.user.toString().split('.').last);
     await prefs.setBool('isLoggedIn', true);
     await prefs.setString('lastLogin', DateTime.now().toString());
-    await _storeIdPhoto(prefs, idPhotoPath);
+    await _storeIdPhoto(prefs, idPhotoPath, idPhotoBytes);
     await prefs.setBool('idPhotoApproved', false);
 
     return true;
   }
 
-  Future<void> _storeIdPhoto(SharedPreferences prefs, String idPhotoPath) async {
-    final file = File(idPhotoPath);
-    if (!await file.exists()) {
-      throw Exception('ID photo file not found. Please try again.');
+  Future<void> _storeIdPhoto(SharedPreferences prefs, String idPhotoPath, Uint8List? idPhotoBytes) async {
+    Uint8List bytes;
+    String filename;
+    
+    if (kIsWeb && idPhotoBytes != null) {
+      // Use bytes directly for web
+      bytes = idPhotoBytes;
+      filename = 'id_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    } else if (!kIsWeb) {
+      // Read from file for mobile/desktop
+      final file = File(idPhotoPath);
+      if (!await file.exists()) {
+        throw Exception('ID photo file not found. Please try again.');
+      }
+      bytes = await file.readAsBytes();
+      filename = p.basename(idPhotoPath);
+    } else {
+      throw Exception('ID photo is required. Please upload a valid ID photo.');
     }
-    final bytes = await file.readAsBytes();
+    
     final base64Photo = base64Encode(bytes);
     await prefs.setString('idPhotoBase64', base64Photo);
-    await prefs.setString('idPhotoFilename', p.basename(idPhotoPath));
+    await prefs.setString('idPhotoFilename', filename);
   }
 
   Future<bool> _isEmailRegistered(SharedPreferences prefs, String email) async {

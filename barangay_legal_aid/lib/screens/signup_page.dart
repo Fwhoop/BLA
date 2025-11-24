@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/services/auth_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -29,6 +31,7 @@ class _SignupPageState extends State<SignupPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   File? _idPhotoFile;
+  Uint8List? _idPhotoBytes; // For web platform
 
   final List<String> _barangays = [
     'Barangay Cabaluay',
@@ -58,23 +61,124 @@ class _SignupPageState extends State<SignupPage> {
 
   Future<void> _pickIdPhoto() async {
     try {
-      final pickedFile = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        imageQuality: 85,
-      );
-      if (pickedFile != null) {
-        setState(() {
-          _idPhotoFile = File(pickedFile.path);
-        });
+      // On web, camera is not supported - use gallery directly
+      if (kIsWeb) {
+        final pickedFile = await _imagePicker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1600,
+          maxHeight: 1600,
+          imageQuality: 85,
+        );
+
+        if (pickedFile != null) {
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _idPhotoBytes = bytes;
+            _idPhotoFile = null;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('ID photo selected successfully'),
+                backgroundColor: Color(0xFF36454F),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+        return;
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unable to pick ID photo: $e'),
-          backgroundColor: Color(0xFF99272D),
+
+      // For mobile/desktop, show dialog to choose between camera and gallery
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Select Photo Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.camera_alt, color: Color(0xFF99272D)),
+                title: Text('Take Photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library, color: Color(0xFF99272D)),
+                title: Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
         ),
       );
+
+      if (source == null) return; // User cancelled
+
+      final actualSource = source;
+
+      final pickedFile = await _imagePicker.pickImage(
+        source: actualSource,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        if (kIsWeb) {
+          // For web, read as bytes directly (XFile.readAsBytes works on web)
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _idPhotoBytes = bytes;
+            // On web, we don't create a File object, just store the path string
+            _idPhotoFile = null; // Will be null on web, we use bytes instead
+          });
+        } else {
+          // For mobile/desktop, use File object
+          setState(() {
+            _idPhotoFile = File(pickedFile.path);
+          });
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('ID photo selected successfully'),
+              backgroundColor: Color(0xFF36454F),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      String errorMessage = 'Unable to pick ID photo';
+      if (e.toString().contains('camera')) {
+        errorMessage = 'Camera permission denied. Please enable camera access in settings.';
+      } else if (e.toString().contains('photo')) {
+        errorMessage = 'Photo permission denied. Please enable photo access in settings.';
+      } else {
+        errorMessage = 'Unable to pick ID photo: ${e.toString()}';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Color(0xFF99272D),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: $e'),
+            backgroundColor: Color(0xFF99272D),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -100,7 +204,7 @@ class _SignupPageState extends State<SignupPage> {
         return;
       }
 
-      if (_idPhotoFile == null) {
+      if (_idPhotoFile == null && _idPhotoBytes == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Please upload a valid ID photo'),
@@ -113,6 +217,11 @@ class _SignupPageState extends State<SignupPage> {
       setState(() => _isLoading = true);
 
       try {
+        // Prepare image path (for web, use a placeholder path since we use bytes)
+        final idPhotoPath = kIsWeb 
+            ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+            : (_idPhotoFile?.path ?? '');
+
         final success = await _authService.signUp(
           firstName: _firstNameController.text,
           lastName: _lastNameController.text,
@@ -121,7 +230,8 @@ class _SignupPageState extends State<SignupPage> {
           phone: _phoneController.text,
           address: _addressController.text,
           barangay: _selectedBarangay!,
-          idPhotoPath: _idPhotoFile!.path,
+          idPhotoPath: idPhotoPath,
+          idPhotoBytes: _idPhotoBytes,
         );
 
         if (success) {
@@ -429,22 +539,31 @@ class _SignupPageState extends State<SignupPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: _idPhotoFile == null ? Color(0xFF99272D) : Color(0xFFCDD5DF),
+              color: (_idPhotoFile == null && _idPhotoBytes == null) ? Color(0xFF99272D) : Color(0xFFCDD5DF),
             ),
             color: Colors.white,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_idPhotoFile != null)
+              if (_idPhotoFile != null || _idPhotoBytes != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    _idPhotoFile!,
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                  child: kIsWeb && _idPhotoBytes != null
+                      ? Image.memory(
+                          _idPhotoBytes!,
+                          height: 160,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : _idPhotoFile != null
+                          ? Image.file(
+                              _idPhotoFile!,
+                              height: 160,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            )
+                          : SizedBox.shrink(),
                 )
               else
                 Column(
@@ -459,10 +578,34 @@ class _SignupPageState extends State<SignupPage> {
                   ],
                 ),
               SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _isLoading ? null : _pickIdPhoto,
-                icon: Icon(Icons.upload_file),
-                label: Text(_idPhotoFile == null ? 'Upload ID Photo' : 'Replace ID Photo'),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _pickIdPhoto,
+                      icon: Icon(Icons.upload_file),
+                      label: Text(_idPhotoFile == null ? 'Upload ID Photo' : 'Replace Photo'),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  if (_idPhotoFile != null || _idPhotoBytes != null) ...[
+                    SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              setState(() {
+                                _idPhotoFile = null;
+                                _idPhotoBytes = null;
+                              });
+                            },
+                      icon: Icon(Icons.delete_outline, color: Color(0xFF99272D)),
+                      tooltip: 'Remove photo',
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
