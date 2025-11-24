@@ -5,10 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Reduce noise from multipart parser
+logging.getLogger('python_multipart').setLevel(logging.WARNING)
 
 from app.db import Base, engine
 from app.routers.auth import get_current_user

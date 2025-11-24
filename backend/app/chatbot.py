@@ -1,63 +1,111 @@
 import os
+import json
+from typing import Optional
+from difflib import SequenceMatcher
 
-try:
-    from transformers import AutoTokenizer, AutoModelForCausalLM
-    from sentence_transformers import SentenceTransformer
-    import torch
-    ML_AVAILABLE = True
-except ImportError as e:
-    print(f"ML libraries not available: {e}. Chatbot will use fallback responses.")
-    ML_AVAILABLE = False
-
+# Load JSON data once at startup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, "bla_chatbot_model")
+JSON_FILE = os.path.join(os.path.dirname(BASE_DIR), "barangay_law_flutter.json")
+faq_data = None
 
-sbert_model = None
-tokenizer = None
-model = None
-model_loaded = False
-
-if ML_AVAILABLE:
+def load_faq_data():
+    """Load FAQ data from JSON file."""
+    global faq_data
+    if faq_data is not None:
+        return faq_data
+    
     try:
-        if os.path.exists(MODEL_DIR):
-            sbert_model = SentenceTransformer(MODEL_DIR)
-            tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR, local_files_only=True)
-            model = AutoModelForCausalLM.from_pretrained(MODEL_DIR, local_files_only=True, trust_remote_code=True)
-            model_loaded = True
-            print(f"Chatbot model loaded successfully from {MODEL_DIR}")
+        if os.path.exists(JSON_FILE):
+            with open(JSON_FILE, 'r', encoding='utf-8') as f:
+                faq_data = json.load(f)
+            print(f"FAQ data loaded successfully from {JSON_FILE}")
+            print(f"Loaded {len(faq_data.get('categories', []))} categories")
+            return faq_data
         else:
-            print(f"Warning: Model directory not found at {MODEL_DIR}. Chatbot will use fallback responses.")
+            print(f"Warning: JSON file not found at {JSON_FILE}")
+            return None
     except Exception as e:
-        print(f"Warning: Could not load chatbot model: {e}. Chatbot will use fallback responses.")
+        print(f"Error loading FAQ data: {e}")
+        return None
+
+def similarity_score(str1: str, str2: str) -> float:
+    """Calculate similarity between two strings."""
+    return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
+
+def find_best_match(user_input: str, threshold: float = 0.5) -> Optional[str]:
+    """
+    Search for the best matching question in the FAQ data.
+    Returns the answer if a match is found above the threshold.
+    """
+    data = load_faq_data()
+    if data is None:
+        return None
+    
+    user_input_lower = user_input.lower().strip()
+    best_match = None
+    best_score = 0.0
+    
+    # Search through all categories and questions
+    for category in data.get('categories', []):
+        for question_obj in category.get('questions', []):
+            question = question_obj.get('question', '')
+            answer = question_obj.get('answer', '')
+            
+            question_lower = question.lower().strip()
+            
+            # Check for exact match first
+            if question_lower == user_input_lower:
+                return answer
+            
+            # Calculate similarity score
+            score = similarity_score(user_input, question)
+            
+            # Also check if user input contains keywords from the question
+            question_words = set(question_lower.split())
+            input_words = set(user_input_lower.split())
+            common_words = question_words.intersection(input_words)
+            if len(common_words) > 0:
+                # Boost score if there are common words
+                word_score = len(common_words) / max(len(question_words), len(input_words))
+                score = max(score, word_score * 0.8)
+            
+            if score > best_score:
+                best_score = score
+                best_match = answer
+    
+    # Return best match if above threshold
+    if best_score >= threshold and best_match:
+        return best_match
+    
+    return None
 
 def generate_chat_response(user_input: str) -> str:
     """
-    Generates a human-readable response from the BLA chatbot model.
-    Falls back to a simple response if model is not loaded.
+    Generates a response by searching the FAQ JSON file.
+    Falls back to a default response if no match is found.
     """
     import logging
     logger = logging.getLogger(__name__)
     
     try:
-        if not ML_AVAILABLE or not model_loaded or model is None:
-            logger.info(f"Model not loaded, using fallback for: {user_input}")
-            return f"Thank you for your message. I'm the Barangay Legal Aid chatbot. Currently, I'm being set up with advanced AI capabilities. Please contact the barangay office directly for immediate assistance."
+        logger.info(f"Searching FAQ for: {user_input}")
         
-        logger.info(f"Generating response with model for: {user_input}")
-        inputs = tokenizer(user_input, return_tensors="pt")
-
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_length=150,          
-                num_beams=3,            
-                no_repeat_ngram_size=2,  
-                early_stopping=True
-            )
+        # Search for matching answer
+        answer = find_best_match(user_input, threshold=0.5)
         
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        logger.info(f"Generated response: {response[:100]}")
-        return response
+        if answer:
+            logger.info(f"Found matching answer in FAQ")
+            return answer
+        else:
+            logger.info(f"No matching answer found, using default response")
+            # Try a lower threshold for partial matches
+            answer = find_best_match(user_input, threshold=0.3)
+            if answer:
+                return answer
+            
+            # Default response if no match found
+            return "I'm here to help with Barangay Legal Aid questions. I couldn't find a specific answer to your question. Please try rephrasing your question, or contact the barangay office directly for assistance. You can also browse the categories to find relevant questions."
+    
     except Exception as e:
         logger.error(f"Error in generate_chat_response: {str(e)}", exc_info=True)
-        return f"I apologize, but I encountered an error while processing your request. Please contact the barangay office directly for assistance."
+        return "I apologize, but I encountered an error while processing your request. Please contact the barangay office directly for assistance."

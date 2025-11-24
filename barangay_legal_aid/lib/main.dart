@@ -3,9 +3,9 @@ import 'package:barangay_legal_aid/screens/signup_page.dart';
 import 'package:barangay_legal_aid/screens/login_page.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
-import 'chat_screen.dart';
 import 'chat_provider.dart';
 import 'chat_history.dart';
+import 'package:barangay_legal_aid/screens/categorized_questions_screen.dart';
 import 'package:barangay_legal_aid/screens/admin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/superadmin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
@@ -68,7 +68,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      initialRoute: isLoggedIn ? '/home' : '/login',
+      home: isLoggedIn ? HomeScreen() : LoginPage(),
       routes: {
         '/login': (context) => LoginPage(),
         '/signup': (context) => SignupPage(),
@@ -104,7 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _loadCurrentUser() async {
     final user = await _authService.getCurrentUser();
-    print('HomeScreen - Loaded user: ${user?.email}, role: ${user?.role}, isSuperAdmin: ${user?.isSuperAdmin}');
     setState(() {
       _currentUser = user;
       _isLoading = false;
@@ -124,21 +123,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    
     if (_currentUser?.isSuperAdmin == true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/superadmin');
-      });
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return SuperAdminDashboard();
     } else if (_currentUser?.isAdmin == true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/admin');
-      });
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return AdminDashboard();
     }
 
     return Scaffold(
@@ -193,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           Expanded(
-            child: ChatScreen(
+            child: CategorizedQuestionsScreen(
               chatProvider: _chatProvider,
               currentUser: _currentUser!,
             ),

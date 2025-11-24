@@ -37,7 +37,7 @@ def get_chat(chat_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
     return chat
 
-@router.post("/ai")
+@router.post("/ai", response_model=dict)
 def chat_with_ai(chat: schemas.ChatCreate, db: Session = Depends(get_db)):
     """
     Simple AI endpoint that returns the response directly without saving to database.

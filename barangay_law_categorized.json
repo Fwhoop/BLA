@@ -1,0 +1,2798 @@
+{
+    "Section 3: Prohibited Acts - operating videoke past quiet hours": [
+        {
+            "question": "What is the penalty for operating videoke past 10 PM?",
+            "answer": "₱500 fine for first offense, warning; repeat offense: ₱1,500."
+        }
+    ],
+    "Section 5: Enforcement": [
+        {
+            "question": "Who enforces noise violations?",
+            "answer": "Barangay tanods issue citation tickets; repeated cases handled by Lupong Tagapamayapa."
+        }
+    ],
+    "Curfew Hours": [
+        {
+            "question": "What is the curfew for minors on school nights?",
+            "answer": "10 PM to 5 AM."
+        }
+    ],
+    "Curfew enforcement": [
+        {
+            "question": "What happens if a minor violates curfew repeatedly?",
+            "answer": "Minor is returned to parents; community service or counseling may be recommended. Repeat negligence by parents may incur ₱1,000 fine."
+        }
+    ],
+    "User asks about illegal drugs": [
+        {
+            "question": "How do I report someone selling illegal drugs?",
+            "answer": "I'm here to assist with Barangay Laws only. This issue is beyond barangay jurisdiction. Please report immediately to PNP Hotline: 117 / 911 or PDEA: 831-7203."
+        }
+    ],
+    "User reports emergency violence": [
+        {
+            "question": "Someone is being assaulted in my neighborhood!",
+            "answer": "This is an emergency. Please call 911 immediately. The barangay can assist after authorities arrive."
+        }
+    ],
+    "User reports a car accident": [
+        {
+            "question": "Someone got into a car accident in my street, what should I do?",
+            "answer": "I'm here to assist with Barangay Laws only. This incident is beyond barangay jurisdiction. Please contact PNP Traffic Hotline: 117 / 911 or your local hospital immediately."
+        }
+    ],
+    "User reports a fire": [
+        {
+            "question": "There's a fire in my neighbor's house, what should I do?",
+            "answer": "This is an emergency. Call 911 or the Bureau of Fire Protection at 117 immediately. The barangay can assist after authorities arrive."
+        }
+    ],
+    "User reports a medical emergency": [
+        {
+            "question": "My neighbor fainted and is not breathing, what should I do?",
+            "answer": "This is an emergency. Call 911 immediately for medical assistance. Barangay officers can assist with coordination but cannot provide medical treatment."
+        }
+    ],
+    "Boundary conflict between neighbors over a shared fence": [
+        {
+            "question": "My neighbor built a fence that extends into my yard. What can the barangay do?",
+            "answer": "The barangay can mediate between both parties to reach a settlement or compensation agreement. If an agreement cannot be reached, the case may be referred to Lupong Tagapamayapa or the police. PNP Hotline: 117 / 911."
+        }
+    ],
+    "Verbal quarrel between siblings escalating at home": [
+        {
+            "question": "My brother and I keep arguing and it sometimes gets physical. What can the barangay do?",
+            "answer": "The barangay can provide mediation and counseling. If the violence becomes serious, the case will be referred to the police. PNP Hotline: 117 / 911."
+        }
+    ],
+    "Minor scuffle between neighbors in the street": [
+        {
+            "question": "Two neighbors got into a fight over a parking spot. What will the barangay do?",
+            "answer": "The barangay intervenes immediately to separate parties and mediate a peaceful resolution. Serious criminal cases beyond petty assault are referred to the police. PNP Hotline: 117 / 911."
+        }
+    ],
+    "Neighbor borrowed money and hasn't paid back": [
+        {
+            "question": "A neighbor borrowed ₱5,000 from me and hasn't returned it. Can the barangay help?",
+            "answer": "The barangay can attempt to mediate a repayment agreement between both parties. If unresolved, parties may seek legal action. For enforcement, contact PNP Hotline: 117 / 911."
+        }
+    ],
+    "Neighbor's dog constantly barks and disturbs the area": [
+        {
+            "question": "My neighbor's dog keeps barking loudly at night. What can the barangay do?",
+            "answer": "The barangay can issue a warning or mediation. Minor property damage or nuisance may result in fines according to barangay ordinances. Serious repeated nuisance may be referred to PNP. Hotline: 117 / 911."
+        }
+    ],
+    "A child took a neighbor's bicycle without permission": [
+        {
+            "question": "My neighbor's child took my bicycle. Can the barangay intervene?",
+            "answer": "The barangay can mediate between the parties to return the property. Serious theft cases are referred to the police. PNP Hotline: 117 / 911."
+        }
+    ],
+    "Neighbors dispute over parking spaces in front of houses": [
+        {
+            "question": "There's a dispute over parking spots between neighbors. How does the barangay help?",
+            "answer": "The barangay mediates the dispute and helps facilitate a compromise. If unresolved, parties may contact the police. PNP Hotline: 117 / 911."
+        }
+    ],
+    "Violation of barangay curfew by teenagers": [
+        {
+            "question": "Teens keep staying out past curfew. What action can the barangay take?",
+            "answer": "The barangay can issue warnings, mediate with parents, and apply minor penalties according to barangay ordinances. Serious or repeated cases may be escalated to the police. PNP Hotline: 117 / 911."
+        }
+    ],
+    "Barangay Officials - Roles and Responsibilities": [
+        {
+            "question": "What are the duties of the Barangay Captain?",
+            "answer": "The Barangay Captain serves as the chief executive officer. Duties include: enforcing laws/ordinances, presiding over meetings, managing day-to-day operations, preparing budgets, and representing the barangay in city/municipal councils."
+        },
+        {
+            "question": "What do Barangay Kagawads do?",
+            "answer": "Barangay Kagawads are council members who: (1) enact ordinances, (2) participate in committee work (peace, education, health, etc.), (3) approve budgets, and (4) assist the Barangay Captain in governance."
+        },
+        {
+            "question": "What is the role of the Barangay Secretary?",
+            "answer": "The Barangay Secretary handles official documentation including: keeping records of meetings, maintaining barangay files, preparing certificates (indigency, residency), and posting public notices."
+        },
+        {
+            "question": "What does the Barangay Treasurer do?",
+            "answer": "The Barangay Treasurer manages finances by: collecting fees/taxes, safeguarding barangay funds, preparing financial reports, disbursing payments, and maintaining accounting records."
+        },
+        {
+            "question": "What are the duties of Barangay Tanods?",
+            "answer": "Barangay Tanods maintain peace and order by: conducting patrols, enforcing ordinances, responding to disturbances, assisting in emergencies, and serving as force multipliers for the PNP."
+        },
+        {
+            "question": "What is the Lupong Tagapamayapa?",
+            "answer": "The Lupong Tagapamayapa is the peacekeeping body composed of 10-20 members. They mediate community disputes (katarungang pambarangay) for minor civil and criminal cases before these can be filed in court."
+        },
+        {
+            "question": "Who handles health concerns in the barangay?",
+            "answer": "The Health Kagawad and Barangay Health Workers (BHWs) handle health concerns. They conduct health education, assist in immunization programs, report health issues, and coordinate with rural health units."
+        },
+        {
+            "question": "Who should I approach for a barangay clearance?",
+            "answer": "Barangay clearances are issued by the Barangay Secretary's office. You need to provide valid ID and proof of residency. The Barangay Captain signs the clearance upon verification."
+        },
+        {
+            "question": "Who can help with neighbor disputes?",
+            "answer": "For neighbor disputes, you can approach: (1) Barangay Tanods for immediate intervention, (2) Lupong Tagapamayapa for formal mediation, or (3) the Barangay Captain for serious matters requiring authority."
+        },
+        {
+            "question": "What is the SK Chairman's role?",
+            "answer": "The Sangguniang Kabataan (SK) Chairman represents youth interests, implements youth programs, manages SK funds, and sits as an ex-officio member of the Barangay Council."
+        }
+    ],
+    "Barangay Documentation Services": [
+        {
+            "question": "How do I get a Barangay Clearance?",
+            "answer": "Visit the barangay hall with: (1) Valid ID, (2) Proof of residency. Processing typically takes 15-30 minutes. Fees are approximately ₱50-₱100 but may vary by barangay."
+        },
+        {
+            "question": "What is needed for a Barangay Indigency Certificate?",
+            "answer": "Required: (1) Valid ID, (2) Proof of low income (if applicable), (3) Purpose of request. This certifies you are a resident in need of assistance for scholarships, medical help, etc. Processing fees may apply."
+        },
+        {
+            "question": "How to get a Barangay Residency Certificate?",
+            "answer": "Bring: (1) Any government-issued ID, (2) Proof you live in the barangay. Used for school enrollment, employment, etc. Fees are approximately ₱50-₱100 but confirm with your local barangay."
+        }
+    ],
+    "Barangay Community Services": [
+        {
+            "question": "Does the barangay offer medical missions?",
+            "answer": "Some barangays coordinate with the Rural Health Unit for medical missions including basic check-ups and vaccinations. However, for professional medical services, always go to the nearest hospital or clinic. Check barangay announcements for availability."
+        },
+        {
+            "question": "How can I join barangay clean-up drives?",
+            "answer": "Approach the barangay secretary or your purok leader. Clean-up drives are usually scheduled monthly. Volunteers may receive certificates of participation. Schedules vary by barangay."
+        },
+        {
+            "question": "Does the barangay have a livelihood program?",
+            "answer": "Not all barangays have livelihood programs. Some may offer training through DILG or DSWD partnerships. Please inquire at your barangay hall to confirm availability and requirements in your area."
+        },
+        {
+            "question": "Mayroon bang medical missions ang barangay?",
+            "answer": "Ang ilang barangay ay nagu-ugnayan sa Rural Health Unit para sa mga medical mission na may basic check-up at bakuna. Subalit, para sa propesyonal na serbisyong medikal, laging pumunta sa pinakamalapit na ospital o clinic. Tignan ang mga anunsyo ng barangay para sa availability."
+        },
+        {
+            "question": "Does the barangay offer free medical check-ups?",
+            "answer": "Some barangays coordinate with the Rural Health Unit for medical missions including basic check-ups and vaccinations. However, for professional medical services, always go to the nearest hospital or clinic. Check barangay announcements for availability."
+        }
+    ],
+    "Barangay Fees and Payments": [
+        {
+            "question": "How much is the barangay community tax?",
+            "answer": "Community Tax Certificate (cedula) has a base fee of ₱5.00 + additional tax based on income/property. Exact amounts vary by barangay. Issued annually from January to February."
+        },
+        {
+            "question": "Are there fees for barangay permits?",
+            "answer": "Yes, but fees vary by barangay. Typical ranges: Business permits (₱300-₱2,000), Construction permits (₱500-₱1,500), Special permits for events (₱200-₱500). Confirm exact fees with your barangay treasurer."
+        }
+    ],
+    "Barangay Public Safety": [
+        {
+            "question": "How do I report stray animals?",
+            "answer": "Report to barangay tanods. They will coordinate with the city/municipal veterinarian for proper handling. Provide location and description of the animal. Response times may vary."
+        },
+        {
+            "question": "What should I do about blocked drainage?",
+            "answer": "Report to the barangay engineering or maintenance office. Provide specific location. Barangay workers will schedule clearing operations. For severe flooding, call emergency services."
+        },
+        {
+            "question": "How to report streetlight problems?",
+            "answer": "Inform the barangay hall with the exact location and pole number if available. Barangay will coordinate with the electric cooperative for repairs. Response times depend on the utility company."
+        },
+        {
+            "question": "Paano ko irereport ang mga stray animals na gumagala sa amin?",
+            "answer": "I-report ito sa mga Barangay Tanod. Sila ang makikipag-ugnayan sa city/municipal veterinarian para sa maayos na pag-aasikaso. Ibigay ang lokasyon at deskripsyon ng hayop. Maaaring mag-iba ang oras ng pagtugon."
+        },
+        {
+            "question": "There are aggressive stray dogs in our street. Who should I call?",
+            "answer": "Report to barangay tanods. They will coordinate with the city/municipal veterinarian for proper handling. Provide location and description of the animal. Response times may vary."
+        }
+    ],
+    "Barangay Meetings and Processes": [
+        {
+            "question": "When are barangay assembly meetings?",
+            "answer": "Barangay assemblies are typically held quarterly, but schedules vary. Specific dates are posted in barangay halls and public areas. Confirm with your barangay secretary."
+        },
+        {
+            "question": "How to schedule a meeting with the Barangay Captain?",
+            "answer": "Visit the barangay secretary to schedule an appointment. Bring valid ID and prepare your concerns in writing. Availability may depend on the Barangay Captain's schedule."
+        }
+    ],
+    "Barangay Social Services": [
+        {
+            "question": "How to apply for barangay financial assistance?",
+            "answer": "Submit a written request to the Barangay Captain explaining your situation. Required documents vary by barangay. Assistance depends on barangay funds availability and eligibility criteria."
+        },
+        {
+            "question": "Does the barangay have a senior citizen program?",
+            "answer": "Most barangays assist through the Office of Senior Citizens Affairs (OSCA) for ID processing and social pension claims. Specific programs and activities vary by barangay capacity."
+        },
+        {
+            "question": "How to register for 4Ps in the barangay?",
+            "answer": "The barangay may assist in initial listing for Pantawid Pamilyang Pilipino Program (4Ps). However, final approval comes from DSWD. Inquire at the barangay hall for registration schedules."
+        },
+        {
+            "question": "Paano magparehistro para sa 4Ps sa barangay?",
+            "answer": "Maaaring tumulong ang barangay sa paunang listahan para sa Pantawid Pamilyang Pilipino Program (4Ps). Subalit, ang panghuling aprubasyon ay nanggagaling sa DSWD. Magtanong-tanong sa barangay hall para sa mga iskedyul ng rehistrasyon."
+        },
+        {
+            "question": "How can I apply for the 4Ps program through the barangay?",
+            "answer": "The barangay may assist in initial listing for Pantawid Pamilyang Pilipino Program (4Ps). However, final approval comes from DSWD. Inquire at the barangay hall for registration schedules."
+        },
+        {
+            "question": "Paano makakuha ng financial assistance para sa medical needs?",
+            "answer": "Mag-apply sa barangay hall na may medical certificate at proof of financial need. Ang assistance ay depende sa availability ng barangay funds."
+        },
+        {
+            "question": "May financial assistance ba ang barangay para sa emergency?",
+            "answer": "May limited financial assistance ang barangay para sa medical emergencies at calamities, subject to fund availability."
+        },
+        {
+            "question": "Does the barangay provide burial assistance?",
+            "answer": "Yes, most barangays provide burial assistance to qualified indigent families, usually ranging from ₱2,000 to ₱5,000."
+        },
+        {
+            "question": "May financial assistance ba para sa solo parents?",
+            "answer": "Oo, ang ilang barangay ay may financial assistance program para sa qualified solo parents."
+        },
+        {
+            "question": "Does the barangay provide emergency housing?",
+            "answer": "The barangay can provide temporary shelter in evacuation centers during emergencies."
+        },
+        {
+            "question": "May programa ba ang barangay para sa mga out-of-school youth?",
+            "answer": "Oo, sa pakikipagtulungan ng SK at DepEd ALS, nagkakaroon ng programa para matulungan ang mga OSY na makabalik sa pag-aaral o magkaroon ng skills training."
+        },
+        {
+            "question": "Does the barangay provide assistance for persons with disabilities (PWDs) to start a business?",
+            "answer": "Some barangays have specific programs or can refer PWDs to national agencies like DSWD or DOLE for livelihood assistance."
+        },
+        {
+            "question": "May programa ba ang barangay para sa mga recovering drug dependents?",
+            "answer": "Oo, sa pakikipagtulungan ng DSWD at DOH, ang ilang barangay ay may community-based rehabilitation program."
+        },
+        {
+            "question": "Does the barangay provide transportation for indigent patients needing to go to a hospital?",
+            "answer": "Some barangays have a vehicle that can be used for medical emergencies, but this is not a universal service and depends on barangay resources."
+        }
+    ],
+    "Barangay Youth Services": [
+        {
+            "question": "How to join the SK activities?",
+            "answer": "Approach the Sangguniang Kabataan Chairman or barangay youth desk. SK activities depend on current programs and funding. Available activities vary by barangay."
+        },
+        {
+            "question": "Ano ang mga programa ng SK para sa kabataan?",
+            "answer": "Kabilang sa mga programa ng SK ang sports tournaments, leadership trainings, environmental projects, at educational assistance para sa mga kabataan."
+        },
+        {
+            "question": "Ano ang age requirement para sumali sa SK?",
+            "answer": "Dapat ay 18 hanggang 24 years old sa araw ng eleksyon para maging SK official."
+        },
+        {
+            "question": "How can I join SK activities?",
+            "answer": "Approach the SK Chairman or barangay youth desk to inquire about ongoing programs and registration requirements."
+        },
+        {
+            "question": "Ano ang mga karaniwang proyekto ng SK?",
+            "answer": "Kabilang dito ang sports tournaments, clean-up drives, leadership trainings, at youth entrepreneurship programs."
+        },
+        {
+            "question": "How are SK funds allocated?",
+            "answer": "SK funds are allocated through the SK budget, which is 10% of the barangay's general fund."
+        },
+        {
+            "question": "Paano kung gusto kong mag-volunteer sa mga proyekto ng SK?",
+            "answer": "Direktang makipag-ugnayan sa SK Chairman o sa mga SK Kagawad upang magpahayag ng iyong interest na mag-volunteer."
+        },
+        {
+            "question": "Are there age limits for participating in SK activities?",
+            "answer": "While SK officials must be 18-24, most SK activities and programs are open to all youth aged 15-30 residing in the barangay."
+        },
+        {
+            "question": "Paano kung may korapsyon sa paggamit ng pondo ng SK?",
+            "answer": "Dapat itong i-report sa Sangguniang Barangay, DILG, o Commission on Audit (COA) para sa imbestigasyon."
+        },
+        {
+            "question": "Are SK funds audited by the national government?",
+            "answer": "Yes, all SK funds are subject to audit by the Commission on Audit (COA), just like other government funds."
+        }
+    ],
+    "Barangay Women's Desk": [
+        {
+            "question": "What services does the barangay women's desk offer?",
+            "answer": "VAW Desk services depend on barangay capacity. May include: counseling, referral to PNP-WCPD, and assistance in filing cases. Not all barangays can provide comprehensive VAW services."
+        },
+        {
+            "question": "Ano ang serbisyo ng VAW Desk sa barangay?",
+            "answer": "Nagbibigay ang VAW Desk ng counseling, legal assistance referral, at tumutulong sa pag-file ng kaso para sa mga biktima ng violence against women and children."
+        },
+        {
+            "question": "Ano ang Barangay Protection Order (BPO)?",
+            "answer": "Ito ay isang order mula sa Punong Barangay na nagpoprotekta sa biktima ng VAWC for 15 days."
+        },
+        {
+            "question": "What services are available at the VAW Desk?",
+            "answer": "Counseling, referral to PNP-WCPD, and assistance in filing cases are available, depending on barangay capacity."
+        },
+        {
+            "question": "Paano kung hindi available ang VAW Desk officer?",
+            "answer": "Maaaring lumapit sa Punong Barangay o sa anumang barangay official para sa immediate assistance."
+        },
+        {
+            "question": "What support does the barangay provide for VAWC victims?",
+            "answer": "The barangay provides psychological first aid, temporary shelter referral, and assistance in accessing legal services."
+        },
+        {
+            "question": "Maaari bang humingi ng tulong ang lalaki sa VAW Desk?",
+            "answer": "Oo, ang VAW Desk ay tumatanggap din ng mga reklamo mula sa mga lalaking biktima ng karahasan, bagaman mas bihira ito."
+        },
+        {
+            "question": "What is the difference between a Barangay Protection Order (BPO) and a court-issued Protection Order?",
+            "answer": "A BPO is issued by the Barangay Captain and is valid for 15 days. A court-issued Protection Order can be temporary (TPO) or permanent (PPO) and offers longer-term protection."
+        },
+        {
+            "question": "Ano ang dapat gawin kung walang VAW Desk ang barangay?",
+            "answer": "I-report ang insidente ng karahasan sa Punong Barangay, na siyang mandated na tumugon at magbigay ng agarang proteksyon sa biktima."
+        },
+        {
+            "question": "Can a man file a complaint at the VAW Desk if he is a victim of violence from his wife?",
+            "answer": "Yes, the VAW Desk is mandated to assist all victims of gender-based violence, regardless of gender."
+        }
+    ],
+    "Barangay Election Services": [
+        {
+            "question": "How to transfer voter's registration to this barangay?",
+            "answer": "File for transfer at the local COMELEC office during registration periods. Barangay can provide residency certification but cannot process voter registration transfers."
+        }
+    ],
+    "Barangay Infrastructure": [
+        {
+            "question": "How to request road repairs in our area?",
+            "answer": "Submit a written request to the Barangay Captain with signatures of affected residents. Barangay will assess and coordinate with city/municipal engineering office. Repairs depend on budget and priority."
+        },
+        {
+            "question": "What types of infrastructure projects can barangays implement?",
+            "answer": "Barangays can implement projects like footbridges, drainage systems, water supply facilities, and multi-purpose buildings, within their financial capacity and subject to applicable laws."
+        },
+        {
+            "question": "What is the process for barangay infrastructure projects?",
+            "answer": "The process includes project identification, feasibility study, Sangguniang Barangay approval, public bidding (if applicable), implementation, and monitoring."
+        },
+        {
+            "question": "Paano mag-request ng repair sa kalsada sa barangay?",
+            "answer": "Magsumite ng nakasulat na kahilingan sa Punong Barangay na may pirma ng mga apektadong residente. Susuriin ito ng barangay at makikipag-ugnayan sa city/municipal engineering office. Ang pag-aayos ay nakadepende sa badyet at priyoridad."
+        },
+        {
+            "question": "Anong mga uri ng proyektong pang-imprastruktura ang maaaring ipatupad ng mga barangay?",
+            "answer": "Maaaring magpatupad ang mga barangay ng mga proyekto tulad ng footbridge, drainage system, water supply facility, at multi-purpose building, sa loob ng kanilang kapasidad sa pananalapi at napapailalim sa mga naaangkop na batas."
+        },
+        {
+            "question": "Paano mag-report ng sirang kalsada o drainage sa barangay?",
+            "answer": "Maaaring mag-report nang personal sa barangay hall o sa pamamagitan ng barangay hotline. Bigyan ng detalyadong lokasyon at deskripsyon ng problema."
+        },
+        {
+            "question": "Paano mag-report ng sirang ilaw-trapiko sa barangay?",
+            "answer": "I-report agad sa barangay hall at ibigay ang eksaktong lokasyon. Ang barangay ang magko-coordinate sa DPWH o sa traffic department."
+        },
+        {
+            "question": "Who is responsible for fixing potholes in barangay roads?",
+            "answer": "The barangay is responsible for maintaining barangay roads, while city/municipal roads are maintained by the local government engineering office."
+        },
+        {
+            "question": "Sino ang dapat kontakin para sa request ng bagong streetlight?",
+            "answer": "Magsumite ng written request sa Sangguniang Barangay na may pirma ng mga apektadong residente."
+        },
+        {
+            "question": "Who approves the construction of new barangay facilities?",
+            "answer": "The Sangguniang Barangay approves construction projects through appropriate ordinances and resolutions."
+        },
+        {
+            "question": "Paano mag-request ng pangalan ng kalye o street naming?",
+            "answer": "Magsumite ng resolusyon sa Sangguniang Barangay, na susundan ng ordinansa kung maaprubahan."
+        },
+        {
+            "question": "Who is responsible for maintaining barangay roads and bridges?",
+            "answer": "The barangay is responsible for maintaining local barangay roads and footbridges, while larger infrastructure falls under the city/municipal engineering office."
+        },
+        {
+            "question": "Pwede bang huminto ng matagal ang mga construction truck sa barangay road?",
+            "answer": "Hindi, dahil ito ay nagdudulot ng traffic at panganib. Dapat ireport sa barangay para aksyunan ng mga tanod."
+        },
+        {
+            "question": "Who is responsible for maintaining the barangay's public cemetery?",
+            "answer": "If the cemetery is owned by the barangay, then its maintenance is the responsibility of the barangay government."
+        }
+    ],
+    "Barangay Public Information": [
+        {
+            "question": "Where can I see barangay announcements?",
+            "answer": "Check: (1) Barangay hall bulletin board, (2) Official barangay Facebook page (if available), (3) Public announcements through tanod patrols, (4) Purok leaders. Methods vary by barangay."
+        },
+        {
+            "question": "Saan ko makikita ang mga anunsyo at abiso ng barangay?",
+            "answer": "Tignan ang: (1) bulletin board ng barangay hall, (2) Opisyal na Facebook page ng barangay (kung available), (3) Pampublikong anunsyo sa pamamagitan ng mga patrol ng tanod, (4) Mga purok leader. Iba-iba ang paraan sa bawat barangay."
+        },
+        {
+            "question": "Paano makakuha ng impormasyon tungkol sa mga barangay activities?",
+            "answer": "Maaaring tumingin sa barangay bulletin board, Facebook page (kung mayroon), o direktang magtanong sa barangay hall."
+        },
+        {
+            "question": "Saan makikita ang mga announcement ng barangay?",
+            "answer": "Sa barangay bulletin board, Facebook page, at sa pamamagitan ng purok leaders."
+        },
+        {
+            "question": "How can I get updates about barangay activities?",
+            "answer": "Follow the barangay's official social media page or regularly check the barangay bulletin board."
+        },
+        {
+            "question": "Paano kung hindi updated ang barangay bulletin board?",
+            "answer": "I-report sa Barangay Secretary o sa Punong Barangay para ma-update ang impormasyon."
+        },
+        {
+            "question": "How can I verify barangay announcements?",
+            "answer": "Verify announcements through multiple sources - bulletin board, social media, and direct inquiry at barangay hall."
+        },
+        {
+            "question": "Paano kung may maling impormasyon o fake news na kumakalat tungkol sa barangay?",
+            "answer": "I-report agad sa barangay public information officer o sa Punong Barangay. Sila ang maglalabas ng official statement para i-correct ang maling impormasyon."
+        },
+        {
+            "question": "Is the barangay required to hold public consultations for big projects?",
+            "answer": "Yes, for major projects or ordinances that significantly affect the community, public consultations are a mandatory part of the process."
+        }
+    ],
+    "Barangay Complaints": [
+        {
+            "question": "How to file a complaint against a barangay official?",
+            "answer": "Submit a written complaint to the Barangay Captain or Sangguniang Bayan/Panlungsod. For serious matters, you may approach the DILG regional office. Process varies case by case."
+        },
+        {
+            "question": "What is the procedure for filing a complaint against a barangay official?",
+            "answer": "A verified complaint must be filed with the Sangguniang Panlungsod or Bayan, stating the grounds and evidence, and following the procedure outlined in the Local Government Code."
+        },
+        {
+            "question": "What are the grounds for disciplinary action against barangay officials?",
+            "answer": "Grounds include misconduct in office, abuse of authority, dishonesty, oppression, and negligence in the performance of duty."
+        },
+        {
+            "question": "Ano ang pamamaraan para maghain ng reklamo laban sa isang barangay official?",
+            "answer": "Ang isang verified na reklamo ay dapat ihain sa Sangguniang Panlungsod o Bayan, na naglalahad ng mga batayan at ebidensya, at sumusunod sa pamamaraang nakabalangkas sa Local Government Code."
+        },
+        {
+            "question": "Paano maghain ng reklamo laban sa barangay official?",
+            "answer": "Magsumite ng written complaint sa Sangguniang Bayan o Panlungsod na may detalye ng reklamo at supporting evidence."
+        },
+        {
+            "question": "Paano magreklamo tungkol sa maingay na kapitbahay?",
+            "answer": "Unang magreklamo sa barangay tanod o sa Lupong Tagapamayapa. Kung hindi umubra, dalhin sa Punong Barangay."
+        },
+        {
+            "question": "What is the procedure for complaining about a barangay official?",
+            "answer": "File a written complaint with the Sangguniang Bayan/Panlungsod or the Office of the Ombudsman, depending on the severity of the offense."
+        },
+        {
+            "question": "Paano kung ayaw umaksyon ng barangay sa reklamo?",
+            "answer": "Maaaring mag-escalate ng reklamo sa city/municipal mayor's office o sa DILG."
+        },
+        {
+            "question": "What is the timeframe for resolving barangay complaints?",
+            "answer": "Simple complaints should be resolved within 15 days, while complex cases may take longer."
+        },
+        {
+            "question": "Paano kung ang reklamo ko ay laban sa Punong Barangay mismo?",
+            "answer": "Dapat ihain ang reklamo sa Sangguniang Bayan o Panlungsod, o kaya sa Office of the Ombudsman, hindi sa barangay."
+        },
+        {
+            "question": "What constitutes 'grave misconduct' for a barangay official?",
+            "answer": "Grave misconduct involves a flagrant, serious, and intentional violation of law or rules, often involving corruption or abuse of authority."
+        },
+        {
+            "question": "Paano kung ang isang Barangay Kagawad ay may personal na interes sa isang proyekto ng barangay?",
+            "answer": "Dapat siyang mag-declare ng conflict of interest at umabsent sa pagdedebate at pagboto tungkol sa proyektong iyon."
+        },
+        {
+            "question": "What is the legal basis for the 'first come, first served' policy in barangay assistance?",
+            "answer": "There is no specific law mandating this. It is an administrative policy adopted by barangays to ensure orderly distribution, but it must be applied fairly and without favoritism."
+        }
+    ],
+    "Barangay Environmental Services": [
+        {
+            "question": "How to report illegal dumping of garbage?",
+            "answer": "Report immediately to barangay tanods with specific location. Violators may be fined according to barangay ordinances. Enforcement depends on barangay capacity and evidence."
+        }
+    ],
+    "Barangay Emergency Preparedness": [
+        {
+            "question": "What should I do during fire incidents?",
+            "answer": "Immediately call BFP at 911/117. Barangay tanods can assist with evacuation but cannot fight fires. For any emergency, always call 911 first."
+        },
+        {
+            "question": "Where is our barangay evacuation center?",
+            "answer": "Common evacuation centers: Barangay Hall, Public Elementary School, or Barangay Health Center. Exact locations are posted in public areas. Confirm with your barangay for specific designated centers."
+        }
+    ],
+    "Barangay Cultural Activities": [
+        {
+            "question": "What barangay festivals are celebrated?",
+            "answer": "Many barangays celebrate fiesta or foundation day. Activities depend on barangay budget and community participation. Check barangay announcements for scheduled events."
+        },
+        {
+            "question": "Ano ang mga cultural activities na isinasagawa ng barangay?",
+            "answer": "Kabilang sa mga cultural activities ang fiesta celebration, foundation day, at iba pang community events na nagpapakita ng lokal na kultura at tradisyon."
+        },
+        {
+            "question": "Kailan ang fiesta ng barangay?",
+            "answer": "Iba-iba per barangay. Tanungin sa barangay hall o tignan sa barangay calendar of activities."
+        },
+        {
+            "question": "What activities are usually held during barangay fiesta?",
+            "answer": "Usually includes mass, parades, cultural shows, sports events, and community dinners."
+        },
+        {
+            "question": "Paano sumali sa cultural groups ng barangay?",
+            "answer": "Magtanong sa barangay cultural committee o sa tourism desk kung mayroon."
+        },
+        {
+            "question": "What traditional festivals does the barangay celebrate?",
+            "answer": "Most barangays celebrate their foundation day and patron saint fiesta with cultural activities."
+        },
+        {
+            "question": "Paano mapapanatili ang cultural heritage ng barangay?",
+            "answer": "Sa pamamagitan ng pagdiriwang ng mga tradisyonal na pista, pagtuturo ng local history sa mga kabataan, at pagkilala sa mga matatandang artisan."
+        },
+        {
+            "question": "How can a resident propose a new cultural activity for the barangay?",
+            "answer": "Submit a formal proposal to the Barangay Council or the committee on culture and the arts, if one exists."
+        },
+        {
+            "question": "Paano mapoprotektahan ng barangay ang mga historical sites sa loob nito?",
+            "answer": "Sa pamamagitan ng pagpasa ng ordinansa para sa kanilang pangangalaga at pagkilala, at pakikipag-ugnayan sa National Historical Commission of the Philippines (NHCP)."
+        },
+        {
+            "question": "How can a resident donate a historical artifact to the barangay?",
+            "answer": "They can execute a Deed of Donation in favor of the barangay, which must be accepted through a Sangguniang Barangay Resolution."
+        }
+    ],
+    "Barangay Utilities": [
+        {
+            "question": "How to report water supply problems?",
+            "answer": "For water district issues, report directly to your water provider. Barangay can assist in following up persistent problems affecting multiple households, but cannot repair water systems."
+        },
+        {
+            "question": "How to report electrical problems?",
+            "answer": "Contact your electric cooperative directly. For emergency electrical hazards, alert barangay tanods who will coordinate with the utility company. Barangay cannot perform electrical repairs."
+        },
+        {
+            "question": "Sino ang dapat kontakin para sa problema sa tubig o kuryente?",
+            "answer": "Dapat direktang kontakin ang water district o electric cooperative. Ang barangay ay maaaring tumulong sa pag-follow up ng mga problema."
+        },
+        {
+            "question": "Sino ang dapat tawagan para sa baradong canal?",
+            "answer": "I-report agad sa barangay maintenance office. Sila ang magsasagawa ng clearing operations."
+        },
+        {
+            "question": "How to report water leakage in barangay water pipes?",
+            "answer": "Report immediately to the barangay hall, who will coordinate with the local water district for repairs."
+        },
+        {
+            "question": "Sino ang magre-report ng water contamination sa barangay?",
+            "answer": "I-report agad sa barangay health center at sa water district para sa immediate action."
+        },
+        {
+            "question": "How to report illegal water connections?",
+            "answer": "Report to the barangay hall for coordination with the water utility company."
+        },
+        {
+            "question": "Sino ang dapat tawagan kung may amoy ng gas leak sa barangay?",
+            "answer": "It's an emergency. Immediately call the fire department (BFP) at 911 or 117, and then alert barangay officials to assist with evacuation."
+        },
+        {
+            "question": "How to report a major water pipe burst that's flooding the street?",
+            "answer": "This is an emergency. Call the water district's 24/7 hotline immediately and report it to the barangay for traffic control and public safety."
+        },
+        {
+            "question": "Sino ang dapat managot kung may naaksidente dahil sa sirang kanal na hindi naayos ng barangay?",
+            "answer": "Ang barangay ay maaaring mapanagot sa ilalim ng principle of negligence kung napatunayan na alam nila ang problema at hindi nila inayos sa loob ng makatwirang panahon."
+        },
+        {
+            "question": "How to report a public artesian well that has become contaminated?",
+            "answer": "Report it immediately to the barangay health center and the barangay hall. The barangay should cordon it off and coordinate with the health department for water testing."
+        }
+    ],
+    "Barangay Legal Assistance": [
+        {
+            "question": "Does the barangay provide free legal advice?",
+            "answer": "Some barangays coordinate with PAO for legal clinics, but availability varies. Barangay can mediate disputes but cannot provide professional legal representation. Inquire at barangay hall for schedule."
+        },
+        {
+            "question": "Nagbibigay ba ng libreng legal advice ang barangay?",
+            "answer": "Ang ilang barangay ay may partnership sa Public Attorney's Office (PAO) para sa libreng legal consultation sa takdang araw."
+        },
+        {
+            "question": "May libreng abogado ba ang barangay?",
+            "answer": "May legal consultation sa pakikipagtulungan ng PAO, pero schedule lang at depende sa availability."
+        },
+        {
+            "question": "Can the barangay help with notarization of documents?",
+            "answer": "No, barangays cannot notarize documents. You need to go to a notary public for document notarization."
+        },
+        {
+            "question": "Libre ba ang notaryo sa barangay?",
+            "answer": "Hindi, ang barangay ay walang notary public. Kailangan pumunta sa notary public office."
+        },
+        {
+            "question": "Can the barangay help with barangay blotter?",
+            "answer": "Yes, the barangay can record incidents in the barangay blotter for documentation purposes."
+        },
+        {
+            "question": "Pwede bang humingi ng advice sa Lupong Tagapamayapa para sa kontrata?",
+            "answer": "Maaari silang magbigay ng payo sa mga simpleng usapin, ngunit para sa mga legal na dokumento, mas mainam na kumonsulta sa isang abogado."
+        },
+        {
+            "question": "Can the barangay mediate a labor dispute between an employer and a household helper?",
+            "answer": "Yes, the barangay can mediate disputes between domestic helpers and their employers, as it falls under their jurisdiction for amicable settlement."
+        }
+    ],
+    "Barangay Health Services": [
+        {
+            "question": "How to avail of barangay health services?",
+            "answer": "Visit the Barangay Health Center during operating hours for basic services. For medical emergencies, always go to the nearest hospital or call 911. Services vary by barangay capacity."
+        },
+        {
+            "question": "What are the functions of the Barangay Health Workers (BHWs)?",
+            "answer": "BHWs provide basic health care services, conduct health education, assist in immunization campaigns, monitor nutritional status, and report notifiable diseases to the Rural Health Unit."
+        },
+        {
+            "question": "Does the barangay operate its own health center?",
+            "answer": "Many barangays have a Barangay Health Station (BHS) or Health Center, which is typically managed in coordination with the City/Municipal Health Office, not solely by the barangay."
+        },
+        {
+            "question": "What is the role of the Barangay Health Board?",
+            "answer": "The Barangay Health Board advises the Sangguniang Barangay on health matters, recommends health programs, and monitors the implementation of health services in the barangay."
+        },
+        {
+            "question": "Can barangays operate their own birthing facilities?",
+            "answer": "Some barangays may operate birthing facilities, but these must be accredited and comply with the standards set by the Department of Health."
+        },
+        {
+            "question": "Are Barangay Health Workers (BHWs) paid?",
+            "answer": "BHWs are considered volunteers and are not salaried employees. However, they may receive honoraria, incentives, and benefits from the barangay, city/municipality, or national government as provided by law."
+        },
+        {
+            "question": "What is the role of the Barangay in the Sin Tax Law (RA 10351)?",
+            "answer": "A portion of the sin tax revenue is allocated to the Health Enhancement Fund, which can be accessed by barangays for health programs, particularly for tobacco-producing communities, through a national government mechanism."
+        },
+        {
+            "question": "May sweldo ba ang mga Barangay Health Workers (BHWs)?",
+            "answer": "Ang mga BHW ay itinuturing na mga volunteer at hindi mga empleyadong may suweldo. Gayunpaman, maaari silang makatanggap ng honoraria, insentibo, at benepisyo mula sa barangay, lungsod/bayan, o pambansang pamahalaan ayon sa itinatakda ng batas."
+        },
+        {
+            "question": "Do Barangay Health Workers receive a salary for their services?",
+            "answer": "BHWs are considered volunteers and are not salaried employees. However, they may receive honoraria, incentives, and benefits from the barangay, city/municipality, or national government as provided by law."
+        },
+        {
+            "question": "Ano ang tungkulin ng Barangay Health Board?",
+            "answer": "Ang Barangay Health Board ang nagpapayo sa Sangguniang Barangay sa mga bagay na may kinalaman sa kalusugan, nagrerekomenda ng mga health program, at nangangasiwa sa pagpapatupad ng mga serbisyong pangkalusugan sa barangay."
+        },
+        {
+            "question": "Does the barangay have its own ambulance?",
+            "answer": "Not all barangays have their own ambulance. This depends on the barangay's resources and its agreement with the city or municipal health office. For emergencies, calling 911 is always the primary action."
+        },
+        {
+            "question": "Ano ang mga tungkulin ng Barangay Health Workers (BHWs)?",
+            "answer": "Nagbibigay ang mga BHW ng mga pangunahing serbisyong pangkalusugan, nagsasagawa ng health education, tumutulong sa mga immunization campaign, at nagmo-monitor ng nutritional status."
+        },
+        {
+            "question": "Maaari bang mag-operate ang barangay ng kanilang sariling birthing facilities?",
+            "answer": "Ang ilang barangay ay maaaring mag-operate ng mga pasilidad para sa panganganak, ngunit ang mga ito ay dapat na accredited at sumunod sa mga pamantayan na itinakda ng Department of Health."
+        },
+        {
+            "question": "Ano ang mga serbisyong pangkalusugan na iniaalok ng barangay?",
+            "answer": "Nagbibigay ang barangay ng basic health services tulad ng first aid, maternal care, child nutrition program, at immunization sa pakikipagtulungan sa Rural Health Unit."
+        },
+        {
+            "question": "Libre ba ang pagpapakonsulta sa barangay health center?",
+            "answer": "Oo, libre ang basic consultation at first aid sa barangay health center."
+        },
+        {
+            "question": "Does the barangay provide free medicines?",
+            "answer": "Basic medicines like paracetamol and vitamins are sometimes available, but supply is limited and depends on barangay resources."
+        },
+        {
+            "question": "May libreng vaccination ba sa barangay health center?",
+            "answer": "Oo, may libreng vaccination programs para sa mga bata at matatanda sa pakikipagtulungan ng Rural Health Unit."
+        },
+        {
+            "question": "Does the barangay conduct medical missions?",
+            "answer": "Some barangays coordinate with NGOs and government agencies for periodic medical missions."
+        },
+        {
+            "question": "May mental health program ba ang barangay?",
+            "answer": "Ang ilang barangay ay nagsisimula nang magkaroon ng basic mental health awareness programs sa pakikipagtulungan ng city health office."
+        },
+        {
+            "question": "Does the barangay provide anti-rabies vaccinations for pets?",
+            "answer": "Some barangays coordinate with the city veterinarian to conduct free anti-rabies vaccination drives for pets."
+        },
+        {
+            "question": "May programa ba ang barangay para sa mga buntis na kababaihan?",
+            "answer": "Oo, karamihan ng barangay ay may pre-natal care program sa pakikipagtulungan ng Rural Health Unit, kabilang ang check-ups at vitamins."
+        },
+        {
+            "question": "Does the barangay handle outbreaks of diseases like dengue?",
+            "answer": "The barangay plays a critical role in prevention through clean-up drives, fogging operations, and information campaigns in coordination with the City Health Office."
+        }
+    ],
+    "Barangay Education Support": [
+        {
+            "question": "Does the barangay offer educational assistance?",
+            "answer": "Some barangays provide educational support through scholarships or school supplies distribution. Availability depends on barangay funds and programs. Inquire at the barangay hall for requirements."
+        }
+    ],
+    "Barangay Taxation": [
+        {
+            "question": "How is the barangay share of real property tax calculated?",
+            "answer": "The barangay receives a share of 35% of the 1% basic real property tax collected within its jurisdiction, as mandated by the Local Government Code."
+        },
+        {
+            "question": "What is the tax on idle lands collected by the barangay?",
+            "answer": "Barangays do not directly impose a tax on idle lands. This is a local government unit (city/municipality) tax, but the barangay may receive a share of the collection."
+        },
+        {
+            "question": "What is the community tax and who collects it?",
+            "answer": "The community tax (cedula) is collected by the city or municipal treasurer, but barangays may receive a share from the collection as provided by law."
+        },
+        {
+            "question": "Can barangays impose taxes on businesses?",
+            "answer": "Barangays can impose reasonable taxes, fees, and charges on businesses operating within their territory, as provided in the Local Government Code and subject to the limitations therein."
+        },
+        {
+            "question": "Kumikita ba ang barangay sa aming binabayaran na real property tax?",
+            "answer": "Oo. Ang barangay ay tumatanggap ng share na 35% ng 1% basic real property tax na nakolekta sa loob ng kanyang hurisdiksyon, ayon sa mandato ng Local Government Code."
+        },
+        {
+            "question": "Does the barangay get a portion of the real property tax I pay?",
+            "answer": "Yes. The barangay receives a share of 35% of the 1% basic real property tax collected within its jurisdiction, as mandated by the Local Government Code."
+        },
+        {
+            "question": "Ano ang community tax at sino ang nagkolekta nito?",
+            "answer": "Ang community tax (cedula) ay kinokolekta ng city o municipal treasurer, ngunit ang mga barangay ay maaaring makatanggap ng share mula sa koleksyon ayon sa itinatakda ng batas."
+        },
+        {
+            "question": "Magkano ang barangay tax para sa sari-sari store?",
+            "answer": "Ang barangay tax para sa sari-sari store ay nag-iiba-iba depende sa laki at lokasyon ng negosyo, at itinatakda ng barangay ordinance."
+        },
+        {
+            "question": "May buwis ba ang barangay sa rental property?",
+            "answer": "Oo, may community tax ang barangay sa rental businesses, pero ang amount ay depende sa barangay ordinance."
+        },
+        {
+            "question": "Are there tax exemptions for senior citizens in barangay fees?",
+            "answer": "Senior citizens are exempt from community tax (cedula) but may still need to pay for other barangay services and permits."
+        },
+        {
+            "question": "May buwis ba ang barangay sa real property?",
+            "answer": "Ang barangay ay tumatanggap ng share mula sa real property tax, ngunit hindi direktang nag-iimpose ng sariling buwis."
+        },
+        {
+            "question": "Are there penalties for late payment of barangay fees?",
+            "answer": "Yes, most barangays impose penalties and interest for late payment of fees and taxes."
+        },
+        {
+            "question": "May buwis ba ang barangay sa pagpapaupa ng bahay?",
+            "answer": "Oo, may community tax ang barangay sa rental income, na karaniwang binabayaran taun-taon kasabay ng cedula."
+        },
+        {
+            "question": "Are non-residents who own property in the barangay subject to barangay taxes?",
+            "answer": "Yes, property owners are subject to relevant barangay fees and taxes on their property, regardless of their place of residence."
+        },
+        {
+            "question": "May buwis ba ang barangay sa pagbebenta ng lupa?",
+            "answer": "Ang barangay ay hindi direktang nagbubuwis sa pagbebenta ng lupa, ngunit tumatanggap ito ng share mula sa real property tax na babayaran ng bagong may-ari."
+        },
+        {
+            "question": "Are religious institutions exempt from barangay taxes and fees?",
+            "answer": "Yes, religious institutions are generally exempt from real property tax and other local taxes, provided the property is actually, directly, and exclusively used for religious purposes."
+        }
+    ],
+    "Barangay Fees": [
+        {
+            "question": "Can the barangay impose fees on tricycles?",
+            "answer": "Yes, barangays can impose a reasonable community tax or fee on tricycles operating within their territory, as per a valid barangay ordinance."
+        },
+        {
+            "question": "What is the basis for barangay fees and charges?",
+            "answer": "Barangay fees and charges must be based on the cost of regulation, inspection, and supervision, and must be approved through a barangay ordinance."
+        },
+        {
+            "question": "Can barangays charge fees for garbage collection?",
+            "answer": "Yes, barangays can impose reasonable fees for garbage collection and other environmental services, as provided in a valid barangay ordinance."
+        },
+        {
+            "question": "Magkano ang bayad para sa barangay community tax o cedula?",
+            "answer": "Ang Community Tax Certificate (cedula) ay may base fee na ₱5.00 + karagdagang buwis batay sa kita/ari-arian. Ang eksaktong halaga ay iba-iba sa bawat barangay. Inisyu taun-taon mula Enero hanggang Pebrero."
+        },
+        {
+            "question": "How much do I need to pay for a cedula?",
+            "answer": "Community Tax Certificate (cedula) has a base fee of ₱5.00 + additional tax based on income/property. Exact amounts vary by barangay. Issued annually from January to February."
+        },
+        {
+            "question": "Magkano ang karaniwang bayad para sa barangay business permit?",
+            "answer": "Oo, ngunit nag-iiba-iba ang bayad sa bawat barangay. Karaniwang saklaw: Business permits (₱300-₱2,000), Construction permits (₱500-₱1,500), Special permits para sa events (₱200-₱500). Kumpirmahin ang eksaktong bayad sa iyong barangay treasurer."
+        },
+        {
+            "question": "I want to start a small sari-sari store. How much is the barangay permit?",
+            "answer": "Yes, but fees vary by barangay. Typical ranges: Business permits (₱300-₱2,000), Construction permits (₱500-₱1,500), Special permits for events (₱200-₱500). Confirm exact fees with your barangay treasurer."
+        },
+        {
+            "question": "Ano ang batayan para sa mga bayarin at singil ng barangay?",
+            "answer": "Ang mga bayarin at singil ng barangay ay dapat na batay sa gastos ng regulasyon, inspeksyon, at pangangasiwa, at dapat na aprubado sa pamamagitan ng barangay ordinance."
+        }
+    ],
+    "Barangay Budget": [
+        {
+            "question": "What is the Annual Barangay Budget (ABB)?",
+            "answer": "The ABB is the annual financial plan of the barangay, encompassing its estimated revenues and programmed expenditures. It is enacted through an Appropriation Ordinance."
+        },
+        {
+            "question": "Where does the barangay's budget primarily come from?",
+            "answer": "The main sources are the Internal Revenue Allotment (IRA) from the national government, share from national taxes, and locally sourced revenues like fees and charges."
+        },
+        {
+            "question": "Ano ang Annual Barangay Budget (ABB)?",
+            "answer": "Ang ABB ay ang taunang financial plan ng barangay, na sumasaklaw sa mga inaasahang kita at programang gastusin. Ito ay ipinapatupad sa pamamagitan ng isang Appropriation Ordinance."
+        },
+        {
+            "question": "What is the annual financial plan of the barangay called?",
+            "answer": "It is called the Annual Barangay Budget (ABB), which is the barangay's annual financial plan encompassing its estimated revenues and programmed expenditures, enacted through an Appropriation Ordinance."
+        }
+    ],
+    "Barangay Ordinances": [
+        {
+            "question": "What is the process for creating a barangay ordinance?",
+            "answer": "It is proposed by a Kagawad or the Captain, undergoes three readings by the Sangguniang Barangay, is approved by the Barangay Captain, and posted publicly for effectivity."
+        },
+        {
+            "question": "Can a barangay ordinance impose a curfew?",
+            "answer": "Yes, a barangay can enact an ordinance imposing a curfew for minors, provided it is for public safety and welfare, and follows due process."
+        }
+    ],
+    "Barangay Assemblies": [
+        {
+            "question": "What is the Barangay Assembly?",
+            "answer": "It is a gathering of all registered voters in the barangay, serving as a forum for direct democracy where citizens can voice concerns, propose initiatives, and review official performance."
+        },
+        {
+            "question": "When is the Barangay Assembly held?",
+            "answer": "It is mandated to be held at least twice a year, on the last Saturday of March and the second Sunday of October, unless otherwise provided by law or ordinance."
+        },
+        {
+            "question": "Kailan dapat gaganapin ang Barangay Assembly?",
+            "answer": "Dapat gaganapin ang Barangay Assembly ng hindi bababa sa dalawang beses kada taon, sa huling Sabado ng Marso at sa ikalawang Linggo ng Oktubre."
+        }
+    ],
+    "Katarungang Pambarangay": [
+        {
+            "question": "What is the Katarungang Pambarangay Law?",
+            "answer": "It is a system for the amicable settlement of disputes at the barangay level, as outlined in the Local Government Code, to decongest courts and promote reconciliation."
+        },
+        {
+            "question": "What types of cases can be settled through the Katarungang Pambarangay?",
+            "answer": "It covers minor criminal cases (e.g., slight physical injuries, trespassing) and civil disputes (e.g., money, property claims up to a certain value, not exceeding the jurisdictional limit of the city/municipal court), and other disputes where the parties agree to settle."
+        },
+        {
+            "question": "What is a Lupong Tagapamayapa?",
+            "answer": "It is the body that constitutes the Barangay Justice System, composed of the Barangay Captain as chair and 10 to 20 members appointed by the Sangguniang Barangay."
+        },
+        {
+            "question": "What is a Pangkat ng Tagapagkasundo?",
+            "answer": "It is a conciliation panel formed from the Lupon members for each specific dispute, consisting of three members chosen by the parties from the Lupon list."
+        },
+        {
+            "question": "Is the settlement agreement from the barangay legally binding?",
+            "answer": "Yes, an amicable settlement agreement reached through the Katarungang Pambarangay, when signed by the parties and attested by the Lupon/Pangkat Chairman, is final, binding, and enforceable in court."
+        },
+        {
+            "question": "Legally binding ba ang kasunduan na napagkasunduan sa barangay?",
+            "answer": "Oo, ang isang amicable settlement agreement na napagkasunduan sa Katarungang Pambarangay, kapag pinirmahan ng mga partido at pinatotohanan ng Lupon/Pangkat Chairman, ay panghuli, binding, at maipapatupad sa korte."
+        },
+        {
+            "question": "If we settle our dispute in the barangay, is the agreement legally enforceable?",
+            "answer": "Yes, an amicable settlement agreement reached through the Katarungang Pambarangay, when signed by the parties and attested by the Lupon/Pangkat Chairman, is final, binding, and enforceable in court."
+        },
+        {
+            "question": "Nagkautang ang kapitbahay ko sa akin at ayaw magbayad. Pwede ba itong ayusin sa barangay?",
+            "answer": "Maaaring subukan ng barangay na mamagitan para sa isang repayment agreement sa pagitan ng dalawang partido. Kung hindi maresolba, maaaring magsagawa ng legal na aksyon ang mga partido. Para sa pagpapatupad, kontakin ang PNP Hotline: 117 / 911."
+        },
+        {
+            "question": "My neighbor owes me money and refuses to pay. Can the barangay force them?",
+            "answer": "The barangay can attempt to mediate a repayment agreement between both parties. If unresolved, parties may seek legal action. For enforcement, contact PNP Hotline: 117 / 911."
+        },
+        {
+            "question": "Ano ang Lupong Tagapamayapa?",
+            "answer": "Ang Lupong Tagapamayapa ay ang peacekeeping body na binubuo ng 10-20 miyembro. Sila ang namamagitan sa mga hidwaan sa komunidad (katarungang pambarangay) para sa mga menor de civil at criminal na kaso bago ito maifile sa korte."
+        },
+        {
+            "question": "What is the purpose of the Lupong Tagapamayapa?",
+            "answer": "The Lupong Tagapamayapa is the peacekeeping body composed of 10-20 members. They mediate community disputes (katarungang pambarangay) for minor civil and criminal cases before these can be filed in court."
+        },
+        {
+            "question": "Ano ang Pangkat ng Tagapagkasundo?",
+            "answer": "Ito ay isang conciliation panel na binuo mula sa mga miyembro ng Lupon para sa bawat partikular na hidwaan, na binubuo ng tatlong miyembrong pinili ng mga partido mula sa listahan ng Lupon."
+        },
+        {
+            "question": "Ano ang mga kasong hindi sakop ng barangay mediation?",
+            "answer": "Hindi sakop ang mga kasong kriminal na may parusa na higit sa isang taon, mga kasong laban sa pamahalaan, at mga kasong walang pribadong napinsalang partido."
+        },
+        {
+            "question": "Gaano katagal usually ang barangay mediation process?",
+            "answer": "Ang mediation ay dapat matapos within 15 days from the first hearing, pwedeng i-extend ng another 15 days kung kinakailangan."
+        },
+        {
+            "question": "What if the other party doesn't follow the settlement agreement?",
+            "answer": "The settlement agreement can be enforced in court, as it has the force and effect of a final judgment."
+        },
+        {
+            "question": "Ano ang mangyayari kung hindi sumunod sa settlement agreement?",
+            "answer": "Ang settlement agreement ay maaaring ipatupad sa korte, dahil ito ay may kapangyarihan at bisa ng final judgment."
+        },
+        {
+            "question": "Can lawyers participate in barangay mediation?",
+            "answer": "No, lawyers are not allowed to participate in the mediation proceedings, though parties may consult them outside the proceedings."
+        },
+        {
+            "question": "May bayad ba ang pag-file ng reklamo sa Lupong Tagapamayapa?",
+            "answer": "Walang bayad ang pag-file ng reklamo para sa barangay mediation. Ito ay libreng serbisyo."
+        },
+        {
+            "question": "What if the dispute involves people from different barangays?",
+            "answer": "The complaint should be filed in the barangay where the respondent resides. If both parties agree, it can be filed where the incident occurred."
+        },
+        {
+            "question": "Pwede bang mag-file ng reklamo ang isang menor de edad?",
+            "answer": "Oo, ngunit kailangan niya ng assistance ng kanyang magulang o legal guardian sa proseso."
+        },
+        {
+            "question": "Is a settlement agreement from the barangay admissible in court?",
+            "answer": "Yes, it is admissible as evidence and can be used as a basis for execution if one party fails to comply."
+        }
+    ],
+    "Barangay Peacekeeping": [
+        {
+            "question": "What are the primary duties of Barangay Tanods?",
+            "answer": "Their primary duties include maintaining peace and order, patrolling the barangay, enforcing laws and ordinances, and assisting in disaster response, acting as force multipliers for the PNP."
+        },
+        {
+            "question": "Can Barangay Tanods make arrests?",
+            "answer": "Barangay Tanods are not full-fledged police officers. They can perform citizen's arrests under the rules of the Revised Penal Code and apprehend individuals for offenses committed in their presence within the barangay."
+        },
+        {
+            "question": "Ano ang mga pangunahing tungkulin ng Barangay Tanod?",
+            "answer": "Kabilang sa kanilang mga pangunahing tungkulin ang: pagpapanatili ng kapayapaan at kaayusan, pagpapatrolya sa barangay, pagpapatupad ng mga batas at ordinansa, at pagtulong sa mga emergency."
+        }
+    ],
+    "Barangay Elections": [
+        {
+            "question": "How often are Barangay Elections held?",
+            "answer": "Barangay and SK elections are typically held every three years, but the schedule can be set or postponed by an Act of Congress."
+        },
+        {
+            "question": "What are the qualifications for running for Barangay Captain?",
+            "answer": "A candidate must be a Filipino citizen, at least 18 years old on election day, a registered voter and resident of the barangay for at least one year, literate, and not otherwise disqualified by law."
+        },
+        {
+            "question": "Gaano kadalas ang eleksyon para sa barangay officials?",
+            "answer": "Ang eleksyon para sa barangay at SK ay karaniwang gaganapin tuwing tatlong taon, ngunit ang iskedyul ay maaaring itakda o ipagpaliban ng isang Batas ng Kongreso."
+        },
+        {
+            "question": "How long is the term of a Barangay Captain?",
+            "answer": "Barangay officials, including the Captain and Kagawads, serve a term of three years, unless otherwise provided by law."
+        },
+        {
+            "question": "Ilang taon ang termino ng mga barangay officials?",
+            "answer": "Ang mga barangay officials ay may termino ng tatlong taon, maliban kung may ibang itinadhana ng batas."
+        }
+    ],
+    "Barangay Solid Waste Management": [
+        {
+            "question": "What is the barangay's role in solid waste management?",
+            "answer": "Barangays are responsible for the segregation and collection of biodegradable and recyclable waste at the source, as mandated by the Ecological Solid Waste Management Act (RA 9003)."
+        },
+        {
+            "question": "Can the barangay penalize residents for improper waste segregation?",
+            "answer": "Yes, the barangay can impose fines and penalties for violations of solid waste management rules, as provided in their local ordinances pursuant to RA 9003."
+        },
+        {
+            "question": "What is the barangay's specific role in RA 9003?",
+            "answer": "Barangays are responsible for establishing a Materials Recovery Facility (MRF) in every barangay or cluster of barangays, and for conducting segregated collection of biodegradable, compostable, and reusable wastes."
+        },
+        {
+            "question": "Can the barangay close an open dumpster or illegal landfill?",
+            "answer": "The barangay has the authority to confiscate, deny collection, and impose fines for non-segregated waste. However, the closure of large-scale illegal dumpsites is a function of the local government unit (LGU) and the National Solid Waste Management Commission."
+        },
+        {
+            "question": "Ano ang specific na papel ng barangay sa RA 9003 o Ecological Solid Waste Management Act?",
+            "answer": "Ang mga barangay ang responsable sa pagsasagawa ng segregation at koleksyon ng biodegradable at recyclable waste sa pinagmulan, ayon sa mandato ng Ecological Solid Waste Management Act (RA 9003)."
+        },
+        {
+            "question": "What is our barangay legally required to do regarding garbage segregation?",
+            "answer": "Barangays are responsible for the segregation and collection of biodegradable and recyclable waste at the source, as mandated by the Ecological Solid Waste Management Act (RA 9003)."
+        },
+        {
+            "question": "Pwede bang mag-multa ang barangay sa hindi nagse-segregate ng basura?",
+            "answer": "Oo, ang barangay ay maaaring magpataw ng multa at parusa para sa mga paglabag sa solid waste management rules, ayon sa kanilang local na ordinansa alinsunod sa RA 9003."
+        },
+        {
+            "question": "What is the barangay's role in the Materials Recovery Facility (MRF)?",
+            "answer": "Barangays are responsible for establishing a Materials Recovery Facility (MRF) in every barangay or cluster of barangays, as mandated by the Ecological Solid Waste Management Act (RA 9003)."
+        },
+        {
+            "question": "Ano ang responsibilidad ng barangay sa ilalim ng Ecological Solid Waste Management Act?",
+            "answer": "Ang barangay ang pangunahing responsable para sa segregation at collection ng biodegradable, compostable, at recyclable waste sa source o pinagmulan, kabilang ang pagtatag ng Materials Recovery Facility (MRF)."
+        },
+        {
+            "question": "Ano ang tungkulin ng barangay sa solid waste management?",
+            "answer": "Ang mga barangay ang responsable para sa segregation at collection ng biodegradable at recyclable waste sa pinagmulan, ayon sa mandato ng Ecological Solid Waste Management Act (RA 9003)."
+        },
+        {
+            "question": "Ano ang Materials Recovery Facility (MRF)?",
+            "answer": "Ang MRF ay isang pasilidad kung saan iniisa-isa at pinoproseso ang mga recyclable materials bago itapon o i-recycle."
+        },
+        {
+            "question": "Saan ang Materials Recovery Facility (MRF) ng barangay?",
+            "answer": "Karaniwan ay nasa barangay hall compound o sa designated area na itinakda ng barangay."
+        },
+        {
+            "question": "What happens to the segregated waste in the barangay?",
+            "answer": "Recyclables are sold to junkshops, biodegradables are composted, and residuals are collected by the city/municipality."
+        },
+        {
+            "question": "Paano mag-recycle ng plastic bottles sa barangay?",
+            "answer": "Dalhin ang mga plastic bottles sa Materials Recovery Facility (MRF) o sa designated collection points."
+        },
+        {
+            "question": "How does the barangay handle electronic waste?",
+            "answer": "E-waste should be separated and brought to special collection facilities coordinated by the city/municipality."
+        },
+        {
+            "question": "Ano ang 'no segregation, no collection' policy?",
+            "answer": "Ito ay isang patakaran kung saan hindi kukuhanin ng garbage collector ang basura ng isang household kung ito ay hindi naka-segregate."
+        },
+        {
+            "question": "What should I do with used cooking oil?",
+            "answer": "Do not pour it down the drain. Store it in a sealed container and dispose of it as hazardous waste, or inquire if the barangay has a collection program for used oil."
+        }
+    ],
+    "Barangay Disaster Risk Reduction": [
+        {
+            "question": "What is the Barangay Disaster Risk Reduction and Management Committee (BDRRMC)?",
+            "answer": "It is a committee chaired by the Barangay Captain, responsible for preparing for, responding to, and recovering from disasters and emergencies within the barangay."
+        },
+        {
+            "question": "What should be in a Barangay Disaster Preparedness Plan?",
+            "answer": "It should include hazard maps, early warning systems, evacuation plans and centers, inventory of resources, and public information and education programs."
+        },
+        {
+            "question": "Ano ang Barangay Disaster Risk Reduction and Management Committee (BDRRMC)?",
+            "answer": "Ito ay isang komite na pinangungunahan ng Punong Barangay, responsable sa paghahanda, pagtugon, at pagbawi mula sa mga kalamidad at emergency sa loob ng barangay."
+        }
+    ],
+    "Barangay Infrastructure Projects": [
+        {
+            "question": "How are barangay infrastructure projects funded?",
+            "answer": "They can be funded through the barangay's own funds (e.g., IRA), grants from higher government units, or through the Bottom-Up Budgeting (BUB) or other national government programs."
+        },
+        {
+            "question": "What is the role of the Barangay Development Council (BDC)?",
+            "answer": "The BDC is responsible for formulating the Barangay Development Plan and public investment program, which includes prioritizing infrastructure projects."
+        }
+    ],
+    "Sangguniang Kabataan (SK)": [
+        {
+            "question": "What is the Sangguniang Kabataan (SK)?",
+            "answer": "It is the youth council in the barangay, composed of a chairperson and seven members, elected by the youth aged 15 to 30, to represent and address youth-related concerns."
+        },
+        {
+            "question": "How is the SK Fund utilized?",
+            "answer": "The SK Fund, which is a portion of the barangay's IRA, is used to finance programs and projects for youth development, such as sports, arts, leadership training, and environmental projects."
+        },
+        {
+            "question": "Ano ang Sangguniang Kabataan (SK) at ano ang ginagawa nila?",
+            "answer": "Ito ang youth council sa barangay, na binubuo ng isang chairperson at pitong miyembro, na inihahalal ng mga kabataang may edad 15 hanggang 30, upang irepresenta at tugunan ang mga usaping may kinalaman sa kabataan."
+        },
+        {
+            "question": "How is the SK Fund used?",
+            "answer": "The SK Fund, which is a portion of the barangay's IRA, is used to finance programs and projects for youth development, such as sports, arts, leadership training, and environmental projects."
+        },
+        {
+            "question": "Saan galing ang pondo ng SK?",
+            "answer": "Ang SK Fund ay isang mandatoryong 10% ng General Fund ng barangay. Ito ay awtomatikong iri-release sa SK Treasury pagkatapos maaprubahan ang taunang badyet ng barangay."
+        },
+        {
+            "question": "Ano ang Sangguniang Kabataan (SK)?",
+            "answer": "Ito ang sanggunian ng kabataan sa barangay, na binubuo ng isang chairperson at pitong miyembro, inihahalal ng mga kabataang may edad 15 hanggang 30, upang irepresenta at tugunan ang mga usaping pangkabataan."
+        }
+    ],
+    "Barangay Records": [
+        {
+            "question": "What is the Barangay Profile?",
+            "answer": "It is a comprehensive data set containing demographic, socio-economic, and physical information about the barangay, used for planning and program implementation."
+        },
+        {
+            "question": "Who is responsible for keeping the Barangay Registry of Inhabitants?",
+            "answer": "The Barangay Secretary is the custodian of the Barangay Registry of Inhabitants, which contains basic personal information of all residents."
+        },
+        {
+            "question": "Ano ang Barangay Profile?",
+            "answer": "Ito ay isang komprehensibong set ng datos na naglalaman ng demograpiko, socio-economic, at pisikal na impormasyon tungkol sa barangay, na ginagamit para sa pagpaplano at pagpapatupad ng programa."
+        },
+        {
+            "question": "Paano makakuha ng barangay residency certificate?",
+            "answer": "Mag-apply sa barangay hall na may dalang valid ID at patunay ng paninirahan. Ang certificate ay inilalabas ng Barangay Secretary."
+        },
+        {
+            "question": "Gaano katagal processing ng barangay clearance?",
+            "answer": "Karaniwang 15-30 minutes, depende sa bilang ng mga nag-aapply at availability ng mga opisyales."
+        },
+        {
+            "question": "Can I get a barangay certificate online?",
+            "answer": "Some progressive barangays offer online services, but most still require personal appearance at the barangay hall."
+        },
+        {
+            "question": "Pwede bang kumuha ng barangay certificate kahit weekend?",
+            "answer": "Karamihan ng barangay ay closed during weekends, pero may emergency contact numbers para sa urgent matters."
+        },
+        {
+            "question": "Can I get a copy of barangay ordinances?",
+            "answer": "Yes, barangay ordinances are public documents that can be requested from the Barangay Secretary's office."
+        },
+        {
+            "question": "Gaano katagal itinatago ng barangay ang mga birth at death records?",
+            "answer": "Ang barangay ay nagtatala lamang ng mga ito para sa local na datos. Ang official records ay naka-archive sa Philippine Statistics Authority (PSA)."
+        },
+        {
+            "question": "Can I access the barangay's database of residents?",
+            "answer": "No, for privacy and data security reasons, the complete database is confidential. The barangay can only issue certifications based on their records."
+        },
+        {
+            "question": "Gaano katagal itinatago ng barangay ang mga business permit applications?",
+            "answer": "Dapat itong itago ng hindi bababa sa limang (5) taon pagkatapos ng pag-expire ng permit, ayon sa mga panuntunan sa pag-iingat ng rekord."
+        },
+        {
+            "question": "Can I request a copy of the barangay's minutes from 10 years ago?",
+            "answer": "Yes, minutes of barangay sessions are permanent records and should be kept by the Barangay Secretary, though you may need to formally request access."
+        }
+    ],
+    "Barangay Property": [
+        {
+            "question": "Who manages the barangay's public properties?",
+            "answer": "The Barangay Captain, as the chief executive, has administrative responsibility, but the Sangguniang Barangay has legislative control over the disposition and utilization of barangay property."
+        },
+        {
+            "question": "Can the barangay lease its property to private entities?",
+            "answer": "Yes, but it requires an ordinance from the Sangguniang Barangay and must comply with public bidding requirements and other rules set by the Commission on Audit (COA)."
+        },
+        {
+            "question": "Can the barangay acquire real property?",
+            "answer": "Yes, the barangay can acquire real property through purchase, donation, or other modes of acquisition, subject to the approval of the Sangguniang Barangay and applicable laws."
+        },
+        {
+            "question": "Who has the authority to sign contracts on behalf of the barangay?",
+            "answer": "The Barangay Captain has the authority to sign contracts on behalf of the barangay, subject to the limitations and conditions set by the Sangguniang Barangay and applicable laws."
+        },
+        {
+            "question": "Can the barangay sell its public property?",
+            "answer": "Yes, but only through a public auction and upon authority of an ordinance approved by a majority of the Sangguniang Barangay members. The proceeds become part of the barangay's general fund."
+        },
+        {
+            "question": "Who is liable for damages caused by barangay-owned property?",
+            "answer": "The barangay as a corporate entity can be held liable for damages arising from acts of its agents and from the use of its property, under the principle of vicarious liability."
+        },
+        {
+            "question": "Pwede bang ipaupa ng barangay ang barangay hall para sa private events?",
+            "answer": "Oo, ngunit nangangailangan ito ng ordinansa mula sa Sangguniang Barangay at dapat sumunod sa mga pampublikong bidding requirements at iba pang tuntunin na itinakda ng Commission on Audit (COA)."
+        },
+        {
+            "question": "Can the barangay rent out its multi-purpose hall?",
+            "answer": "Yes, but it requires an ordinance from the Sangguniang Barangay and must comply with public bidding requirements and other rules set by the Commission on Audit (COA)."
+        },
+        {
+            "question": "Pwede bang ipagbili ng barangay ang lupa o gusali nito?",
+            "answer": "Oo, ngunit sa pamamagitan lamang ng public auction at sa bisa ng isang ordinansa na inaprubahan ng majority ng mga miyembro ng Sangguniang Barangay. Ang kita ay magiging bahagi ng general fund ng barangay."
+        },
+        {
+            "question": "Who can sign contracts for the barangay?",
+            "answer": "The Barangay Captain has the authority to sign contracts on behalf of the barangay, subject to the limitations and conditions set by the Sangguniang Barangay and applicable laws."
+        },
+        {
+            "question": "Pwede bang umupa ang barangay ng private na property para gamitin bilang tanggapan?",
+            "answer": "Oo, ngunit kailangan ito ng ordinansa mula sa Sangguniang Barangay at dapat sumunod sa mga patakaran ng public bidding at ng Commission on Audit (COA)."
+        },
+        {
+            "question": "Sino ang namamahala sa mga pampublikong ari-arian ng barangay?",
+            "answer": "Ang Punong Barangay, bilang punong ehekutibo, ang may responsibilidad sa pangangasiwa, ngunit ang Sangguniang Barangay ang may kapangyarihang lehislatibo sa paggamit at pagtatapon ng mga ari-arian ng barangay."
+        },
+        {
+            "question": "Maaari bang bumili ng real property ang barangay?",
+            "answer": "Oo, maaaring bumili ng real property ang barangay sa pamamagitan ng pagbili, donasyon, o iba pang paraan ng pagkuha, na napapailalim sa pag-apruba ng Sangguniang Barangay at mga naaangkop na batas."
+        },
+        {
+            "question": "Pwede bang gamitin ng publiko ang barangay multi-purpose hall?",
+            "answer": "Oo, maaaring gamitin ng publiko ang barangay multi-purpose hall para sa mga legal na aktibidad na may pahintulot ng barangay at pagbabayad ng kaukulang bayad."
+        },
+        {
+            "question": "Pwede bang magpa-reserve ng barangay multi-purpose hall?",
+            "answer": "Oo, sa pamamagitan ng pagsusumite ng application sa barangay secretary at pagbabayad ng corresponding fees."
+        },
+        {
+            "question": "Who maintains the barangay playground?",
+            "answer": "The barangay maintenance staff is responsible for maintaining all barangay-owned facilities including playgrounds."
+        },
+        {
+            "question": "Pwede bang ipaupa ang barangay property sa private companies?",
+            "answer": "Oo, sa pamamagitan ng public bidding at approval ng Sangguniang Barangay."
+        },
+        {
+            "question": "Who is responsible for barangay vehicle maintenance?",
+            "answer": "The barangay administration is responsible for maintaining all barangay-owned vehicles and equipment."
+        },
+        {
+            "question": "Pwede bang ipagbili ng barangay ang lupa nito?",
+            "answer": "Oo, ngunit sa pamamagitan lamang ng public auction at sa bisa ng isang ordinansa na inaprubahan ng Sangguniang Barangay."
+        },
+        {
+            "question": "Who is liable if someone gets injured in a barangay-owned facility?",
+            "answer": "The barangay as a corporate entity can be held liable if the injury is due to negligence in maintaining the facility."
+        },
+        {
+            "question": "Pwede bang ipa-arkila ng barangay ang isang pribadong lote para gawing palaruan?",
+            "answer": "Oo, sa pamamagitan ng isang lease agreement na inaprubahan ng Sangguniang Barangay, at dapat sumunod sa mga patakaran ng public bidding."
+        },
+        {
+            "question": "Who owns the trees planted within the barangay hall compound?",
+            "answer": "The trees are considered property of the barangay. Cutting or disposing of them requires authorization from the Sangguniang Barangay."
+        }
+    ],
+    "Grievance Against Officials": [
+        {
+            "question": "How can a complaint be filed against a barangay official for misconduct?",
+            "answer": "A verified complaint can be filed with the Sangguniang Panlungsod or Bayan, the Office of the Ombudsman, or the DILG, depending on the gravity of the offense."
+        },
+        {
+            "question": "What are the grounds for suspending or removing a barangay official?",
+            "answer": "Grounds include disloyalty to the Republic, misconduct in office, habitual neglect of duty, and conviction of a crime involving moral turpitude, as provided in the Local Government Code."
+        },
+        {
+            "question": "Paano ako maghahain ng reklamo laban sa isang barangay official?",
+            "answer": "Ang isang verified na reklamo ay maaaring ihain sa Sangguniang Panlungsod o Bayan, sa Office of the Ombudsman, o sa DILG, depende sa bigat ng pagkakasala."
+        },
+        {
+            "question": "What are valid grounds for filing a complaint against a Barangay Kagawad?",
+            "answer": "Grounds include disloyalty to the Republic, misconduct in office, habitual neglect of duty, and conviction of a crime involving moral turpitude, as provided in the Local Government Code."
+        },
+        {
+            "question": "What is the first step in filing an administrative complaint against a Barangay Captain?",
+            "answer": "A verified complaint must be filed with the Sangguniang Panlungsod (for city barangays) or Sangguniang Bayan (for municipal barangays), following the procedure outlined in the Local Government Code."
+        },
+        {
+            "question": "Ano ang mga batayan para sa pag-suspend o pag-aalis ng isang barangay official?",
+            "answer": "Kabilang sa mga batayan ang: kawalang-katapatan sa Republika, misconduct sa tanggapan, palagiang pagpapabaya sa tungkulin, at pagkakasala sa krimeng may kinalaman sa moral turpitude."
+        }
+    ],
+    "Barangay and National Agencies": [
+        {
+            "question": "How does the barangay coordinate with the Philippine National Police (PNP)?",
+            "answer": "The Barangay Captain acts as the head of the Barangay Peace and Order Committee (BPOC) and coordinates with the PNP precinct commander for peace and order concerns."
+        },
+        {
+            "question": "What is the relationship between the barangay and the Department of Social Welfare and Development (DSWD)?",
+            "answer": "The barangay assists in the implementation of DSWD programs like the 4Ps, provides referrals, and helps identify potential beneficiaries at the community level."
+        },
+        {
+            "question": "What is the barangay's role in the Pantawid Pamilyang Pilipino Program (4Ps)?",
+            "answer": "The Barangay Council, through the Barangay Nutrition Scholar (BNS) and other officials, assists in the identification of potential beneficiaries, validation, and monitoring of compliance with the program's conditions."
+        },
+        {
+            "question": "How does the barangay coordinate with the MMDA or other metropolitan authorities?",
+            "answer": "In Metropolitan areas, barangays coordinate with bodies like the MMDA for metro-wide services such as traffic management, flood control, and solid waste disposal, but they retain their autonomy over local matters."
+        },
+        {
+            "question": "Paano nakikipag-ugnayan ang barangay sa PNP?",
+            "answer": "Ang Punong Barangay ang nagsisilbing pinuno ng Barangay Peace and Order Committee (BPOC) at nakikipag-ugnayan sa PNP precinct commander para sa mga usapin tungkol sa kapayapaan at kaayusan."
+        },
+        {
+            "question": "Paano nakikipagtulungan ang barangay sa DSWD para sa 4Ps program?",
+            "answer": "Ang Barangay Council, sa pamamagitan ng Barangay Nutrition Scholar (BNS) at iba pang opisyales, ay tumutulong sa pagtukoy ng mga potensyal na benepisyaryo, pagva-validate, at pagmo-monitor ng pagsunod sa mga kondisyon ng programa."
+        },
+        {
+            "question": "Paano nakikipag-ugnayan ang barangay sa Philippine National Police (PNP)?",
+            "answer": "Ang Punong Barangay ang nagsisilbing pinuno ng Barangay Peace and Order Committee (BPOC) at nakikipag-ugnayan sa PNP precinct commander para sa mga usapin sa kapayapaan at kaayusan."
+        }
+    ],
+    "Barangay Legislative Process": [
+        {
+            "question": "How many readings are required for a barangay ordinance to be passed?",
+            "answer": "A barangay ordinance must undergo three separate readings on three different days, unless suspended by a majority vote of the Sangguniang Barangay members."
+        },
+        {
+            "question": "Can the public propose a barangay ordinance?",
+            "answer": "Yes, through the system of Initiative and Referendum, registered voters of the barangay can directly propose, enact, or amend ordinances, following the procedure outlined in the Local Government Code."
+        },
+        {
+            "question": "What is the veto power of the Barangay Captain?",
+            "answer": "The Barangay Captain may veto any ordinance enacted by the Sangguniang Barangay. The Sanggunian can override the veto by a two-thirds (2/3) vote of all its members."
+        },
+        {
+            "question": "Ilang pagbasa ang kinakailangan para maipasa ang isang barangay ordinance?",
+            "answer": "Dapat dumaan ang isang barangay ordinance sa tatlong magkahiwalay na pagbasa sa tatlong magkakaibang araw, maliban kung suspendido ng majority vote ng mga miyembro ng Sangguniang Barangay."
+        }
+    ],
+    "Barangay Financial Management": [
+        {
+            "question": "What is the Barangay Development Fund?",
+            "answer": "The Barangay Development Fund is a portion of the barangay's budget specifically allocated for local development projects, infrastructure, and community programs, typically not less than 20% of the IRA share."
+        },
+        {
+            "question": "Who approves the barangay budget?",
+            "answer": "The Sangguniang Barangay approves the annual budget through an appropriation ordinance, which is then approved by the Barangay Captain."
+        },
+        {
+            "question": "Ano ang Barangay Development Fund?",
+            "answer": "Ang Barangay Development Fund ay isang bahagi ng badyet ng barangay na partikular na inilalaan para sa mga proyektong pang-local na pag-unlad, imprastruktura, at mga programang pampamayanan."
+        }
+    ],
+    "Barangay Officials": [
+        {
+            "question": "What is the term of office for barangay officials?",
+            "answer": "Barangay officials, including the Captain and Kagawads, serve a term of three years, unless otherwise provided by law."
+        },
+        {
+            "question": "Can a barangay official hold another government position?",
+            "answer": "No, barangay officials cannot hold any other elective or appointive government position, except for ex-officio positions like being a member of the local peace council."
+        },
+        {
+            "question": "Ano ang mga pangunahing tungkulin ng isang Barangay Tanod?",
+            "answer": "Ang mga Barangay Tanod ay nagpapanatili ng kapayapaan at kaayusan sa pamamagitan ng: pagpapatrulya, pagpapatupad ng mga ordinansa, pagtugon sa mga gulo, pagtulong sa mga emergency, at pagiging force multipliers para sa PNP."
+        },
+        {
+            "question": "What is the main job of a Barangay Tanod?",
+            "answer": "Barangay Tanods maintain peace and order by: conducting patrols, enforcing ordinances, responding to disturbances, assisting in emergencies, and serving as force multipliers for the PNP."
+        },
+        {
+            "question": "Kanino ako lalapit para sa problema sa kalusugan sa barangay?",
+            "answer": "Ang Kagawad ng Kalusugan at ang mga Barangay Health Workers (BHWs) ang humahawak ng mga problemang pangkalusugan. Nagdaraos sila ng health education, tumutulong sa mga immunization program, nag-uulat ng mga health issue, at nagu-ugnayan sa rural health units."
+        },
+        {
+            "question": "Who is in charge of health programs in the barangay?",
+            "answer": "The Health Kagawad and Barangay Health Workers (BHWs) handle health concerns. They conduct health education, assist in immunization programs, report health issues, and coordinate with rural health units."
+        },
+        {
+            "question": "Ano ang qualifications para tumakbo bilang Barangay Captain?",
+            "answer": "Dapat ay: mamamayang Pilipino, hindi bababa sa 18 taong gulang sa araw ng eleksyon, rehistradong botante at residente ng barangay ng hindi bababa sa isang taon, marunong bumasa at sumulat, at hindi disqualified ng batas."
+        },
+        {
+            "question": "Maaari bang humawak ng ibang posisyon sa gobyerno ang isang barangay official?",
+            "answer": "Hindi, ang mga barangay official ay hindi maaaring humawak ng anumang iba pang elective o appointive na posisyon sa gobyerno, maliban sa mga ex-officio na posisyon."
+        },
+        {
+            "question": "What is the role of the Barangay Secretary?",
+            "answer": "The Barangay Secretary is responsible for keeping records of barangay proceedings, preparing correspondence, and maintaining all official documents of the barangay."
+        },
+        {
+            "question": "Ano ang mga tungkulin ng Barangay Treasurer?",
+            "answer": "Ang Barangay Treasurer ang namamahala sa mga pondo ng barangay, nag-iingat ng mga resibo at disbursement records, at naghahanda ng financial reports."
+        },
+        {
+            "question": "Sino ang pumipirma sa barangay clearance?",
+            "answer": "Ang Barangay Captain ang pumipirma sa barangay clearance pagkatapos ma-verify ng Barangay Secretary ang iyong mga dokumento."
+        },
+        {
+            "question": "Who should I approach for a business permit in the barangay?",
+            "answer": "You should approach the Barangay Treasurer's office for business permits and corresponding fees."
+        },
+        {
+            "question": "Ano ang qualifications para maging Barangay Treasurer?",
+            "answer": "Dapat ay mamamayang Pilipino, rehistradong botante sa barangay, may kakayahan sa basic accounting, at hindi disqualified ng batas."
+        },
+        {
+            "question": "What is the role of the SK Chairman in the Barangay Council?",
+            "answer": "The SK Chairman serves as an ex-officio member of the Sangguniang Barangay with voting rights on matters except those pertaining to SK funds."
+        },
+        {
+            "question": "Pwede bang ma-recall ang isang Barangay Captain?",
+            "answer": "Oo, sa pamamagitan ng recall election kung may sapat na bilang ng mga rehistradong botante ang maghahain ng petisyon."
+        },
+        {
+            "question": "What is the process for filling a sudden vacancy for a Barangay Kagawad?",
+            "answer": "The Sangguniang Barangay appoints a qualified resident to serve the remainder of the term."
+        },
+        {
+            "question": "Ano ang mangyayari kung magkasabay na mawala sa puwesto ang Punong Barangay at ang mga Kagawad?",
+            "answer": "Sa ganitong emergency, ang DILG City/Municipal Field Officer ang maaaring mag-appoint ng Officer-In-Charge hanggang sa maayos ang sitwasyon o magkaroon ng special election."
+        },
+        {
+            "question": "Can a person convicted of a crime run for barangay office?",
+            "answer": "No, individuals who have been sentenced by final judgment for an offense involving moral turpitude or for which they were sentenced to more than 18 months are disqualified."
+        }
+    ],
+    "Barangay Sessions": [
+        {
+            "question": "How often should the Sangguniang Barangay hold regular sessions?",
+            "answer": "The Sangguniang Barangay must hold regular sessions at least once a week, as provided in their rules of procedure."
+        },
+        {
+            "question": "Are barangay sessions open to the public?",
+            "answer": "Yes, sessions of the Sangguniang Barangay are generally open to the public, unless a closed-door executive session is declared for specific matters like national security or personal privacy."
+        },
+        {
+            "question": "What constitutes a quorum for a Sangguniang Barangay session?",
+            "answer": "A majority of the members of the Sangguniang Barangay, including the Barangay Captain, constitutes a quorum to do business."
+        },
+        {
+            "question": "Can the Barangay Captain vote during Sanggunian sessions?",
+            "answer": "The Barangay Captain, as the presiding officer, can only vote to break a tie."
+        },
+        {
+            "question": "Pwede ba ang publiko na dumalo sa session ng Sangguniang Barangay?",
+            "answer": "Oo, ang mga session ng Sangguniang Barangay ay bukas sa publiko, maliban na lamang kung magdeklara ng closed-door executive session para sa mga tiyak na usapin tulad ng national security o personal na privacy."
+        },
+        {
+            "question": "What is a quorum in a Sangguniang Barangay session?",
+            "answer": "A majority of the members of the Sangguniang Barangay, including the Barangay Captain, constitutes a quorum to legally conduct business and pass ordinances."
+        },
+        {
+            "question": "Ilang miyembro ang kailangan para magkaroon ng quorum sa session ng Sanggunian?",
+            "answer": "Kinakailangan ang majority ng mga miyembro ng Sangguniang Barangay, kasama ang Punong Barangay, para magkaroon ng quorum at makapag-conduct ng business."
+        },
+        {
+            "question": "Pwede bang bumoto ang Punong Barangay sa pag-aapruba ng ordinansa?",
+            "answer": "Bilang presiding officer, ang Punong Barangay ay maaari lamang bumoto para mag-break ng tie vote."
+        },
+        {
+            "question": "Gaano kadalas dapat magkaroon ng regular session ang Sangguniang Barangay?",
+            "answer": "Dapat magkaroon ng regular session ang Sangguniang Barangay ng hindi bababa sa isang beses sa isang linggo, ayon sa kanilang mga tuntunin sa pamamaraan."
+        },
+        {
+            "question": "Pwede bang dumalo ang publiko sa session ng Sangguniang Barangay?",
+            "answer": "Oo, bukas sa publiko ang mga regular session ng Sangguniang Barangay maliban kung may executive session."
+        },
+        {
+            "question": "Pwede bang magmungkahi ng ordinansa ang isang ordinaryong residente?",
+            "answer": "Oo, sa pamamagitan ng Barangay Assembly o sa pagsusumite ng nakasulat na mungkahi sa Sangguniang Barangay."
+        },
+        {
+            "question": "What is the process for approving a barangay ordinance?",
+            "answer": "It requires three readings on separate days, approval by the Sangguniang Barangay, and the signature of the Barangay Captain."
+        },
+        {
+            "question": "Pwede bang mag-file ng leave of absence ang isang Barangay Kagawad?",
+            "answer": "Oo, ngunit kailangan ng pormal na sulat at approval ng Sangguniang Barangay. Ang matagal na absence ay maaaring maging grounds for disciplinary action."
+        },
+        {
+            "question": "How are barangay ordinances published?",
+            "answer": "Barangay ordinances must be posted in conspicuous places within the barangay for at least three consecutive weeks."
+        },
+        {
+            "question": "Ano ang 'Executive Session' at kailan ito ginaganap?",
+            "answer": "Ito ay isang closed-door session para pag-usapan ang mga sensitibong isyu tulad ng national security o personal na mga bagay. Limitado ang pag-access ng publiko."
+        },
+        {
+            "question": "Are the minutes of barangay sessions available to the public?",
+            "answer": "Yes, the minutes are public records and can be requested from the Barangay Secretary, though some sensitive details may be redacted."
+        },
+        {
+            "question": "Pwede bang i-veto ng Punong Barangay ang isang resolusyon?",
+            "answer": "Hindi. Ang veto power ay para lamang sa mga ordinansa. Ang mga resolusyon ay hindi nangangailangan ng approval ng Punong Barangay para maging epektibo."
+        },
+        {
+            "question": "What is the difference between a Barangay Ordinance and a Barangay Resolution?",
+            "answer": "An Ordinance is a law with permanent character, while a Resolution is temporary in nature and expresses the sentiment of the Sanggunian on a specific matter."
+        }
+    ],
+    "Barangay Justice System": [
+        {
+            "question": "What cases cannot be subject to barangay mediation?",
+            "answer": "Cases that cannot be mediated include those involving the government, offenses with no private offended party, and cases where one party is the government or its instrumentalities."
+        },
+        {
+            "question": "What is the effect of a settlement reached through barangay mediation?",
+            "answer": "A settlement has the force and effect of a final judgment of a court upon its execution and may be enforced by action in the appropriate city or municipal court."
+        },
+        {
+            "question": "Anong mga kaso ang hindi maaaring isailalim sa barangay mediation?",
+            "answer": "Kabilang sa mga kasong hindi maaaring mamagitan ang mga: kasong kinasasangkutan ng pamahalaan, mga pagkakasala na walang pribadong napinsalang partido, at mga kaso kung saan ang isang partido ay ang pamahalaan o mga instrumento nito."
+        }
+    ],
+    "Barangay Peace and Order": [
+        {
+            "question": "What is the Barangay Peace and Order Committee (BPOC)?",
+            "answer": "The BPOC is a committee chaired by the Barangay Captain that formulates plans and strategies to maintain peace and order in the barangay."
+        },
+        {
+            "question": "What are the functions of the BPOC?",
+            "answer": "The BPOC monitors peace and order situations, coordinates with law enforcement agencies, and recommends measures to improve peace and order in the barangay."
+        },
+        {
+            "question": "Can a Barangay Tanod carry a firearm?",
+            "answer": "Barangay Tanods are not authorized to routinely carry firearms. They may only be issued firearms under specific guidelines from the PNP and DILG for certain operations, and they must have the appropriate licenses."
+        },
+        {
+            "question": "What is the role of the Barangay in the Anti-Violence Against Women and Their Children Act (RA 9262)?",
+            "answer": "The Barangay is mandated to have a Violence Against Women (VAW) Desk. The Barangay Captain can issue a Barangay Protection Order (BPO) which is effective for 15 days to protect victims from further harm."
+        },
+        {
+            "question": "Pwede bang magdala ng baril ang isang Barangay Tanod?",
+            "answer": "Ang mga Barangay Tanod ay hindi awtorisadong magdala ng baril bilang pangkaraniwang gawain. Maaari lamang silang bigyan ng baril sa ilalim ng mga tiyak na alituntunin mula sa PNP at DILG para sa ilang operasyon, at kailangan nilang magkaroon ng naaayong lisensya."
+        },
+        {
+            "question": "Are Barangay Tanods allowed to carry firearms for their duty?",
+            "answer": "Barangay Tanods are not authorized to routinely carry firearms. They may only be issued firearms under specific guidelines from the PNP and DILG for certain operations, and they must have the appropriate licenses."
+        },
+        {
+            "question": "Can a Barangay Tanod arrest me?",
+            "answer": "Barangay Tanods are not full police officers but they can effect a citizen's arrest for crimes committed in their presence within the barangay, following the rules of the Revised Penal Code."
+        },
+        {
+            "question": "Ano ang Barangay Peace and Order Committee (BPOC)?",
+            "answer": "Ang BPOC ay isang komite na pinangungunahan ng Punong Barangay na bumubuo ng mga plano at estratehiya upang mapanatili ang kapayapaan at kaayusan sa barangay."
+        },
+        {
+            "question": "Ano ang mga tungkulin ng Barangay Tanod?",
+            "answer": "Kabilang sa mga tungkulin ng Barangay Tanod ang pagpapatrolya, pagpapatupad ng barangay ordinances, at pagpapanatili ng kapayapaan at kaayusan sa komunidad."
+        },
+        {
+            "question": "Paano mag-report ng illegal gambling sa barangay?",
+            "answer": "Maaaring mag-report nang anonymous sa barangay hall o sa PNP. Magbigay ng specific na lokasyon at oras ng illegal na aktibidad."
+        },
+        {
+            "question": "Anong oras ang curfew for minors sa barangay?",
+            "answer": "Karaniwang 10:00 PM hanggang 4:00 AM, pero ito ay depende sa itinatakda ng barangay ordinance."
+        },
+        {
+            "question": "Can barangay tanods arrest minors for curfew violation?",
+            "answer": "They can apprehend minors but should immediately turn them over to their parents or guardians, not detain them."
+        },
+        {
+            "question": "Paano mag-report ng illegal drug activities?",
+            "answer": "I-report agad sa PNP hotline 117 at ipagbigay-alam din sa barangay officials para sa appropriate action."
+        },
+        {
+            "question": "What is the barangay's role in drug prevention?",
+            "answer": "The barangay implements awareness campaigns, coordinates with authorities, and monitors drug-related activities in the community."
+        },
+        {
+            "question": "Pwede bang mag-impose ng traffic rules ang barangay?",
+            "answer": "Oo, ang barangay ay maaaring magpatupad ng traffic regulations sa mga barangay roads sa pamamagitan ng ordinansa."
+        },
+        {
+            "question": "What is the barangay's role in anti-drug campaigns?",
+            "answer": "The barangay assists in drug awareness programs, monitoring, and reporting drug-related activities to authorities."
+        },
+        {
+            "question": "May barangay hotline ba para sa emergency?",
+            "answer": "Oo, karamihan ng barangay ay may emergency hotline na naka-post sa barangay hall at public areas."
+        },
+        {
+            "question": "What is the barangay's role in crime prevention?",
+            "answer": "The barangay implements crime prevention through tanod patrols, community watch programs, and public awareness campaigns."
+        },
+        {
+            "question": "Ano ang gagawin ng barangay kung may mga tambay na nanggugulo?",
+            "answer": "Ang Barangay Tanod ay maaaring magsagawa ng friendly reminder o, kung kinakailangan, imbitahin ang mga ito sa barangay hall para sa counselling."
+        },
+        {
+            "question": "What powers do Barangay Tanods have during community quarantines?",
+            "answer": "They assist in enforcing quarantine rules set by the IATF and local government, such as manning border control points and ensuring compliance with health protocols."
+        },
+        {
+            "question": "Ano ang gagawin kung may nakita akong abandoned vehicle na may kahina-hinalang laman?",
+            "answer": "Huwag galawin. I-report agad sa PNP at sa barangay. Ilarawan ang sasakyan at lokasyon. Ituring itong potensyal na security threat."
+        },
+        {
+            "question": "What is the barangay's protocol for handling missing persons reports?",
+            "answer": "The barangay assists by immediately recording the report in the blotter, mobilizing tanods for initial search, and coordinating with the PNP for a formal investigation."
+        },
+        {
+            "question": "Ano ang gagawin ng barangay sa mga batang lansangan o street children?",
+            "answer": "Dapat i-report ito sa barangay at sa DSWD. Ang barangay ay maaaring magbigay ng pansamantalang tulong at i-refer ang mga bata sa mga shelter o institutions."
+        },
+        {
+            "question": "What is the barangay's role in implementing the nationwide curfew for minors?",
+            "answer": "The barangay is the primary enforcer, with tanods tasked with apprehending violating minors and turning them over to their parents or guardians."
+        }
+    ],
+    "Barangay Disaster Management": [
+        {
+            "question": "What is the composition of the Barangay Disaster Risk Reduction and Management Council (BDRRMC)?",
+            "answer": "The BDRRMC is composed of the Barangay Captain as chair, with members including barangay Kagawads, the SK Chairperson, and representatives from community organizations."
+        },
+        {
+            "question": "What are the key responsibilities of the BDRRMC?",
+            "answer": "The BDRRMC is responsible for disaster prevention and mitigation, preparedness, response, and rehabilitation and recovery within the barangay."
+        },
+        {
+            "question": "Can the Barangay Captain forcibly evacuate residents during a disaster?",
+            "answer": "Yes, the Barangay Captain, as head of the BDRRMC, has the authority to call for and enforce a mandatory evacuation when there is an imminent threat to life and property."
+        },
+        {
+            "question": "What is the Quick Response Fund (QRF) of the barangay?",
+            "answer": "The barangay is mandated to set aside at least 5% of its estimated revenue from regular sources as a Local Disaster Risk Reduction and Management Fund (LDRRMF). Thirty percent (30%) of this fund is allocated as a Quick Response Fund for immediate relief and recovery."
+        },
+        {
+            "question": "Pwede bang pilitin ng Punong Barangay ang mga residente na lumikas kapag may kalamidad?",
+            "answer": "Oo, ang Punong Barangay, bilang pinuno ng BDRRMC, ay may awtoridad na magpatawag at magpatupad ng mandatory evacuation kapag may nagbabantang panganib sa buhay at ari-arian."
+        },
+        {
+            "question": "During a typhoon, can the Barangay Captain force residents to evacuate their homes?",
+            "answer": "Yes, the Barangay Captain, as head of the BDRRMC, has the authority to call for and enforce a mandatory evacuation when there is an imminent threat to life and property."
+        },
+        {
+            "question": "Ano ang BDRRMC at sino ang mga miyembro nito?",
+            "answer": "Ang Barangay Disaster Risk Reduction and Management Council (BDRRMC) ay isang komite na pinangungunahan ng Punong Barangay. Kasama sa mga miyembro nito ang mga Barangay Kagawad, SK Chairperson, at mga kinatawan mula sa mga organisasyon sa komunidad."
+        },
+        {
+            "question": "What is the barangay's Quick Response Fund (QRF) for?",
+            "answer": "The barangay is mandated to set aside a Local Disaster Risk Reduction and Management Fund (LDRRMF). Thirty percent (30%) of this fund is the Quick Response Fund, used for immediate relief, response, and recovery programs during and after disasters."
+        },
+        {
+            "question": "Saan karaniwang located ang evacuation center ng barangay?",
+            "answer": "Karaniwang evacuation center ay ang Barangay Hall, Public Elementary School, o Barangay Health Center. Ang eksaktong lokasyon ay dapat naka-post sa mga pampublikong lugar. Kumpirmahin sa inyong barangay ang partikular na itinalagang center."
+        },
+        {
+            "question": "Ano ang mga pangunahing responsibilidad ng BDRRMC?",
+            "answer": "Ang BDRRMC ay responsable sa disaster prevention and mitigation, preparedness, response, at rehabilitation and recovery sa loob ng barangay."
+        },
+        {
+            "question": "Ano ang mga dapat gawin sa oras ng kalamidad?",
+            "answer": "Dapat sumunod sa mga tagubilin ng barangay officials, lumikas kung kinakailangan, at manatili sa itinalagang evacuation center hanggang sa maging ligtas ang bumalik sa tahanan."
+        },
+        {
+            "question": "Saan ang evacuation center namin dito sa barangay?",
+            "answer": "Karaniwan itong nasa barangay hall, public school, o barangay health center. Tanungin sa inyong barangay officials ang designated center."
+        },
+        {
+            "question": "What should I bring to an evacuation center?",
+            "answer": "Bring important documents, medicines, clothes, food, water, and other essential items for at least 3 days."
+        },
+        {
+            "question": "Paano malaman kung nasa danger zone ang aming lugar?",
+            "answer": "May hazard maps ang barangay na naka-display sa barangay hall. Pwede ring magtanong sa BDRRMC."
+        },
+        {
+            "question": "What early warning systems does the barangay have?",
+            "answer": "Most barangays have sirens, bells, or public address systems for emergency alerts."
+        },
+        {
+            "question": "Sino ang miyembro ng Barangay Disaster Risk Reduction and Management Council (BDRRMC)?",
+            "answer": "Kabilang dito ang Punong Barangay (Chairperson), mga Kagawad, SK Chairman, at mga kinatawan mula sa community organizations."
+        },
+        {
+            "question": "What is included in the Barangay Disaster Preparedness Plan?",
+            "answer": "It includes hazard maps, early warning systems, evacuation plans, identified evacuation centers, and resource inventories."
+        },
+        {
+            "question": "Sino ang nagde-declare ng state of calamity sa barangay?",
+            "answer": "Ang Sangguniang Barangay, sa rekomendasyon ng BDRRMC, ang maaaring mag-deklara ng state of calamity sa barangay, na magbubukas sa paggamit ng Calamity Fund."
+        },
+        {
+            "question": "How does the barangay coordinate with the Coast Guard during floods or maritime incidents?",
+            "answer": "The barangay coordinates through the BDRRMC, which has established communication protocols with the Coast Guard and other national agencies for rescue operations."
+        }
+    ],
+    "Barangay Education": [
+        {
+            "question": "What is the role of the Barangay Council for the Protection of Children (BCPC)?",
+            "answer": "The BCPC is responsible for planning, implementing, and monitoring programs for children's welfare and protection at the barangay level."
+        },
+        {
+            "question": "Can barangays provide scholarships to students?",
+            "answer": "Yes, barangays can appropriate funds for scholarships and educational assistance programs through a valid barangay ordinance."
+        },
+        {
+            "question": "What is the Barangay Council for the Protection of Children (BCPC)?",
+            "answer": "The BCPC is a body responsible for planning, implementing, and monitoring programs for the welfare and protection of children at the barangay level."
+        },
+        {
+            "question": "Maaari bang magbigay ng scholarships ang barangay sa mga mag-aaral?",
+            "answer": "Oo, maaaring maglaan ng pondo ang mga barangay para sa mga scholarship at educational assistance program sa pamamagitan ng isang balidong barangay ordinance."
+        },
+        {
+            "question": "Paano makakuha ng certificate of indigency para sa scholarship?",
+            "answer": "Mag-apply sa barangay hall na may dalang valid ID at patunay ng kita. Ang certificate ay inilalabas ng Barangay Secretary at pinipirmahan ng Punong Barangay."
+        },
+        {
+            "question": "Paano mag-apply para sa barangay scholarship?",
+            "answer": "Mag-apply sa barangay hall during application period. Kailangan ng school credentials, proof of income, at barangay clearance."
+        },
+        {
+            "question": "Does the barangay offer free tutorial services?",
+            "answer": "Some barangays have tutorial programs through the SK or in partnership with local schools and volunteers."
+        },
+        {
+            "question": "May feeding program ba ang barangay para sa mga bata?",
+            "answer": "Oo, ang ilang barangay ay may feeding program para sa undernourished children sa pakikipagtulungan ng DSWD."
+        },
+        {
+            "question": "Does the barangay provide school supplies?",
+            "answer": "Some barangays distribute school supplies to indigent students at the start of the school year."
+        },
+        {
+            "question": "May libreng daycare service ba ang barangay?",
+            "answer": "Oo, ang ilang barangay ay may daycare center sa pakikipagtulungan ng DSWD para sa mga batang wala pang edad pumasok sa elementarya."
+        },
+        {
+            "question": "Does the barangay offer alternative learning programs?",
+            "answer": "Some barangays host Alternative Learning System (ALS) classes in partnership with the Department of Education."
+        },
+        {
+            "question": "May libreng school supplies ba ang barangay para sa mga mag-aaral?",
+            "answer": "Ang ilang barangay, lalo na ang may malaking budget, ay namimigay ng school supplies sa mga mag-aaral mula sa mga pamilyang mahihirap sa simula ng school year."
+        },
+        {
+            "question": "Can the barangay build its own public school?",
+            "answer": "No, the establishment of public schools is under the Department of Education. However, the barangay can donate land and coordinate with DepEd for its establishment."
+        }
+    ],
+    "Barangay Sports Development": [
+        {
+            "question": "What is the role of the Barangay Sports Committee?",
+            "answer": "The Barangay Sports Committee promotes sports development, organizes sports activities, and manages sports facilities within the barangay."
+        },
+        {
+            "question": "Can barangays construct sports facilities?",
+            "answer": "Yes, barangays can construct and maintain sports facilities using their development funds, subject to the approval of the Sangguniang Barangay."
+        },
+        {
+            "question": "Ano ang tungkulin ng Barangay Sports Committee?",
+            "answer": "Ang Barangay Sports Committee ang nagpapalaganap ng sports development, nag-oorganisa ng mga sports activity, at namamahala sa mga sports facility sa loob ng barangay."
+        },
+        {
+            "question": "Mayroon bang sports facilities ang barangay?",
+            "answer": "Ang ilang barangay ay may sports facilities tulad ng basketball court o multi-purpose court na maaaring gamitin ng mga residente."
+        },
+        {
+            "question": "Kailan ang basketball league ng barangay?",
+            "answer": "Karaniwan during summer months, pero magtanong sa SK Chairman o sa barangay hall para sa exact schedule."
+        },
+        {
+            "question": "Are there sports competitions for children in the barangay?",
+            "answer": "Yes, the SK usually organizes sports competitions for different age groups during summer vacation."
+        },
+        {
+            "question": "May sports clinic ba ang barangay para sa mga bata?",
+            "answer": "Oo, ang SK ay karaniwang nag-o-organize ng sports clinics during summer vacation."
+        },
+        {
+            "question": "Are there sports facilities for persons with disability?",
+            "answer": "Some barangays are developing accessible sports facilities, but this is not yet universal."
+        },
+        {
+            "question": "Pwede bang mag-request ang isang grupo na gumamit ng barangay court para sa liga?",
+            "answer": "Oo, sa pamamagitan ng pagsusumite ng request sa Sangguniang Barangay at pagbabayad ng kaukulang fee, kung mayroon."
+        },
+        {
+            "question": "Are there sports programs for senior citizens?",
+            "answer": "Yes, some barangays organize low-impact sports activities like lawn games, chess, or walking clubs for senior citizens."
+        },
+        {
+            "question": "Pwede bang mag-host ang barangay ng regional sports competition?",
+            "answer": "Oo, kung may sapat na pasilidad at pondo, at sa koordinasyon ng Philippine Sports Commission o ng lokal na sangay nito."
+        },
+        {
+            "question": "Are barangay sports coaches required to have certifications?",
+            "answer": "While not always mandatory, it is highly encouraged for coaches to have certifications from sports associations for the safety and proper training of athletes."
+        }
+    ],
+    "Barangay Environmental Protection": [
+        {
+            "question": "What is the Barangay Ecological Solid Waste Management Committee?",
+            "answer": "It is a committee that oversees the implementation of solid waste management programs and enforces ecological solid waste management laws at the barangay level."
+        },
+        {
+            "question": "Can barangays prohibit plastic use?",
+            "answer": "Yes, barangays can enact ordinances regulating or prohibiting the use of plastic materials, provided these are consistent with national laws and regulations."
+        },
+        {
+            "question": "Pwede bang magbawal ang barangay sa paggamit ng plastic?",
+            "answer": "Oo, ang barangay ay maaaring magpatupad ng ordinansa na nagreregula o nagbabawal sa paggamit ng plastic materials, basta't ito ay naaayon sa pambansang batas at regulasyon."
+        },
+        {
+            "question": "Ano ang Barangay Ecological Solid Waste Management Committee?",
+            "answer": "Ito ay isang komite na nangangasiwa sa pagpapatupad ng mga programa sa pamamahala ng solid waste at nagpapatupad ng mga batas sa ecological solid waste management sa antas ng barangay."
+        },
+        {
+            "question": "Paano sumali sa barangay clean-up drive?",
+            "answer": "Makipag-ugnayan sa barangay secretary o sa chairman ng committee on environment para sa schedule ng clean-up activities."
+        },
+        {
+            "question": "May penalty ba sa hindi pagse-segregate ng basura?",
+            "answer": "Oo, may multa ayon sa barangay ordinance para sa violations ng waste segregation."
+        },
+        {
+            "question": "What is the schedule for garbage collection in our barangay?",
+            "answer": "The schedule varies per barangay. Check with your barangay hall or look for posted notices in your area."
+        },
+        {
+            "question": "May recycling program ba ang barangay?",
+            "answer": "Oo, karamihan ng barangay ay may recycling program sa pamamagitan ng Materials Recovery Facility (MRF)."
+        },
+        {
+            "question": "How does the barangay handle hazardous waste?",
+            "answer": "Hazardous waste should be separated and properly disposed of through coordination with the city/municipal environment office."
+        },
+        {
+            "question": "May reward system ba ang barangay para sa mga nagre-recycle?",
+            "answer": "Ang ilang barangay ay may 'cash for trash' program o eco-points system na nagre-reward sa mga residente para sa pagre-recycle."
+        },
+        {
+            "question": "How does the barangay promote urban gardening?",
+            "answer": "Through programs like community gardens, distribution of seed kits, and seminars on container gardening, especially in densely populated areas."
+        },
+        {
+            "question": "May programa ba ang barangay para sa tree planting o reforestation?",
+            "answer": "Oo, ang ilang barangay ay nagsasagawa ng tree planting activities, lalo na sa mga watershed areas, sa pakikipagtulungan ng DENR."
+        },
+        {
+            "question": "How does the barangay handle air pollution from vehicles or factories?",
+            "answer": "The barangay can document and report repeated violations to the Environmental Management Bureau (EMB) or the local government's environment office."
+        }
+    ],
+    "Barangay Records Management": [
+        {
+            "question": "What records are required to be maintained by the barangay?",
+            "answer": "Barangays must maintain records of ordinances and resolutions, financial transactions, minutes of meetings, and other official documents as required by law."
+        },
+        {
+            "question": "How long should barangay records be kept?",
+            "answer": "The retention period for barangay records varies, but permanent records like ordinances and resolutions must be kept permanently, while financial records have specific retention periods."
+        },
+        {
+            "question": "Gaano katagal dapat itago ng barangay ang mga rekord nito?",
+            "answer": "Ang retention period para sa mga rekord ng barangay ay iba-iba. Ang mga permanenteng rekord tulad ng mga ordinansa at resolusyon ay dapat pangalagaan nang permanente, samantalang ang mga financial record ay may partikular na retention period."
+        },
+        {
+            "question": "Anong mga rekord ang kinakailangang panatilihin ng barangay?",
+            "answer": "Dapat panatilihin ng mga barangay ang mga rekord ng mga ordinansa at resolusyon, financial transaction, minutes ng mga pagpupulong, at iba pang opisyal na dokumento ayon sa kinakailangan ng batas."
+        }
+    ],
+    "Barangay and National Government": [
+        {
+            "question": "How does the barangay relate to the Department of the Interior and Local Government (DILG)?",
+            "answer": "The DILG provides technical assistance, capacity building, and oversight to barangays to ensure good local governance and compliance with laws and regulations."
+        },
+        {
+            "question": "What is the role of the barangay in national elections?",
+            "answer": "Barangays provide venues for voting centers, assist in voter education, and help maintain peace and order during election periods."
+        },
+        {
+            "question": "Ano ang papel ng DILG sa barangay?",
+            "answer": "Ang DILG ay nagbibigay ng technical assistance, capacity building, at oversight sa mga barangay upang matiyak ang mahusay na pamamahala sa lokal at pagsunod sa mga batas at regulasyon."
+        },
+        {
+            "question": "Ano ang papel ng barangay sa pambansang eleksyon?",
+            "answer": "Nagbibigay ang mga barangay ng mga venue para sa mga voting center, tumutulong sa voter education, at nakatutulong na mapanatili ang kapayapaan at kaayusan sa panahon ng mga panahon ng halalan."
+        }
+    ],
+    "Barangay Special Bodies": [
+        {
+            "question": "What is the Barangay Council of Elders?",
+            "answer": "Some barangays may establish a Council of Elders composed of respected senior citizens to provide advice on traditional matters and conflict resolution."
+        },
+        {
+            "question": "What is the Barangay Justice Service?",
+            "answer": "It refers to the Katarungang Pambarangay system which provides accessible, speedy, and inexpensive justice at the grassroots level."
+        },
+        {
+            "question": "Ano ang Barangay Council of Elders?",
+            "answer": "Ang ilang barangay ay maaaring magtatag ng isang Council of Elders na binubuo ng mga iginagalang na senior citizen upang magbigay ng payo sa mga tradisyonal na bagay at resolusyon ng hidwaan."
+        },
+        {
+            "question": "Ano ang Lupong Tagapamayapa?",
+            "answer": "Ang Lupong Tagapamayapa ay binubuo ng 10-20 miyembrong hinirang ng Sangguniang Barangay na nangangasiwa sa barangay justice system."
+        },
+        {
+            "question": "Ilan ang miyembro ng Lupong Tagapamayapa?",
+            "answer": "10 hanggang 20 miyembro, kasama ang Punong Barangay bilang chairperson."
+        },
+        {
+            "question": "What is the composition of the BDRRMC?",
+            "answer": "It is composed of the Barangay Captain as chair, with members including barangay kagawads, SK chairperson, and community representatives."
+        },
+        {
+            "question": "Ano ang tungkulin ng Barangay Development Council?",
+            "answer": "Ito ang nagpaplano at nagrerekomenda ng development projects at programs para sa barangay."
+        },
+        {
+            "question": "How often does the Barangay Assembly meet?",
+            "answer": "The Barangay Assembly must meet at least twice a year, as mandated by law."
+        },
+        {
+            "question": "Ano ang tungkulin ng Committee on Education sa barangay?",
+            "answer": "Nagpaplano at nagrerekomenda ito ng mga programang pang-edukasyon, nangangalaga sa kapakanan ng mga mag-aaral, at nagsusulong ng literacy."
+        },
+        {
+            "question": "How are members of the Lupong Tagapamayapa selected?",
+            "answer": "They are appointed by the Sangguniang Barangay upon recommendation of the Barangay Captain, ensuring representation from different puroks."
+        },
+        {
+            "question": "Ano ang Committee on Appropriations sa barangay?",
+            "answer": "Ito ay isang committee na nangangasiwa sa pagrepaso at pagrerekomenda ng annual budget at mga gastusing pang-approbasyon ng Sanggunian."
+        },
+        {
+            "question": "How are the members of the BDRRMC trained?",
+            "answer": "They undergo mandatory training on disaster risk reduction and management conducted by the Office of Civil Defense (OCD) and other concerned agencies."
+        }
+    ],
+    "Barangay Financial Oversight": [
+        {
+            "question": "Who audits barangay funds?",
+            "answer": "The Commission on Audit (COA) has the constitutional mandate to examine, audit, and settle all accounts pertaining to barangay funds and properties."
+        },
+        {
+            "question": "What is the barangay's Annual Investment Program?",
+            "answer": "The Annual Investment Program is the barangay's comprehensive list of programs and projects prioritized for funding, derived from the Barangay Development Plan."
+        },
+        {
+            "question": "Sino ang nag-a-audit ng mga pondo ng barangay?",
+            "answer": "Ang Commission on Audit (COA) ang may constitutional mandate na suriin, i-audit, at ayusin ang lahat ng mga account na nauukol sa mga pondo at ari-arian ng barangay."
+        },
+        {
+            "question": "Ano ang Annual Investment Program ng barangay?",
+            "answer": "Ang Annual Investment Program ay komprehensibong listahan ng mga programa at proyekto ng barangay na pinrioridad para sa pagpopondo, na nagmula sa Barangay Development Plan."
+        }
+    ],
+    "Barangay Legislative Powers": [
+        {
+            "question": "What matters can barangays legislate on?",
+            "answer": "Barangays can legislate on matters of local concern including public health and safety, peace and order, environmental protection, and community development, within the limits set by law."
+        },
+        {
+            "question": "Can barangay ordinances contradict national laws?",
+            "answer": "No, barangay ordinances must be consistent with the Constitution, national laws, and ordinances of higher local government units."
+        },
+        {
+            "question": "Can a barangay ordinance be more strict than a city ordinance?",
+            "answer": "Yes, a barangay ordinance can impose stricter standards than a city or municipal ordinance, provided it is within the barangay's powers and does not contradict the Constitution or national laws."
+        },
+        {
+            "question": "Anong mga bagay ang maaaring lagdaan ng mga barangay?",
+            "answer": "Maaaring maglagda ang mga barangay ng mga bagay na may kinalaman sa lokal na pag-aalala kabilang ang pampublikong kalusugan at kaligtasan, kapayapaan at kaayusan, proteksyon sa kapaligiran, at pag-unlad ng komunidad, sa loob ng mga limitasyong itinakda ng batas."
+        }
+    ],
+    "Barangay Service Delivery": [
+        {
+            "question": "What are the mandatory services that barangays must provide?",
+            "answer": "Barangays must provide basic services including peace and order, solid waste management, health services, and maintenance of public works and infrastructure."
+        },
+        {
+            "question": "Can barangays charge for basic services?",
+            "answer": "Barangays may impose reasonable fees for certain services to recover costs, but essential services should remain accessible to all residents."
+        },
+        {
+            "question": "Ano ang mga mandatoryong serbisyo na kailangang ibigay ng barangay?",
+            "answer": "Kabilang sa mga mandatoryong serbisyo ang: pagpapanatili ng kapayapaan at kaayusan, solid waste management, health services, at pagpapanatili ng public works at infrastructure."
+        },
+        {
+            "question": "Maaari bang magsingil ang mga barangay para sa mga pangunahing serbisyo?",
+            "answer": "Maaaring magpataw ang mga barangay ng makatwirang bayarin para sa ilang mga serbisyo upang mabawi ang mga gastos, ngunit ang mga mahahalagang serbisyo ay dapat manatiling naa-access sa lahat ng residente."
+        }
+    ],
+    "Barangay Officials - Vacancies": [
+        {
+            "question": "What happens if a Barangay Captain becomes permanently unable to serve?",
+            "answer": "The highest-ranking Barangay Kagawad, based on the number of votes received in the election, becomes the new Barangay Captain. If unable, the second highest-ranking Kagawad takes over."
+        },
+        {
+            "question": "How is a vacancy for a Barangay Kagawad filled?",
+            "answer": "The Sangguniang Barangay appoints a qualified person from the barangay to fill the vacancy. The appointee serves the remainder of the term."
+        }
+    ],
+    "Barangay Officials - Benefits": [
+        {
+            "question": "Are Barangay Officials considered government employees?",
+            "answer": "No, Barangay Officials are considered elected public officials, not government employees. They receive honoraria and allowances, not fixed salaries, and are not covered by the GSIS."
+        },
+        {
+            "question": "What benefits are Barangay Tanods entitled to?",
+            "answer": "Barangay Tanods are entitled to honoraria, insurance coverage, and other allowances as provided by law and barangay funds. They may also be eligible for the Barangay Tanod Benefits under specific DILG guidelines."
+        },
+        {
+            "question": "May sweldo ba ang mga Barangay Kagawad?",
+            "answer": "Ang mga Barangay Kagawad ay tumatanggap ng honoraria at allowances, hindi fixed na suweldo. Sila ay itinuturing na elected public officials at hindi government employees na sakop ng GSIS."
+        }
+    ],
+    "Katarungang Pambarangay - Jurisdiction": [
+        {
+            "question": "What is the maximum value for a civil dispute that can be settled by the Barangay?",
+            "answer": "The Barangay has jurisdiction over disputes where the value does not exceed the jurisdictional limit of the Metropolitan Trial Court, Municipal Trial Court, or Municipal Circuit Trial Court in the place where the barangay is located. This amount is subject to change by law."
+        },
+        {
+            "question": "Anong mga klase ng away o kaso ang pwedeng ayusin ng Lupon?",
+            "answer": "Saklaw nito ang mga menor de criminal cases (hal. light physical injuries, trespassing) at civil disputes (hal. pera, pag-aangkin ng ari-arian hanggang sa isang partikular na halaga), at iba pang hidwaan kung saan pumapayag ang mga partido na mag-areglo."
+        },
+        {
+            "question": "My neighbor and I have a conflict over a small amount of money. Can the barangay handle it?",
+            "answer": "Yes, the barangay has jurisdiction over minor civil disputes, including money claims, provided the value does not exceed the jurisdictional limit of the city/municipal trial court."
+        },
+        {
+            "question": "Are all cases required to go through barangay mediation first?",
+            "answer": "No. Cases that are criminal in nature where the penalty exceeds one year, or those involving the government, do not need to go through the Katarungang Pambarangay process."
+        }
+    ],
+    "Katarungang Pambarangay - Process": [
+        {
+            "question": "What happens if one party refuses to appear for barangay mediation?",
+            "answer": "The Lupon Chairman may issue a summons. A persistent refusal to appear can result in the case being certified for filing in court, and the refusing party may be held liable for indirect contempt."
+        },
+        {
+            "question": "Is a Barangay Certification to File Action required before going to court?",
+            "answer": "Yes, for cases falling within the authority of the Lupon, a Certification to File Action is a mandatory requirement, proving that no settlement was reached, before a complaint can be filed in court."
+        },
+        {
+            "question": "Ano ang Barangay Certification to File Action at bakit kailangan ito?",
+            "answer": "Ito ay isang sertipikasyon mula sa Lupon na nagpapatunay na hindi naresolba ang isang kaso sa barangay. Ito ay isang mandatoryong requirement bago maifile sa korte ang isang reklamong sakop ng Katarungang Pambarangay."
+        },
+        {
+            "question": "I tried settling in the barangay but it failed. What document do I need to bring to court?",
+            "answer": "You need a Barangay Certification to File Action. This proves that you attempted amicable settlement at the barangay level but no agreement was reached, which is a prerequisite for filing cases in court for disputes within the barangay's jurisdiction."
+        },
+        {
+            "question": "What happens if the other party refuses to attend the barangay mediation?",
+            "answer": "The Lupon Chairman may issue a summons. Persistent refusal can lead to the case being certified for court filing, and the refusing party may be held liable for indirect contempt."
+        }
+    ],
+    "Barangay Finance - IRA": [
+        {
+            "question": "What is the formula for a barangay's share of the Internal Revenue Allotment (IRA)?",
+            "answer": "The barangay's IRA share is based on a formula considering population (50%), land area (25%), and equal sharing (25%), as mandated by the Local Government Code."
+        },
+        {
+            "question": "Paano kinakalkula ang share ng barangay sa Internal Revenue Allotment (IRA)?",
+            "answer": "Ang share ng barangay sa IRA ay batay sa formula na isinasaalang-alang ang populasyon (50%), lawak ng lupa (25%), at equal sharing (25%), ayon sa itinakda ng Local Government Code."
+        }
+    ],
+    "Barangay Finance - SEF": [
+        {
+            "question": "What is the Special Education Fund (SEF) and does the barangay get a share?",
+            "answer": "The SEF comes from an additional 1% tax on real property and is managed by the local school board at the city or municipal level. Barangays do not receive a direct share of the SEF."
+        }
+    ],
+    "Barangay and SK": [
+        {
+            "question": "Who automatically sits as a member of the Sangguniang Barangay?",
+            "answer": "The Sangguniang Kabataan (SK) Chairperson automatically serves as an ex-officio member of the Sangguniang Barangay, with the right to vote on matters except those pertaining to the SK's budget and internal rules."
+        },
+        {
+            "question": "How is the SK Fund released?",
+            "answer": "The SK Fund, which is a mandatory 10% of the barangay's General Fund, is automatically released to the SK Treasury upon approval of the barangay's annual budget."
+        },
+        {
+            "question": "Sino ang awtomatikong miyembro ng Sangguniang Barangay?",
+            "answer": "Ang Sangguniang Kabataan (SK) Chairperson ay awtomatikong nagsisilbing ex-officio na miyembro ng Sangguniang Barangay, na may karapatang bumoto sa mga usapin maliban sa mga nauukol sa badyet at panloob na tuntunin ng SK."
+        },
+        {
+            "question": "Does the SK Chairman have a seat in the Barangay Council?",
+            "answer": "The Sangguniang Kabataan (SK) Chairperson automatically serves as an ex-officio member of the Sangguniang Barangay, with the right to vote on matters except those pertaining to the SK's budget and internal rules."
+        }
+    ],
+    "Barangay Noise Regulation": [
+        {
+            "question": "Anong parusa sa pagpapatugtog ng videoke pagkatapos ng 10 PM?",
+            "answer": "₱500 multa sa unang paglabag, babala; paulit-ulit na paglabag: ₱1,500."
+        },
+        {
+            "question": "My neighbor is very loud at night with their karaoke. What's the penalty?",
+            "answer": "₱500 fine for first offense, warning; repeat offense: ₱1,500."
+        }
+    ],
+    "Enforcement of Barangay Laws": [
+        {
+            "question": "Sino ang may awtoridad na magpatupad ng batas pang-ingay sa barangay?",
+            "answer": "Ang mga Barangay Tanod ang nag-iisyu ng citation tickets; ang mga paulit-ulit na kaso ay hinahawakan ng Lupong Tagapamayapa."
+        },
+        {
+            "question": "Who has the power to issue a ticket for a noise violation?",
+            "answer": "Barangay tanods issue citation tickets; repeated cases handled by Lupong Tagapamayapa."
+        }
+    ],
+    "Barangay Curfew for Minors": [
+        {
+            "question": "Hanggang anong oras lang pwedeng mag-liwaliw ang mga menor de edad kapag may pasok?",
+            "answer": "10 PM hanggang 5 AM."
+        },
+        {
+            "question": "What time should minors be home on nights before school?",
+            "answer": "10 PM to 5 AM."
+        }
+    ],
+    "Curfew Enforcement": [
+        {
+            "question": "Paano kung laging nilalabag ng isang menor de edad ang curfew?",
+            "answer": "Ipinauuwi ang menor de edad sa kanyang magulang; maaaring irekomenda ang community service o counselling. Kung paulit-ulit ang kapabayaan ng magulang, maaaring magmulta ng ₱1,000."
+        },
+        {
+            "question": "What are the consequences for a teenager who repeatedly breaks the curfew rule?",
+            "answer": "Minor is returned to parents; community service or counseling may be recommended. Repeat negligence by parents may incur ₱1,000 fine."
+        }
+    ],
+    "Barangay Jurisdiction Limits": [
+        {
+            "question": "Paano ko ire-report ang nagbebenta ng illegal na droga?",
+            "answer": "Nandito ako para tumulong sa mga Batas ng Barangay lamang. Ang isyung ito ay wala sa hurisdiksyon ng barangay. Pakireport agad sa PNP Hotline: 117 / 911 o PDEA: 831-7203."
+        },
+        {
+            "question": "I suspect someone in my area is selling drugs. What should I do?",
+            "answer": "I'm here to assist with Barangay Laws only. This issue is beyond barangay jurisdiction. Please report immediately to PNP Hotline: 117 / 911 or PDEA: 831-7203."
+        }
+    ],
+    "Emergency Situations": [
+        {
+            "question": "May nananakit sa kapitbahay namin! Anong gagawin?",
+            "answer": "Ito ay isang emergency. Pakitawagan agad ang 911. Ang barangay ay maaaring tumulong pagkatapos dumating ang mga awtoridad."
+        },
+        {
+            "question": "I just witnessed a physical assault nearby. Who do I call?",
+            "answer": "This is an emergency. Please call 911 immediately. The barangay can assist after authorities arrive."
+        }
+    ],
+    "Barangay Officials - Roles": [
+        {
+            "question": "Ano ang mga tungkulin ng Punong Barangay?",
+            "answer": "Ang Punong Barangay ang nagsisilbing punong ehekutibo. Kabilang sa mga tungkulin niya ang: pagpapatupad ng mga batas/ordinansa, pagpapangulo sa mga pagpupulong, pamamahala sa pang-araw-araw na operasyon, paghahanda ng badyet, at pagre-representa sa barangay sa mga konseho ng lungsod/bayan."
+        },
+        {
+            "question": "Can you list the main responsibilities of the Barangay Captain?",
+            "answer": "The Barangay Captain serves as the chief executive officer. Duties include: enforcing laws/ordinances, presiding over meetings, managing day-to-day operations, preparing budgets, and representing the barangay in city/municipal councils."
+        },
+        {
+            "question": "Ano ang trabaho ng mga Barangay Kagawad?",
+            "answer": "Ang mga Barangay Kagawad ay mga miyembro ng konseho na: (1) gumagawa ng mga ordinansa, (2) lumalahok sa trabaho ng komite (kapayapaan, edukasyon, kalusugan, atbp.), (3) umaaprubaha ng badyet, at (4) tumutulong sa Punong Barangay sa pamamahala."
+        },
+        {
+            "question": "What is the function of a Barangay Kagawad in the council?",
+            "answer": "Barangay Kagawads are council members who: (1) enact ordinances, (2) participate in committee work (peace, education, health, etc.), (3) approve budgets, and (4) assist the Barangay Captain in governance."
+        }
+    ],
+    "Barangay Services - Documentation": [
+        {
+            "question": "Paano kumuha ng Barangay Clearance? Anong mga requirements?",
+            "answer": "Bisitahin ang barangay hall at magdala ng: (1) Valid ID, (2) Patunay ng paninirahan (proof of residency). Karaniwang 15-30 minuto ang processing. Ang bayad ay humigit-kumulang ₱50-₱100 ngunit maaaring mag-iba depende sa barangay."
+        },
+        {
+            "question": "I need a Barangay Clearance for my new job. What's the process?",
+            "answer": "Visit the barangay hall with: (1) Valid ID, (2) Proof of residency. Processing typically takes 15-30 minutes. Fees are approximately ₱50-₱100 but may vary by barangay."
+        }
+    ],
+    "Barangay Services - Social Aid": [
+        {
+            "question": "Paano ako makakapag-apply para sa financial assistance sa barangay?",
+            "answer": "Magsumite ng nakasulat na kahilingan sa Punong Barangay na naglalahad ng iyong sitwasyon. Ang mga kinakailangang dokumento ay iba-iba sa bawat barangay. Ang tulong ay nakadepende sa availability ng pondo ng barangay at mga eligibility criteria."
+        },
+        {
+            "question": "My family is in a financial crisis. Can the barangay provide monetary aid?",
+            "answer": "Submit a written request to the Barangay Captain explaining your situation. Required documents vary by barangay. Assistance depends on barangay funds availability and eligibility criteria."
+        }
+    ],
+    "Barangay Ordinance on Noise": [
+        {
+            "question": "My neighbor always has loud videoke sessions beyond the allowed time. What's the consequence?",
+            "answer": "₱500 fine for first offense, warning; repeat offense: ₱1,500."
+        },
+        {
+            "question": "Ano ang mangyayari kung mag-videoke nang malakas pagkatapos ng 10 PM?",
+            "answer": "₱500 multa sa unang paglabag, babala; paulit-ulit na paglabag: ₱1,500."
+        }
+    ],
+    "Curfew for Minors": [
+        {
+            "question": "Ano ang oras ng curfew para sa mga bata kapag school night?",
+            "answer": "10 PM hanggang 5 AM."
+        },
+        {
+            "question": "What are the curfew hours for minors during weekdays?",
+            "answer": "10 PM to 5 AM."
+        }
+    ],
+    "Barangay Jurisdiction": [
+        {
+            "question": "Nakatira sa amin ang isang nagbebenta ng ilegal na droga. Pwede bang umaksyon ang barangay?",
+            "answer": "Nandito ako para tumulong sa mga Batas ng Barangay lamang. Ang isyung ito ay wala sa hurisdiksyon ng barangay. Pakireport agad sa PNP Hotline: 117 / 911 o PDEA: 831-7203."
+        },
+        {
+            "question": "Can the barangay arrest someone using illegal drugs?",
+            "answer": "I'm here to assist with Barangay Laws only. This issue is beyond barangay jurisdiction. Please report immediately to PNP Hotline: 117 / 911 or PDEA: 831-7203."
+        }
+    ],
+    "Emergency Protocol": [
+        {
+            "question": "May aksidente sa kotse sa harap ng bahay namin! Sino ang dapat kong tawagan?",
+            "answer": "Nandito ako para tumulong sa mga Batas ng Barangay lamang. Ang insidenteng ito ay wala sa hurisdiksyon ng barangay. Pakikontak ang PNP Traffic Hotline: 117 / 911 o ang inyong lokal na ospital agad-agad."
+        },
+        {
+            "question": "I just saw a car crash. Should I report it to the barangay?",
+            "answer": "I'm here to assist with Barangay Laws only. This incident is beyond barangay jurisdiction. Please contact PNP Traffic Hotline: 117 / 911 or your local hospital immediately."
+        }
+    ],
+    "Barangay Documentation": [
+        {
+            "question": "Paano makakuha ng Barangay Indigency Certificate at para saan ito?",
+            "answer": "Mga Kailangan: (1) Valid ID, (2) Patunay ng mababang kita (kung applicable), (3) Layunin ng request. Pinatutunayan nito na ikaw ay residenteng nangangailangan ng tulong para sa scholarship, medical help, atbp. Maaaring may bayad sa processing."
+        },
+        {
+            "question": "What documents do I need for a Certificate of Indigency?",
+            "answer": "Required: (1) Valid ID, (2) Proof of low income (if applicable), (3) Purpose of request. This certifies you are a resident in need of assistance for scholarships, medical help, etc. Processing fees may apply."
+        }
+    ],
+    "Public Safety": [
+        {
+            "question": "Sino ang dapat kong kontakin tungkol sa sirang streetlight sa amin?",
+            "answer": "Ipaalam sa barangay hall ang eksaktong lokasyon at numero ng poste kung available. Ang barangay ang makikipag-ugnayan sa electric cooperative para sa pag-aayos. Ang oras ng pagtugon ay nakadepende sa kumpanya ng kuryente."
+        },
+        {
+            "question": "Who fixes broken streetlights in the barangay?",
+            "answer": "Inform the barangay hall with the exact location and pole number if available. Barangay will coordinate with the electric cooperative for repairs. Response times depend on the utility company."
+        },
+        {
+            "question": "Barado ang kanal sa tapat ng bahay namin. Pwede bang paayos ito sa barangay?",
+            "answer": "I-report ito sa barangay engineering o maintenance office. Ibigay ang tiyak na lokasyon. Mag-iiskedyul ng clearing operations ang mga manggagawa ng barangay. Para sa malalang baha, tawagan ang emergency services."
+        },
+        {
+            "question": "Our drainage is clogged and causing flooding. Can the barangay help?",
+            "answer": "Report to the barangay engineering or maintenance office. Provide specific location. Barangay workers will schedule clearing operations. For severe flooding, call emergency services."
+        }
+    ],
+    "Barangay Legislation": [
+        {
+            "question": "Paano nabubuo ang isang barangay ordinance?",
+            "answer": "Ito ay inihaharap ng isang Kagawad o ng Kapitan, dumadaan sa tatlong pagbasa ng Sangguniang Barangay, inaaprubahan ng Punong Barangay, at ipinopost sa publiko para sa pagiging epektibo."
+        },
+        {
+            "question": "What is the step-by-step process for passing a new barangay law?",
+            "answer": "It is proposed by a Kagawad or the Captain, undergoes three readings by the Sangguniang Barangay, is approved by the Barangay Captain, and posted publicly for effectivity."
+        }
+    ],
+    "Barangay Finance": [
+        {
+            "question": "Saan galing ang pondo ng barangay?",
+            "answer": "Ang mga pangunahing pinagmumulan ay ang Internal Revenue Allotment (IRA) mula sa pambansang pamahalaan, share mula sa pambansang buwis, at mga locally sourced na kita tulad ng mga bayarin at singil."
+        },
+        {
+            "question": "Where does the barangay get its budget?",
+            "answer": "The main sources are the Internal Revenue Allotment (IRA) from the national government, share from national taxes, and locally sourced revenues like fees and charges."
+        },
+        {
+            "question": "What is the Special Education Fund (SEF) and can the barangay use it?",
+            "answer": "The SEF comes from an additional 1% tax on real property. It is managed by the local school board at the city or municipal level, and barangays do not receive a direct share of this fund."
+        },
+        {
+            "question": "Sino ang nag-aapruba ng taunang badyet ng barangay?",
+            "answer": "Ang Sangguniang Barangay ang nag-aapruba ng taunang badyet sa pamamagitan ng isang appropriation ordinance, na siyang inaaprubahan ng Punong Barangay."
+        },
+        {
+            "question": "Saan nagmumula ang pondo ng barangay?",
+            "answer": "Ang mga pangunahing pinagmumulan ng pondo ng barangay ay ang Internal Revenue Allotment (IRA), share mula sa national wealth, at lokal na kita mula sa mga bayarin at permit."
+        },
+        {
+            "question": "Saan ko pwedeng makita ang breakdown ng barangay budget?",
+            "answer": "Dapat naka-post ang budget summary sa barangay bulletin board, at available ang detailed version sa barangay treasurer's office."
+        },
+        {
+            "question": "How can I check if my barangay fees are being used properly?",
+            "answer": "You can request to see the Statement of Receipts and Expenditures from the Barangay Treasurer, as this is a public document."
+        },
+        {
+            "question": "Paano malalaman kung saan ginagamit ang pondo ng barangay?",
+            "answer": "Ang Statement of Income and Expenditures ay dapat available sa barangay hall at naka-post sa bulletin board quarterly."
+        },
+        {
+            "question": "What is the barangay's share from the national taxes?",
+            "answer": "Barangays receive a share from national taxes collected within their territory, as provided in the Local Government Code."
+        },
+        {
+            "question": "Saan napupunta ang kita ng barangay mula sa mga multa?",
+            "answer": "Ang kita mula sa mga multa ay napupunta sa general fund ng barangay at nagagamit para sa mga proyekto at serbisyo."
+        },
+        {
+            "question": "Can the barangay create its own local taxes?",
+            "answer": "Yes, but only those taxes, fees, and charges specifically authorized by the Local Government Code and through a valid barangay ordinance."
+        },
+        {
+            "question": "Saan napupunta ang nalalabi sa badyet ng barangay sa katapusan ng taon?",
+            "answer": "Ang unexpended fund ay maaaring i-revert sa general fund at magamit para sa susunod na taon, maliban kung may specific provision ang batas."
+        },
+        {
+            "question": "Can the barangay allocate funds for disaster response even if it's not in the annual budget?",
+            "answer": "Yes, through a Supplemental Budget, the barangay can allocate funds for emergency situations like disasters."
+        }
+    ],
+    "Barangay Assembly": [
+        {
+            "question": "Kailan gaganapin ang Barangay Assembly?",
+            "answer": "Ito ay ipinag-uutos na gaganapin ng hindi bababa sa dalawang beses sa isang taon, sa huling Sabado ng Marso at sa ikalawang Linggo ng Oktubre, maliban na lamang kung may ibang itinakda ang batas o ordinansa."
+        },
+        {
+            "question": "As a resident, can I speak during the Barangay Assembly meeting?",
+            "answer": "Yes. The Barangay Assembly is a forum for direct democracy where registered voters can voice their concerns, propose initiatives, and review the performance of barangay officials."
+        }
+    ],
+    "Barangay VAW Desk": [
+        {
+            "question": "Ano ang mga serbisyong ino-offer ng VAW Desk ng barangay?",
+            "answer": "Ang mga serbisyo ng VAW Desk ay nakadepende sa kakayahan ng barangay. Maaaring kabilang dito ang: counseling, referral sa PNP-WCPD, at pagtulong sa pag-file ng mga kaso. Hindi lahat ng barangay ay kayang magbigay ng komprehensibong serbisyo para sa VAW."
+        },
+        {
+            "question": "Can the Barangay Captain issue a protection order?",
+            "answer": "Yes. The Barangay Captain can issue a Barangay Protection Order (BPO) which is effective for 15 days, providing immediate protection for victims under the Anti-Violence Against Women and Their Children Act (RA 9262)."
+        }
+    ],
+    "Barangay Officials - Vacancy": [
+        {
+            "question": "What happens if our Barangay Captain resigns?",
+            "answer": "The highest-ranking Barangay Kagawad, based on the number of votes received in the election, will assume the position of Barangay Captain for the remainder of the term."
+        }
+    ],
+    "Barangay Services": [
+        {
+            "question": "Paano makakuha ng barangay clearance?",
+            "answer": "Bisitahin ang barangay hall na may dalang valid ID at patunay ng paninirahan. Ang clearance ay karaniwang inilalabas ng Barangay Secretary at pinipirmahan ng Punong Barangay."
+        },
+        {
+            "question": "Paano kung kailangan ko ng barangay certificate ngayon din, may overtime fee ba?",
+            "answer": "May karagdagang bayad para sa overtime services, pero ito ay depende sa ordinansa ng inyong barangay."
+        },
+        {
+            "question": "What documents do I need for a barangay indigency certificate?",
+            "answer": "You need a valid ID, proof of income or lack thereof, and a written request stating the purpose of the certificate."
+        },
+        {
+            "question": "Gaano katagal ang bisa ng barangay clearance?",
+            "answer": "Karaniwang 6 months hanggang 1 year ang validity ng barangay clearance, depende sa purpose at barangay policy."
+        },
+        {
+            "question": "Can I get a barangay certificate for loan applications?",
+            "answer": "Yes, you can request a barangay certificate or clearance for loan purposes, subject to barangay verification."
+        },
+        {
+            "question": "Paano kung nawala ang aking barangay ID?",
+            "answer": "Maaari kang mag-request ng affidavit of loss at kumuha ng bagong barangay ID, na maaaring may kaakibat na bayad."
+        },
+        {
+            "question": "Can I use my barangay clearance for passport application?",
+            "answer": "Yes, a barangay clearance is one of the common community documents accepted to prove residency for a passport application."
+        },
+        {
+            "question": "Pwede bang tanggihan ng barangay ang pag-isyu ng clearance kung may utang ako sa barangay?",
+            "answer": "Hindi, ang barangay clearance ay karapatan ng bawat residente. Ang hindi pagbayad ng utang ay isang hiwalay na usapin na dapat ayusin sa tamang proseso."
+        },
+        {
+            "question": "Can I get a barangay certificate to prove that I am single?",
+            "answer": "A barangay can issue a Certificate of Singleness/Celibacy based on their knowledge, but for legal purposes, a Certificate of No Marriage (CENOMAR) from the PSA is the definitive document."
+        }
+    ],
+    "Barangay Livelihood Programs": [
+        {
+            "question": "Mayroon bang livelihood program ang barangay?",
+            "answer": "Ang ilang barangay ay may livelihood programs tulad ng skills training, livelihood assistance, at micro-enterprise development sa pakikipagtulungan sa DSWD at iba pang ahensya."
+        },
+        {
+            "question": "May livelihood training ba ang barangay?",
+            "answer": "Mayroon, sa pakikipagtulungan ng DSWD, TESDA, at iba pang ahensya. Magtanong sa barangay hall para sa schedule."
+        },
+        {
+            "question": "How can I avail of barangay livelihood assistance?",
+            "answer": "Submit a project proposal to the barangay council and meet the eligibility requirements set by the barangay."
+        },
+        {
+            "question": "Paano malaman kung qualified para sa livelihood assistance?",
+            "answer": "Magtanong sa barangay social welfare desk para sa eligibility criteria at application process."
+        },
+        {
+            "question": "What types of livelihood projects does the barangay support?",
+            "answer": "Common projects include sari-sari store operations, food processing, handicraft making, and small-scale animal raising."
+        },
+        {
+            "question": "Saan pwedeng i-report ang isang nagpapanggap na nagbebenta ng livelihood training?",
+            "answer": "I-report agad sa barangay hall at sa DTI o DSWD para ma-imbestigahan ang mga scam."
+        },
+        {
+            "question": "What support does the barangay provide for startup small businesses?",
+            "answer": "Support may include assistance in business registration, access to seminars, and sometimes linkage to microfinancing institutions."
+        },
+        {
+            "question": "Pwede bang humiram ng pondo sa barangay para sa puhunan sa negosyo?",
+            "answer": "Ang ilang barangay ay may livelihood assistance program, ngunit ito ay karaniwang nasa anyo ng training at starter kits, hindi cash loan."
+        },
+        {
+            "question": "What is the barangay's role in the TUPAD program of DOLE?",
+            "answer": "The barangay assists in identifying and listing qualified beneficiaries for the TUPAD program, which provides emergency employment."
+        }
+    ],
+    "Barangay Business Permits": [
+        {
+            "question": "Kailangan ba ng barangay permit para magtayo ng maliit na negosyo?",
+            "answer": "Oo, kailangan ng barangay business permit bilang karagdagan sa business permit mula sa lungsod o munisipyo."
+        },
+        {
+            "question": "Kailangan ba ng barangay permit para sa home-based business?",
+            "answer": "Oo, kahit home-based business ay kailangan ng barangay permit kung ito ay nagbebenta ng produkto o serbisyo."
+        },
+        {
+            "question": "How much is the barangay tax for a small sari-sari store?",
+            "answer": "Typically between ₱300 to ₱1,000 annually, but this varies depending on the barangay's revenue code."
+        },
+        {
+            "question": "Kailangan ba ng barangay permit para sa online business?",
+            "answer": "Oo, kung ang online business ay nakabase sa barangay, kailangan ng barangay business permit."
+        },
+        {
+            "question": "How often should business permits be renewed?",
+            "answer": "Business permits should be renewed annually, usually every January."
+        },
+        {
+            "question": "Kailangan ba ng barangay permit para magtayo ng internet café?",
+            "answer": "Oo, kailangan ng barangay business permit, at maaaring mangailangan pa ng clearance mula sa DTI at local business permit."
+        },
+        {
+            "question": "Are home-based food businesses required to have a barangay permit?",
+            "answer": "Yes, any business operation, including home-based food preparation for sale, requires a barangay business permit."
+        },
+        {
+            "question": "Kailangan ba ng barangay permit ang isang food cart o food truck?",
+            "answer": "Oo, kahit na mobile ang negosyo, kailangan pa rin ng barangay business permit kung ito ay nag-o-operate sa loob ng barangay."
+        },
+        {
+            "question": "Are online freelancers required to get a barangay permit?",
+            "answer": "If you are operating your freelance business from your home within the barangay, you are technically required to secure a barangay business permit."
+        }
+    ],
+    "Barangay Emergency Response": [
+        {
+            "question": "Ano ang dapat gawin kapag may sunog sa barangay?",
+            "answer": "Agad na tumawag sa BFP (117 o 911) at alertuhan ang barangay officials. Sumunod sa evacuation procedure kung kinakailangan."
+        },
+        {
+            "question": "Sino ang dapat tawagan kapag may medical emergency?",
+            "answer": "Tumawag agad ng 911, then inform the barangay officials for assistance."
+        },
+        {
+            "question": "Does the barangay have an emergency hotline?",
+            "answer": "Most barangays have their own emergency hotline numbers posted in public areas and on their social media pages."
+        },
+        {
+            "question": "Sino ang barangay emergency response team?",
+            "answer": "Ang BDRRMC ang nagsisilbing emergency response team, kasama ang mga trained barangay tanod at volunteers."
+        },
+        {
+            "question": "How quickly should the barangay respond to emergencies?",
+            "answer": "The barangay should respond immediately to emergencies, with tanods arriving within minutes in the barangay proper."
+        }
+    ],
+    "Barangay Waste Management": [
+        {
+            "question": "Ano ang schedule ng garbage collection sa barangay?",
+            "answer": "Ang schedule ng garbage collection ay iba-iba sa bawat barangay. Makipag-ugnayan sa barangay hall para sa tamang schedule at segregation guidelines."
+        },
+        {
+            "question": "Anong araw ang collection ng basura sa amin?",
+            "answer": "Iba-iba per area. Magtanong sa inyong purok leader o sa barangay hall para sa exact schedule."
+        },
+        {
+            "question": "What types of waste should be separated?",
+            "answer": "Biodegradable, recyclable, special/hazardous waste, and residual waste should be properly segregated."
+        },
+        {
+            "question": "Paano mag-report ng illegal dumping?",
+            "answer": "I-report sa barangay tanod o sa environment committee na may ebidensya at lokasyon."
+        },
+        {
+            "question": "What is the penalty for illegal dumping?",
+            "answer": "Penalties vary by barangay but typically include fines and community service."
+        },
+        {
+            "question": "Ano ang gagawin sa mga basura pagkatapos ng malakas na bagyo?",
+            "answer": "Ihiwalay ang mga natirang basura. I-report sa barangay ang malalaking debris. Karaniwang naglulunsad ang barangay ng special collection operations pagkatapos ng kalamidad."
+        },
+        {
+            "question": "How should I dispose of a broken fluorescent lamp?",
+            "answer": "Do not throw it with regular waste. Wrap it securely and label it. Bring it to a designated hazardous waste collection point, which the barangay should coordinate with the city/municipality."
+        }
+    ],
+    "Barangay Senior Citizens": [
+        {
+            "question": "Ano ang mga programa ng barangay para sa senior citizens?",
+            "answer": "Kabilang sa mga programa ang assistance sa pagkuha ng senior citizen ID, medical missions, at social activities para sa mga senior citizen."
+        },
+        {
+            "question": "Paano kumuha ng senior citizen ID sa barangay?",
+            "answer": "Mag-apply sa OSCA office sa city/municipality, pero ang barangay ay maaaring tumulong sa pag-process ng requirements."
+        },
+        {
+            "question": "What benefits can senior citizens get from the barangay?",
+            "answer": "Priority in assistance, exemption from community tax, and access to senior citizen-focused programs and activities."
+        },
+        {
+            "question": "May monthly meeting ba ang mga senior citizens sa barangay?",
+            "answer": "Oo, karamihan ng barangay ay may monthly assembly para sa mga senior citizens."
+        },
+        {
+            "question": "What recreational activities are available for seniors?",
+            "answer": "Common activities include exercise programs, social gatherings, and educational seminars."
+        },
+        {
+            "question": "May transportation assistance ba ang barangay para sa mga senior citizen?",
+            "answer": "Ang ilang barangay ay may service para ihatid ang mga senior sa malalapit na health center o munisipyo, lalo na para sa mga medical appointment."
+        },
+        {
+            "question": "Are there barangay volunteers who assist bedridden seniors?",
+            "answer": "Some barangays have programs where BHWs or volunteers conduct periodic wellness checks on bedridden or isolated senior citizens."
+        }
+    ],
+    "Barangay Persons with Disability": [
+        {
+            "question": "Ano ang mga serbisyo ng barangay para sa PWD?",
+            "answer": "Nagbibigay ang barangay ng assistance sa pagkuha ng PWD ID, livelihood programs, at accessibility support para sa mga persons with disability."
+        },
+        {
+            "question": "Paano mag-apply ng PWD ID sa barangay?",
+            "answer": "Kumuha ng application form sa barangay hall at magsumite ng medical certificate at iba pang requirements."
+        },
+        {
+            "question": "Are there special programs for PWDs in the barangay?",
+            "answer": "Yes, including livelihood training, educational assistance, and accessibility improvements in barangay facilities."
+        },
+        {
+            "question": "May special parking ba para sa PWD sa barangay facilities?",
+            "answer": "Oo, dapat may designated parking spaces ang barangay para sa PWD."
+        },
+        {
+            "question": "Are barangay facilities PWD-friendly?",
+            "answer": "New barangay facilities should be PWD-friendly, but older buildings may not yet be fully accessible."
+        },
+        {
+            "question": "May financial aid ba ang barangay para sa mga PWD?",
+            "answer": "Ang ilang barangay ay may maliit na financial assistance para sa mga PWD, lalo na para sa medical needs o pagbili ng assistive devices."
+        },
+        {
+            "question": "Does the barangay help PWDs get national government benefits?",
+            "answer": "Yes, the barangay often assists PWDs in processing their applications for benefits from agencies like DSWD or the PWD discount ID from the local PDAO."
+        }
+    ],
+    "Barangay Water Services": [
+        {
+            "question": "Sino ang responsable sa pag-aayos ng water system sa barangay?",
+            "answer": "Ang local water district ang responsable sa maintenance ng water system. Ang barangay ay maaaring tumulong sa pag-coordinate ng mga repair."
+        },
+        {
+            "question": "Sino ang mag-aayos ng leaking water pipe sa barangay?",
+            "answer": "Kung barangay-owned ang water system, ang barangay maintenance ang mag-aayos. Kung sa water district, sila ang responsible."
+        },
+        {
+            "question": "How to report low water pressure in the barangay?",
+            "answer": "Report to the barangay hall, who will coordinate with the water service provider for appropriate action."
+        },
+        {
+            "question": "Paano kung brownout ang water system ng barangay?",
+            "answer": "I-report agad sa barangay hall para ma-coordinate sa water district at maibalik ang serbisyo."
+        },
+        {
+            "question": "How to report water theft?",
+            "answer": "Report to the barangay for coordination with the water utility company's security division."
+        },
+        {
+            "question": "Paano kung walang tubig sa buong barangay nang hindi inaasahan?",
+            "answer": "I-check kung may advisory ang water district. Kung wala, ireport agad sa barangay hall para makipag-coordinate sa water district at malaman ang dahilan at estimated time of restoration."
+        },
+        {
+            "question": "How to report a public water tap that is constantly leaking?",
+            "answer": "Report it to the barangay maintenance office. If it's a water district-owned tap, the barangay will forward the report to them."
+        }
+    ],
+    "Barangay Electrical Services": [
+        {
+            "question": "Paano mag-report ng sirang poste ng kuryente?",
+            "answer": "Direktang ireport sa electric cooperative at ipagbigay-alam din sa barangay para sa follow-up action."
+        },
+        {
+            "question": "Paano mag-report ng naglalawang poste ng kuryente?",
+            "answer": "I-report agad sa electric cooperative at sa barangay hall para maaksyunan."
+        },
+        {
+            "question": "Who is responsible for trimming trees near power lines?",
+            "answer": "The electric utility company is responsible, but the barangay can help coordinate the tree trimming activity."
+        },
+        {
+            "question": "Sino ang sasagot sa electrical emergency sa barangay?",
+            "answer": "Tumawag agad sa electric cooperative emergency line, at ipaalam din sa barangay."
+        },
+        {
+            "question": "What should I do during a power outage in the barangay?",
+            "answer": "Report the outage to the electric cooperative and inform the barangay for monitoring and coordination."
+        },
+        {
+            "question": "May peligro ba ang nakabiting mga kable ng kuryente sa barangay? Paano ito i-report?",
+            "answer": "Oo, delikado ito. I-report AGAD sa electric cooperative at sa barangay hall. Huwag lapitan o hawakan. Ito ay isang fire at safety hazard."
+        },
+        {
+            "question": "A transformer in our area is sparking and smoking. What's the emergency procedure?",
+            "answer": "This is a fire and electrocution hazard. Keep everyone at least 30 feet away. Call the electric cooperative's emergency line and the BFP (911/117) immediately. The barangay should assist in cordoning off the area."
+        }
+    ],
+    "Barangay Road Safety": [
+        {
+            "question": "Ano ang ginagawa ng barangay para sa road safety?",
+            "answer": "Naglalagay ang barangay ng traffic signs, speed bumps, at nagpapatupad ng traffic rules para sa kaligtasan ng mga motorista at pedestrian."
+        },
+        {
+            "question": "Pwede bang mag-request ng speed bump sa barangay?",
+            "answer": "Oo, sa pamamagitan ng petition ng mga residente at approval ng Sangguniang Barangay."
+        },
+        {
+            "question": "What traffic rules are enforced by the barangay?",
+            "answer": "The barangay enforces local traffic ordinances, including no parking zones, speed limits, and other community safety rules."
+        },
+        {
+            "question": "Paano mag-request ng pedestrian lane sa barangay?",
+            "answer": "Magsumite ng petition sa Sangguniang Barangay na may suporta ng mga residente."
+        },
+        {
+            "question": "Who installs traffic signs in the barangay?",
+            "answer": "The barangay installs traffic signs on barangay roads, following standard traffic safety guidelines."
+        },
+        {
+            "question": "Pwede bang mag-request ng pedestrian overpass sa barangay?",
+            "answer": "Ang barangay ay maaaring mag-rekomenda sa DPWH o sa city engineering office, ngunit ang paggawa ng overpass ay nasa kanila."
+        },
+        {
+            "question": "Who is responsible for removing road obstructions like illegally parked vehicles?",
+            "answer": "The barangay tanods can issue warnings and coordinate with the PNP Traffic Enforcement Group for the removal of obstructions on barangay roads."
+        }
+    ],
+    "Barangay Animal Control": [
+        {
+            "question": "Paano mag-report ng stray animals sa barangay?",
+            "answer": "I-report sa barangay hall o sa mga Barangay Tanod. Ang barangay ay makikipag-ugnayan sa city veterinarian para sa appropriate action."
+        },
+        {
+            "question": "Ano ang gagawin kung may nakagat ng aso sa barangay?",
+            "answer": "Dalhin agad sa hospital at i-report sa barangay at sa city veterinary office para ma-verify ang vaccination status ng aso."
+        },
+        {
+            "question": "Are there regulations for pet owners in the barangay?",
+            "answer": "Yes, most barangays have ordinances requiring pet vaccination, registration, and proper containment of animals."
+        },
+        {
+            "question": "May animal pound ba ang barangay?",
+            "answer": "Karamihan ng barangay ay wala, ngunit nakikipag-ugnayan sa city veterinary office para sa stray animals."
+        },
+        {
+            "question": "What is the barangay's policy on pet registration?",
+            "answer": "Most barangays require pet registration and vaccination to ensure public safety."
+        },
+        {
+            "question": "Ano ang gagawin kung may nakagat ako ng aso at hindi kilala ang may-ari?",
+            "answer": "Punasok agad sa pinakamalapit na hospital para sa anti-rabies treatment. I-report sa barangay at sa city veterinary office para ma-verify kung may rabies outbreak sa area at mahuli ang aso."
+        },
+        {
+            "question": "A neighbor's dog is constantly aggressive and has broken free from its leash. What should I do?",
+            "answer": "This is a public safety emergency. Do not approach the animal. Call the barangay tanods immediately to secure the area and contact the owner. If the dog poses an immediate threat, the barangay should coordinate with the city veterinarian for capture."
+        }
+    ],
+    "Barangay Fire Safety": [
+        {
+            "question": "Mayroon bang fire prevention program ang barangay?",
+            "answer": "Oo, nagkakaroon ang barangay ng fire prevention seminars at inspection sa pakikipagtulungan ng Bureau of Fire Protection (BFP)."
+        },
+        {
+            "question": "Kailan ang fire drill sa barangay?",
+            "answer": "Karaniwan quarterly, sa pakikipagtulungan ng BFP. Abangan ang announcement sa barangay."
+        },
+        {
+            "question": "What fire safety equipment should the barangay have?",
+            "answer": "The barangay should have fire extinguishers, fire hoses, and other basic firefighting equipment in strategic locations."
+        },
+        {
+            "question": "May fire extinguisher ba sa barangay hall?",
+            "answer": "Oo, dapat may fire extinguisher at basic firefighting equipment ang barangay hall at public facilities."
+        },
+        {
+            "question": "How often are fire safety inspections conducted?",
+            "answer": "The BFP conducts regular fire safety inspections in coordination with the barangay."
+        },
+        {
+            "question": "May regular inspection ba ang BFP sa mga business establishment sa barangay?",
+            "answer": "Oo, ang BFP ay nagsasagawa ng regular fire safety inspection sa mga business establishment, at ang barangay ay tumutulong sa pag-facilitate nito."
+        },
+        {
+            "question": "Our neighbor is storing large amounts of gasoline in their home. Is this allowed?",
+            "answer": "No, storing flammable liquids in large, unapproved quantities inside a residence is a major fire code violation and a public safety hazard. Report this immediately to the BFP and the barangay."
+        }
+    ],
+    "Barangay First Aid": [
+        {
+            "question": "Mayroon bang first aid training ang barangay?",
+            "answer": "Ang ilang barangay ay nagsasagawa ng basic first aid training sa pakikipagtulungan ng Philippine Red Cross o BFP."
+        },
+        {
+            "question": "Saan makikita ang first aid kit ng barangay?",
+            "answer": "Nasa barangay hall, health center, at sa mga strategic locations sa loob ng barangay."
+        },
+        {
+            "question": "Does the barangay conduct regular first aid training?",
+            "answer": "Some barangays conduct basic first aid training in partnership with organizations like the Red Cross or BFP."
+        },
+        {
+            "question": "Sino ang trained na first aid responders sa barangay?",
+            "answer": "Ang mga barangay tanod, health workers, at ilang officials ay dapat trained sa basic first aid."
+        },
+        {
+            "question": "Where is the nearest barangay health center?",
+            "answer": "The barangay health center is usually located within the barangay hall compound or in a designated public area."
+        },
+        {
+            "question": "Saan ang pinakamalapit na hospital o clinic mula sa aming barangay?",
+            "answer": "Ang barangay hall o health center ay dapat may listahan ng mga pinakamalapit na healthcare facilities, kasama ang kanilang contact number at direksyon."
+        },
+        {
+            "question": "Someone is having a heart attack in the barangay plaza. What is the emergency response?",
+            "answer": "First, call 911 for an ambulance immediately. Then, shout for help and ask if anyone knows CPR. Send someone to get the barangay's first aid kit and to alert the Barangay Health Worker or any trained official. Do not move the person unnecessarily."
+        }
+    ],
+    "Barangay Emergency Services": [
+        {
+            "question": "Ano ang unang dapat gawin kapag may nakakitang suspek na nagnakaw?",
+            "answer": "Huwag harapin ang suspek. Tumawag agad sa PNP Hotline 117 o 911 at alertuhan ang mga Barangay Tanod. Pagkatapos, i-observe mula sa isang ligtas na distansya."
+        },
+        {
+            "question": "There's a strong chemical smell coming from a neighbor's house. What should I do?",
+            "answer": "This is a potential HAZMAT emergency. Evacuate immediately to a safe distance, call the BFP at 911/117, and then inform the barangay."
+        },
+        {
+            "question": "Mayroon bang designated emergency evacuation route ang bawat purok?",
+            "answer": "Dapat meron. Ang BDRRMC ang may responsibilidad na magplano nito at ipaalam sa lahat ng residente sa pamamagitan ng mga mapa at signage."
+        },
+        {
+            "question": "A child is having a severe allergic reaction. Who in the barangay can help while waiting for an ambulance?",
+            "answer": "Immediately call 911 for an ambulance. Then, contact the Barangay Health Center or any trained Barangay Health Worker (BHW) for immediate first aid assistance if they are available and nearby."
+        },
+        {
+            "question": "Paano kung may matinding away na may hawak na patalim?",
+            "answer": "HUWAG SUMUGOD. Ituring itong life-threatening emergency. Tumawag agad sa PNP 117/911. I-report ang eksaktong lokasyon at deskripsyon ng tao at ng sandata. Ang Barangay Tanod ay maaaring mag-set up ng perimeter pero hindi dapat makipag-engage."
+        },
+        {
+            "question": "There's a bomb threat in the barangay hall. What is the protocol?",
+            "answer": "This is a critical emergency. Evacuate the area immediately following established evacuation routes. Call the PNP and BFP Explosive Ordnance Disposal (EOD) units via 911/117. The barangay will assist in the evacuation and cordoning of the area."
+        },
+        {
+            "question": "Ano ang protocol ng barangay kapag may namatay na walang kamag-anak?",
+            "answer": "Ang barangay, sa koordinasyon ng pulisya at local health office, ay nangangasiwa sa pag-aayos ng libing, kadalasan sa isang paupahang nitso o sa public cemetery."
+        },
+        {
+            "question": "A neighbor is threatening to jump from a building. What is the barangay's role?",
+            "answer": "This is a critical emergency. The barangay's role is to immediately secure the area, control the crowd, and coordinate with the PNP, BFP, and a crisis negotiator or mental health professional. Their primary goal is to assist in de-escalating the situation and ensuring a safe rescue."
+        }
+    ]
+}
