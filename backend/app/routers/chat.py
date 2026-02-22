@@ -4,7 +4,7 @@ from typing import List
 from datetime import datetime
 from .. import models, schemas
 from ..db import get_db
-from ..chatbot import generate_chat_response
+from ..chatbot import generate_chat_response, load_faq_data
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -36,6 +36,26 @@ def get_chat(chat_id: int, db: Session = Depends(get_db)):
     if not chat:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
     return chat
+
+@router.get("/faq")
+def get_faq_data():
+    """Get FAQ data (categories and questions)"""
+    try:
+        faq_data = load_faq_data()
+        if faq_data is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="FAQ data not available"
+            )
+        return faq_data
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error loading FAQ data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load FAQ data: {str(e)}"
+        )
 
 @router.post("/ai", response_model=dict)
 def chat_with_ai(chat: schemas.ChatCreate, db: Session = Depends(get_db)):

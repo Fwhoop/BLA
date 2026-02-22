@@ -305,6 +305,28 @@ class ApiService {
     }
   }
 
+  // FAQ API
+  Future<Map<String, dynamic>> getFaqData() async {
+    try {
+      // FAQ endpoint doesn't require authentication
+      final headers = {'Content-Type': 'application/json'};
+      final response = await http.get(
+        Uri.parse('$baseUrl/chats/faq'),
+        headers: headers,
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print('Failed to load FAQ from API: ${response.statusCode} - ${response.body}');
+        return {};
+      }
+    } catch (e) {
+      print('Error loading FAQ from API: $e');
+      return {};
+    }
+  }
+
   // Requests API
   Future<Map<String, dynamic>> createRequest({
     required int barangayId,

@@ -31,7 +31,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
+# Create database tables on startup (with error handling)
+@app.on_event("startup")
+async def create_tables():
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created/verified successfully")
+    except Exception as e:
+        logger.warning(f"Could not create database tables: {e}")
+        logger.warning("Server will continue, but database operations may fail until connection is fixed")
 
 @app.get("/auth/me", response_model=UserRead)
 async def me(current: User = Depends(get_current_user)):

@@ -8,23 +8,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.db import SessionLocal
 from app.models import User, Barangay
-from passlib.context import CryptContext
+import bcrypt
 from datetime import datetime, timezone
 
-# Use the same password context as auth router
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def get_password_hash(password: str) -> str:
-    """Hash password using passlib (compatible with auth router)"""
-    try:
-        return pwd_context.hash(password)
-    except Exception as e:
-        # Fallback to bcrypt directly if passlib fails
-        import bcrypt
-        password_bytes = password.encode('utf-8')
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(password_bytes, salt)
-        return hashed.decode('utf-8')
+    """Hash password using bcrypt directly (same method as auth.py)"""
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 def seed_users():
     db = SessionLocal()

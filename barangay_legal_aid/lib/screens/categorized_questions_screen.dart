@@ -5,6 +5,7 @@ import '../models/faq_model.dart';
 import '../chat_model.dart';
 import '../chat_provider.dart';
 import '../models/user_model.dart';
+import '../services/api_service.dart';
 import 'package:http/http.dart' as http;
 
 class CategorizedQuestionsScreen extends StatefulWidget {
@@ -73,15 +74,45 @@ class _CategorizedQuestionsScreenState
 
   Future<void> _loadFaqData() async {
     try {
-      final String jsonString =
-          await rootBundle.loadString('assets/barangay_law_flutter.json');
-      final Map<String, dynamic> jsonData = json.decode(jsonString);
+      // Try loading from assets first
+      try {
+        final String jsonString =
+            await rootBundle.loadString('assets/barangay_law_flutter.json');
+        final Map<String, dynamic> jsonData = json.decode(jsonString);
+        setState(() {
+          _faqData = FaqData.fromJson(jsonData);
+          _isLoading = false;
+        });
+        print('✅ FAQ data loaded from assets');
+        return;
+      } catch (assetError) {
+        print('⚠️ Failed to load from assets: $assetError');
+        // Fallback to API
+      }
+      
+      // Fallback: Load from API
+      try {
+        final apiService = ApiService();
+        final jsonData = await apiService.getFaqData();
+        if (jsonData.isNotEmpty && jsonData.containsKey('categories')) {
+          setState(() {
+            _faqData = FaqData.fromJson(jsonData);
+            _isLoading = false;
+          });
+          print('✅ FAQ data loaded from API');
+          return;
+        }
+      } catch (apiError) {
+        print('⚠️ Failed to load from API: $apiError');
+      }
+      
+      // If both fail, show error
       setState(() {
-        _faqData = FaqData.fromJson(jsonData);
         _isLoading = false;
       });
+      print('❌ Failed to load FAQ data from both assets and API');
     } catch (e) {
-      print('Error loading FAQ data: $e');
+      print('❌ Error loading FAQ data: $e');
       setState(() {
         _isLoading = false;
       });

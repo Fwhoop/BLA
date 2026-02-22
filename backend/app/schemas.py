@@ -95,7 +95,7 @@ class ChatRead(ChatCreate):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # REQUEST SCHEMAS
 class RequestBase(BaseModel):
@@ -117,4 +117,4 @@ class RequestRead(RequestBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
