@@ -21,6 +21,7 @@ class SuperAdminDashboard extends StatelessWidget {
           TextButton(
             onPressed: () async {
               await AuthService().logout();
+              if (!context.mounted) return;
               Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
             },
             child: Text(

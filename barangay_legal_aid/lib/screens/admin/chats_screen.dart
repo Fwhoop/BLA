@@ -5,10 +5,10 @@ class AdminChatsScreen extends StatefulWidget {
   const AdminChatsScreen({super.key});
 
   @override
-  _AdminChatsScreenState createState() => _AdminChatsScreenState();
+  AdminChatsScreenState createState() => AdminChatsScreenState();
 }
 
-class _AdminChatsScreenState extends State<AdminChatsScreen> {
+class AdminChatsScreenState extends State<AdminChatsScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _chats = [];
   bool _isLoading = true;

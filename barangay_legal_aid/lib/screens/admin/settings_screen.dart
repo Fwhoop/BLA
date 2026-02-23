@@ -5,10 +5,10 @@ class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
 
   @override
-  _AdminSettingsScreenState createState() => _AdminSettingsScreenState();
+  AdminSettingsScreenState createState() => AdminSettingsScreenState();
 }
 
-class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
+class AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final ApiService _apiService = ApiService();
   bool _notificationsEnabled = true;
   bool _autoApprove = false;

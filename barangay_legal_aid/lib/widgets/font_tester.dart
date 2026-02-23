@@ -71,7 +71,7 @@ class FontTester extends StatelessWidget {
             'Sample text for $name style',
             style: style.copyWith(color: Color(0xFF36454F)),
           ),
-          Divider(color: Color(0xFF36454F).withOpacity(0.2)),
+          Divider(color: Color(0xFF36454F).withValues(alpha:0.2)),
         ],
       ),
     );

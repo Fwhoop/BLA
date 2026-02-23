@@ -5,10 +5,10 @@ class BarangaysScreen extends StatefulWidget {
   const BarangaysScreen({super.key});
 
   @override
-  _BarangaysScreenState createState() => _BarangaysScreenState();
+  BarangaysScreenState createState() => BarangaysScreenState();
 }
 
-class _BarangaysScreenState extends State<BarangaysScreen> {
+class BarangaysScreenState extends State<BarangaysScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _barangays = [];
   bool _isLoading = true;
@@ -71,11 +71,13 @@ class _BarangaysScreenState extends State<BarangaysScreen> {
     if (result == true && nameController.text.isNotEmpty) {
       try {
         await _apiService.createBarangay(nameController.text);
+        if (!mounted) return;
         _loadBarangays();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Barangay added successfully'), backgroundColor: Color(0xFF36454F)),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
         );
@@ -113,11 +115,13 @@ class _BarangaysScreenState extends State<BarangaysScreen> {
     if (result == true && nameController.text.isNotEmpty) {
       try {
         await _apiService.updateBarangay(barangay['id'], nameController.text);
+        if (!mounted) return;
         _loadBarangays();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Barangay updated successfully'), backgroundColor: Color(0xFF36454F)),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
         );
@@ -148,11 +152,13 @@ class _BarangaysScreenState extends State<BarangaysScreen> {
     if (confirm == true) {
       try {
         await _apiService.deleteBarangay(barangay['id']);
+        if (!mounted) return;
         _loadBarangays();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Barangay deleted successfully'), backgroundColor: Color(0xFF36454F)),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
         );

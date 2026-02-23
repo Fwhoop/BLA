@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
@@ -6,12 +7,11 @@ class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
 
   @override
-  _UserProfilePageState createState() => _UserProfilePageState();
+  State<UserProfilePage> createState() => UserProfilePageState();
 }
 
-class _UserProfilePageState extends State<UserProfilePage> {
+class UserProfilePageState extends State<UserProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _authService = AuthService();
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -69,8 +69,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _loadUserData() async {
     try {
-      final user = await _authService.getCurrentUser();
-      final userData = await _authService.getUserData();
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final user = await auth.getCurrentUser();
+      final userData = await auth.getUserData();
       
       if (mounted) {
         setState(() {
@@ -100,7 +101,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
       setState(() => _isLoading = true);
 
       try {
-        final success = await _authService.updateProfile(
+        final auth = Provider.of<AuthService>(context, listen: false);
+        final success = await auth.updateProfile(
           firstName: _firstNameController.text,
           lastName: _lastNameController.text,
           phone: _phoneController.text,
@@ -109,6 +111,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
 
         if (success) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Profile updated successfully!'),
@@ -119,6 +122,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           setState(() => _isEditing = false);
           await _loadUserData();
         } else {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to update profile. Please try again.'),
@@ -127,6 +131,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           );
         }
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating profile: $e'),
@@ -163,12 +168,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      final success = await _authService.changePassword(
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final success = await auth.changePassword(
         _currentPasswordController.text,
         _newPasswordController.text,
       );
 
       if (success) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Password changed successfully!'),
@@ -181,6 +188,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         _newPasswordController.clear();
         _confirmPasswordController.clear();
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Current password is incorrect'),
@@ -189,6 +197,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error changing password: $e'),
@@ -288,7 +297,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           children: [
             CircleAvatar(
               radius: 50,
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: Colors.white.withValues(alpha:0.2),
               child: Icon(
                 Icons.person,
                 size: 50,
@@ -309,7 +318,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               _currentUser?.roleDisplay ?? 'User',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
               ),
             ),
             if (_currentUser?.barangay != null && _currentUser!.barangay.isNotEmpty) ...[
@@ -318,7 +327,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 _currentUser!.barangay,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha:0.8),
                 ),
               ),
             ],
@@ -542,7 +551,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
 
     return DropdownButtonFormField<String>(
-      value: validSelectedBarangay,
+      initialValue: validSelectedBarangay,
       decoration: InputDecoration(
         labelText: 'Barangay',
         prefixIcon: Icon(Icons.location_on_outlined),

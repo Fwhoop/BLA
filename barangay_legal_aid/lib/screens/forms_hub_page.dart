@@ -8,10 +8,10 @@ class FormsHubPage extends StatefulWidget {
   const FormsHubPage({super.key});
 
   @override
-  _FormsHubPageState createState() => _FormsHubPageState();
+  FormsHubPageState createState() => FormsHubPageState();
 }
 
-class _FormsHubPageState extends State<FormsHubPage> {
+class FormsHubPageState extends State<FormsHubPage> {
   final AuthService _authService = AuthService();
   User? _currentUser;
 
@@ -93,7 +93,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
               'Access all forms and services in one place. Complete your profile, submit requests, and manage your account easily.',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
               ),
             ),
           ],
@@ -261,7 +261,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha:0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -281,7 +281,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
                 subtitle,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF36454F).withOpacity(0.7),
+                  color: Color(0xFF36454F).withValues(alpha:0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -312,7 +312,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -335,13 +335,13 @@ class _FormsHubPageState extends State<FormsHubPage> {
                       description,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF36454F).withOpacity(0.7),
+                        color: Color(0xFF36454F).withValues(alpha:0.7),
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withOpacity(0.5), size: 16),
+              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withValues(alpha:0.5), size: 16),
             ],
           ),
         ),
@@ -369,7 +369,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -392,13 +392,13 @@ class _FormsHubPageState extends State<FormsHubPage> {
                       description,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF36454F).withOpacity(0.7),
+                        color: Color(0xFF36454F).withValues(alpha:0.7),
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withOpacity(0.5), size: 16),
+              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withValues(alpha:0.5), size: 16),
             ],
           ),
         ),

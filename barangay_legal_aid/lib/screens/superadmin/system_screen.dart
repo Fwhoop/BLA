@@ -4,10 +4,10 @@ class SystemScreen extends StatefulWidget {
   const SystemScreen({super.key});
 
   @override
-  _SystemScreenState createState() => _SystemScreenState();
+  SystemScreenState createState() => SystemScreenState();
 }
 
-class _SystemScreenState extends State<SystemScreen> {
+class SystemScreenState extends State<SystemScreen> {
 
   @override
   Widget build(BuildContext context) {

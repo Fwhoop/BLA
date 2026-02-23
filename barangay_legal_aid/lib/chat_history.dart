@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/chat_model.dart';
 import 'package:barangay_legal_aid/chat_provider.dart';
 import 'package:barangay_legal_aid/screens/request_form.dart';
@@ -20,7 +21,7 @@ class ChatHistorySidebar extends StatelessWidget {
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Color(0xFF36454F),
-              border: Border(bottom: BorderSide(color: Color(0xFF99272D).withOpacity(0.5))),
+              border: Border(bottom: BorderSide(color: Color(0xFF99272D).withValues(alpha:0.5))),
             ),
             child: Column(
               children: [
@@ -56,7 +57,7 @@ class ChatHistorySidebar extends StatelessWidget {
                         icon: Icon(Icons.add, size: 18),
                         label: Text('New Chat'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFFFFFFFF).withOpacity(0.2),
+                          backgroundColor: Color(0xFFFFFFFF).withValues(alpha:0.2),
                           foregroundColor: Color(0xFFFFFFFF),
                           padding: EdgeInsets.symmetric(vertical: 8),
                         ),
@@ -66,8 +67,8 @@ class ChatHistorySidebar extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          final authService = AuthService();
-                          final user = await authService.getCurrentUser();
+                          final auth = Provider.of<AuthService>(context, listen: false);
+                          final user = await auth.getCurrentUser();
                           if (user != null && context.mounted) {
                             Navigator.push(
                               context,
@@ -104,7 +105,7 @@ class ChatHistorySidebar extends StatelessWidget {
                 return Container(
                   margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isSelected ? Color(0xFF99272D).withOpacity(0.8) : Colors.transparent,
+                    color: isSelected ? Color(0xFF99272D).withValues(alpha:0.8) : Colors.transparent,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: ChatSessionTile(
@@ -141,7 +142,7 @@ class ChatSessionTile extends StatelessWidget {
     return ListTile(
       leading: Icon(
         Icons.chat_bubble_outline,
-        color: isSelected ? Color(0xFFFFFFFF) : Color(0xFFFFFFFF).withOpacity(0.7),
+        color: isSelected ? Color(0xFFFFFFFF) : Color(0xFFFFFFFF).withValues(alpha:0.7),
       ),
       title: Text(
         session.title,
@@ -149,15 +150,15 @@ class ChatSessionTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? Color(0xFFFFFFFF) : Color(0xFFFFFFFF).withOpacity(0.8),
+          color: isSelected ? Color(0xFFFFFFFF) : Color(0xFFFFFFFF).withValues(alpha:0.8),
         ),
       ),
       subtitle: Text(
         '${session.messages.length} messages',
-        style: TextStyle(fontSize: 12, color: Color(0xFFFFFFFF).withOpacity(0.6)),
+        style: TextStyle(fontSize: 12, color: Color(0xFFFFFFFF).withValues(alpha:0.6)),
       ),
       trailing: IconButton(
-        icon: Icon(Icons.delete_outline, size: 18, color: Color(0xFFFFFFFF).withOpacity(0.7)),
+        icon: Icon(Icons.delete_outline, size: 18, color: Color(0xFFFFFFFF).withValues(alpha:0.7)),
         onPressed: onDelete,
       ),
       onTap: onTap,

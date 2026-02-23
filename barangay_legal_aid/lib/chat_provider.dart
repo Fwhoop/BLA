@@ -1,17 +1,17 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'chat_model.dart';
-import '../models/user_model.dart';
+import 'package:barangay_legal_aid/models/user_model.dart';
+import 'package:barangay_legal_aid/services/api_service.dart';
 
 class ChatProvider with ChangeNotifier {
   List<ChatSession> _chatSessions = [];
   ChatSession? _currentSession;
+  final ApiService? _apiService;
 
   List<ChatSession> get chatSessions => _chatSessions;
   ChatSession? get currentSession => _currentSession;
 
-  ChatProvider() {
+  ChatProvider({ApiService? apiService}) : _apiService = apiService {
     _loadSessions();
   }
 
@@ -87,37 +87,20 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  
   Future<void> sendMessageToBot(String content, User currentUser) async {
     if (_currentSession == null) createNewSession();
-
     addMessage(content, true);
 
+    if (_apiService == null) {
+      addMessage('Chat service not available. Please sign in again.', false);
+      return;
+    }
     try {
-      final url = Uri.parse('http://127.0.0.1:8000/chats/ai');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'sender_id': currentUser.id,
-          'receiver_id': 1,
-          'message': content,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        final aiMessage = data['message'] as String;
-
-        addMessage(aiMessage, false);
-      } else {
-        print('Error status code: ${response.statusCode}');
-        print('Error response: ${response.body}');
-        addMessage('Failed to get AI response', false);
-      }
+      final aiMessage = await _apiService.sendChatMessage(content, currentUser.id);
+      addMessage(aiMessage, false);
     } catch (e) {
-      print('Error: $e');
-      addMessage('Error connecting to AI: $e', false);
+      final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Unable to reach chatbot. Please try again.';
+      addMessage(msg, false);
     }
   }
 }

@@ -5,10 +5,10 @@ class AdminsScreen extends StatefulWidget {
   const AdminsScreen({super.key});
 
   @override
-  _AdminsScreenState createState() => _AdminsScreenState();
+  AdminsScreenState createState() => AdminsScreenState();
 }
 
-class _AdminsScreenState extends State<AdminsScreen> {
+class AdminsScreenState extends State<AdminsScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _admins = [];
   List<Map<String, dynamic>> _barangays = [];
@@ -93,7 +93,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                     validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
                   ),
                   DropdownButtonFormField<int?>(
-                    value: selectedBarangayId,
+                    initialValue: selectedBarangayId,
                     decoration: InputDecoration(labelText: 'Barangay (Optional)'),
                     items: [
                       DropdownMenuItem<int?>(value: null, child: Text('None')),
@@ -135,11 +135,13 @@ class _AdminsScreenState extends State<AdminsScreen> {
             lastName: lastNameController.text,
             barangayId: selectedBarangayId,
           );
+          if (!mounted) return;
           _loadData();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Admin added successfully'), backgroundColor: Color(0xFF36454F)),
           );
         } catch (e) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
           );
@@ -171,11 +173,13 @@ class _AdminsScreenState extends State<AdminsScreen> {
     if (confirm == true) {
       try {
         await _apiService.deleteUser(admin['id']);
+        if (!mounted) return;
         _loadData();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Admin deleted successfully'), backgroundColor: Color(0xFF36454F)),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
         );

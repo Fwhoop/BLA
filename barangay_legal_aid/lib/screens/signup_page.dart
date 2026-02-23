@@ -5,17 +5,17 @@ import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
 
   @override
-  _SignupPageState createState() => _SignupPageState();
+  State<SignupPage> createState() => SignupPageState();
 }
 
-class _SignupPageState extends State<SignupPage> {
+class SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
-  final _authService = AuthService();
   final ImagePicker _imagePicker = ImagePicker();
 
   final TextEditingController _firstNameController = TextEditingController();
@@ -217,12 +217,12 @@ class _SignupPageState extends State<SignupPage> {
       setState(() => _isLoading = true);
 
       try {
-        // Prepare image path (for web, use a placeholder path since we use bytes)
-        final idPhotoPath = kIsWeb 
+        final idPhotoPath = kIsWeb
             ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
             : (_idPhotoFile?.path ?? '');
 
-        final success = await _authService.signUp(
+        final auth = Provider.of<AuthService>(context, listen: false);
+        await auth.signUp(
           firstName: _firstNameController.text,
           lastName: _lastNameController.text,
           email: _emailController.text,
@@ -234,34 +234,29 @@ class _SignupPageState extends State<SignupPage> {
           idPhotoBytes: _idPhotoBytes,
         );
 
-        if (success) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Application submitted! An admin will review your ID for approval.'),
+            backgroundColor: Color(0xFF36454F),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        await Future.delayed(Duration(seconds: 2));
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/login');
+      } catch (e) {
+        if (mounted) {
+          final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Signup failed. Please try again.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Application submitted! An admin will review your ID for approval.'),
-              backgroundColor: Color(0xFF36454F),
-              duration: Duration(seconds: 3),
-            ),
-          );
-          
-          await Future.delayed(Duration(seconds: 2));
-          Navigator.pushReplacementNamed(context, '/login');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Signup failed. Please try again.'),
+              content: Text(msg),
               backgroundColor: Color(0xFF99272D),
             ),
           );
         }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Color(0xFF99272D),
-          ),
-        );
       } finally {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -340,7 +335,7 @@ class _SignupPageState extends State<SignupPage> {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha:0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -363,7 +358,7 @@ class _SignupPageState extends State<SignupPage> {
               'Create your account',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
               ),
             ),
           ],

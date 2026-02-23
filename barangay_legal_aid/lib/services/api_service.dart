@@ -1,31 +1,25 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:barangay_legal_aid/config/env_config.dart';
+import 'package:http/http.dart' as http;
+
+import 'secure_storage_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://127.0.0.1:8000';
-  
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
-  }
+  ApiService([SecureStorageService? secure])
+      : _secure = secure ?? SecureStorageService();
 
-  Future<bool> checkBackendHealth() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/docs'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
+  final SecureStorageService _secure;
+  static const _timeout = Duration(seconds: 15);
+
+  String get _baseUrl => apiBaseUrl;
+
+  Future<String?> _getToken() => _secure.getAccessToken();
 
   Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
+    final headers = <String, String>{'Content-Type': 'application/json'};
     if (includeAuth) {
       final token = await _getToken();
       if (token != null && token.isNotEmpty) {
@@ -35,125 +29,193 @@ class ApiService {
     return headers;
   }
 
-  // Barangays API
-  Future<List<Map<String, dynamic>>> getBarangays() async {
+  Future<bool> checkBackendHealth() async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/barangays/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication required. Please login again.');
-      } else if (response.statusCode == 403) {
-        throw Exception('You do not have permission to access barangays.');
-      } else {
-        throw Exception('Failed to load barangays: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused') ||
-          e.toString().contains('Network is unreachable')) {
-        throw Exception('Cannot connect to backend server. Please ensure the backend is running on http://127.0.0.1:8000');
-      }
-      rethrow;
+      final r = await http
+          .get(
+            Uri.parse('$_baseUrl/docs'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(_timeout);
+      return r.statusCode == 200;
+    } catch (_) {
+      return false;
     }
+  }
+
+  /// Register (signup). ID photo sent as multipart; backend stores URL/hash only.
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    required String phone,
+    required String address,
+    required String barangay,
+    required String idPhotoPath,
+    dynamic idPhotoBytes,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/auth/register');
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['first_name'] = firstName;
+    request.fields['last_name'] = lastName;
+    request.fields['email'] = email;
+    request.fields['password'] = password;
+    request.fields['phone'] = phone;
+    request.fields['address'] = address;
+    request.fields['barangay'] = barangay;
+
+    List<int>? photoBytes;
+    if (idPhotoBytes is Uint8List) {
+      photoBytes = idPhotoBytes;
+    } else if (idPhotoBytes is List<int>) {
+      photoBytes = idPhotoBytes;
+    }
+    if (photoBytes != null && photoBytes.isNotEmpty) {
+      request.files.add(http.MultipartFile.fromBytes(
+        'id_photo',
+        photoBytes,
+        filename: 'id_photo.jpg',
+      ));
+    } else if (idPhotoPath.isNotEmpty && !idPhotoPath.startsWith('web_')) {
+      final file = File(idPhotoPath);
+      if (await file.exists()) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'id_photo',
+          idPhotoPath,
+          filename: idPhotoPath.split(RegExp(r'[/\\]')).last,
+        ));
+      }
+    }
+
+    final streamed = await request.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final body = response.body;
+      try {
+        final d = json.decode(body) as Map<String, dynamic>;
+        throw Exception(d['detail'] ?? 'Registration failed: ${response.statusCode}');
+      } catch (e) {
+        if (e is Exception) rethrow;
+        throw Exception('Registration failed: ${response.statusCode} - $body');
+      }
+    }
+  }
+
+  Future<bool> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? phone,
+    String? address,
+    String? barangay,
+  }) async {
+    final body = <String, dynamic>{};
+    if (firstName != null) body['first_name'] = firstName;
+    if (lastName != null) body['last_name'] = lastName;
+    if (phone != null) body['phone'] = phone;
+    if (address != null) body['address'] = address;
+    if (barangay != null) body['barangay'] = barangay;
+    if (body.isEmpty) return true;
+
+    final r = await http
+        .put(
+          Uri.parse('$_baseUrl/auth/me'),
+          headers: await _getHeaders(),
+          body: jsonEncode(body),
+        )
+        .timeout(_timeout);
+    return r.statusCode == 200;
+  }
+
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/change-password'),
+          headers: await _getHeaders(),
+          body: jsonEncode({
+            'current_password': currentPassword,
+            'new_password': newPassword,
+          }),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      try {
+        final d = json.decode(r.body) as Map<String, dynamic>;
+        throw Exception(d['detail'] ?? 'Change password failed');
+      } catch (e) {
+        if (e is Exception) rethrow;
+        throw Exception('Change password failed: ${r.body}');
+      }
+    }
+    return true;
+  }
+
+  Future<List<Map<String, dynamic>>> getBarangays() async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/barangays/'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    }
+    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
+    if (r.statusCode == 403) throw Exception('You do not have permission to access barangays.');
+    throw Exception('Failed to load barangays: ${r.statusCode} - ${r.body}');
   }
 
   Future<Map<String, dynamic>> createBarangay(String name) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/barangays/'),
-        headers: headers,
-        body: jsonEncode({'name': name}),
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to create barangay: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error creating barangay: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/barangays/'),
+          headers: headers,
+          body: jsonEncode({'name': name}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
+    throw Exception('Failed to create barangay: ${r.body}');
   }
 
   Future<Map<String, dynamic>> updateBarangay(int id, String name) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse('$baseUrl/barangays/$id'),
-        headers: headers,
-        body: jsonEncode({'name': name}),
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to update barangay: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error updating barangay: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .put(
+          Uri.parse('$_baseUrl/barangays/$id'),
+          headers: headers,
+          body: jsonEncode({'name': name}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to update barangay: ${r.body}');
   }
 
   Future<void> deleteBarangay(int id) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
-        Uri.parse('$baseUrl/barangays/$id'),
-        headers: headers,
-      );
-      
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to delete barangay: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error deleting barangay: $e');
+    final headers = await _getHeaders();
+    final r = await http
+        .delete(Uri.parse('$_baseUrl/barangays/$id'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 204) {
+      throw Exception('Failed to delete barangay: ${r.body}');
     }
   }
 
   Future<List<Map<String, dynamic>>> getUsers() async {
-    try {
-      final headers = await _getHeaders(); 
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication required. Please login again.');
-      } else if (response.statusCode == 403) {
-        throw Exception('You do not have permission to access users.');
-      } else {
-        throw Exception('Failed to load users: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to backend server. Please ensure the backend is running.');
-      }
-      throw Exception('Error fetching users: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/users/'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
+    if (r.statusCode == 403) throw Exception('You do not have permission to access users.');
+    throw Exception('Failed to load users: ${r.statusCode} - ${r.body}');
   }
 
   Future<List<Map<String, dynamic>>> getAdmins() async {
-    try {
-      final users = await getUsers();
-      return users.where((user) => 
-        user['role'] == 'admin' || user['role'] == 'superadmin'
-      ).toList();
-    } catch (e) {
-      throw Exception('Error fetching admins: $e');
-    }
+    final users = await getUsers();
+    return users.where((u) => u['role'] == 'admin' || u['role'] == 'superadmin').toList();
   }
 
+  /// Create admin. Password sent over HTTPS only; backend must hash and never log.
   Future<Map<String, dynamic>> createAdmin({
     required String email,
     required String username,
@@ -162,414 +224,265 @@ class ApiService {
     required String lastName,
     required int? barangayId,
   }) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/users/'),
-        headers: headers,
-        body: jsonEncode({
-          'email': email,
-          'username': username,
-          'password': password,
-          'first_name': firstName,
-          'last_name': lastName,
-          'role': 'admin',
-          'barangay_id': barangayId,
-        }),
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to create admin: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error creating admin: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/users/'),
+          headers: headers,
+          body: jsonEncode({
+            'email': email,
+            'username': username,
+            'password': password,
+            'first_name': firstName,
+            'last_name': lastName,
+            'role': 'admin',
+            'barangay_id': barangayId,
+          }),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
+    throw Exception('Failed to create admin: ${r.body}');
   }
 
   Future<Map<String, dynamic>> updateUser(int id, Map<String, dynamic> data) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse('$baseUrl/users/$id'),
-        headers: headers,
-        body: jsonEncode(data),
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to update user: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error updating user: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .put(
+          Uri.parse('$_baseUrl/users/$id'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to update user: ${r.body}');
   }
 
   Future<void> deleteUser(int id) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
-        Uri.parse('$baseUrl/users/$id'),
-        headers: headers,
-      );
-      
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to delete user: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error deleting user: $e');
+    final headers = await _getHeaders();
+    final r = await http
+        .delete(Uri.parse('$_baseUrl/users/$id'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 204) {
+      throw Exception('Failed to delete user: ${r.body}');
     }
   }
 
   Future<Map<String, dynamic>> getAnalytics() async {
     try {
       final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/analytics/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        return {
-          'total_users': 0,
-          'total_requests': 0,
-          'total_cases': 0,
-          'total_barangays': 0,
-        };
-      }
-    } catch (e) {
-      return {
-        'total_users': 0,
-        'total_requests': 0,
-        'total_cases': 0,
-        'total_barangays': 0,
-      };
-    }
+      final r = await http
+          .get(Uri.parse('$_baseUrl/analytics/'), headers: headers)
+          .timeout(_timeout);
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (_) {}
+    return {
+      'total_users': 0,
+      'total_requests': 0,
+      'total_cases': 0,
+      'total_barangays': 0,
+    };
   }
 
   Future<List<Map<String, dynamic>>> getLogs() async {
     try {
       final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/logs/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
+      final r = await http
+          .get(Uri.parse('$_baseUrl/logs/'), headers: headers)
+          .timeout(_timeout);
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    } catch (_) {}
+    return [];
   }
 
   Future<Map<String, dynamic>> createBackup() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/backup/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to create backup: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error creating backup: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .post(Uri.parse('$_baseUrl/backup/'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
+    throw Exception('Failed to create backup: ${r.body}');
   }
 
   Future<List<Map<String, dynamic>>> getBackups() async {
     try {
       final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/backup/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
+      final r = await http
+          .get(Uri.parse('$_baseUrl/backup/'), headers: headers)
+          .timeout(_timeout);
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    } catch (_) {}
+    return [];
   }
 
-  // FAQ API
   Future<Map<String, dynamic>> getFaqData() async {
     try {
-      // FAQ endpoint doesn't require authentication
-      final headers = {'Content-Type': 'application/json'};
-      final response = await http.get(
-        Uri.parse('$baseUrl/chats/faq'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        print('Failed to load FAQ from API: ${response.statusCode} - ${response.body}');
-        return {};
-      }
-    } catch (e) {
-      print('Error loading FAQ from API: $e');
-      return {};
-    }
+      final r = await http
+          .get(
+            Uri.parse('$_baseUrl/chats/faq'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(_timeout);
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (_) {}
+    return {};
   }
 
-  // Requests API
   Future<Map<String, dynamic>> createRequest({
     required int barangayId,
     required String documentType,
     required String purpose,
   }) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/requests/'),
+          headers: headers,
+          body: jsonEncode({
+            'barangay_id': barangayId,
+            'document_type': documentType,
+            'purpose': purpose,
+          }),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
     try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/requests/'),
-        headers: headers,
-        body: jsonEncode({
-          'barangay_id': barangayId,
-          'document_type': documentType,
-          'purpose': purpose,
-        }),
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        final errorBody = response.body;
-        try {
-          final errorData = jsonDecode(errorBody);
-          throw Exception(errorData['detail'] ?? 'Failed to create request: ${response.statusCode}');
-        } catch (_) {
-          throw Exception('Failed to create request: ${response.statusCode} - $errorBody');
-        }
-      }
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Failed to create request: ${r.statusCode}');
     } catch (e) {
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to backend server. Please ensure the backend is running on http://127.0.0.1:8000');
-      }
-      rethrow;
+      if (e is Exception) rethrow;
+      throw Exception('Failed to create request: ${r.statusCode} - ${r.body}');
     }
   }
 
   Future<List<Map<String, dynamic>>> getRequests() async {
-    try {
-      final token = await _getToken();
-      if (token == null || token.isEmpty) {
-        throw Exception('No authentication token found. Please login again.');
-      }
-      
-      final headers = await _getHeaders();
-      print('Fetching requests from $baseUrl/requests/');
-      print('Token present: ${token.isNotEmpty}');
-      print('Headers: ${headers.keys.toList()}');
-      final response = await http.get(
-        Uri.parse('$baseUrl/requests/'),
-        headers: headers,
-      );
-      
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('Parsed requests: $data');
-        return List<Map<String, dynamic>>.from(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication failed. Token may be expired. Please login again.');
-      } else if (response.statusCode == 403) {
-        throw Exception('You do not have permission to access requests. Make sure your account has admin role and barangay_id set.');
-      } else if (response.statusCode == 404) {
-        try {
-          final errorData = jsonDecode(response.body);
-          final detail = errorData['detail'] ?? 'Endpoint not found';
-          throw Exception('404 Error: $detail. Make sure you are logged in and the backend is running correctly.');
-        } catch (_) {
-          throw Exception('404 Error: Endpoint not found. This may indicate an authentication issue. Please login again.');
-        }
-      } else {
-        throw Exception('Failed to load requests: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      print('Error in getRequests: $e');
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to backend server. Please ensure the backend is running on http://127.0.0.1:8000');
-      }
-      rethrow;
+    final token = await _getToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('No authentication token. Please login again.');
     }
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/requests/'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401) throw Exception('Authentication failed. Please login again.');
+    if (r.statusCode == 403) throw Exception('You do not have permission to access requests.');
+    if (r.statusCode == 404) {
+      try {
+        final d = jsonDecode(r.body);
+        throw Exception(d['detail'] ?? 'Endpoint not found.');
+      } catch (e) {
+        if (e is Exception) rethrow;
+      }
+    }
+    throw Exception('Failed to load requests: ${r.statusCode} - ${r.body}');
   }
 
   Future<Map<String, dynamic>> updateRequest(int id, Map<String, dynamic> data) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse('$baseUrl/requests/$id'),
-        headers: headers,
-        body: jsonEncode(data),
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to update request: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error updating request: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .put(
+          Uri.parse('$_baseUrl/requests/$id'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to update request: ${r.body}');
   }
 
   Future<void> deleteRequest(int id) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
-        Uri.parse('$baseUrl/requests/$id'),
-        headers: headers,
-      );
-      
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to delete request: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error deleting request: $e');
+    final headers = await _getHeaders();
+    final r = await http
+        .delete(Uri.parse('$_baseUrl/requests/$id'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 204) {
+      throw Exception('Failed to delete request: ${r.body}');
     }
   }
 
-  // Cases API
   Future<List<Map<String, dynamic>>> getCases() async {
-    try {
-      final headers = await _getHeaders(); 
-      final response = await http.get(
-        Uri.parse('$baseUrl/cases/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication required. Please login again.');
-      } else if (response.statusCode == 403) {
-        throw Exception('You do not have permission to access cases.');
-      } else {
-        throw Exception('Failed to load cases: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to backend server. Please ensure the backend is running.');
-      }
-      rethrow;
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/cases/'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
+    if (r.statusCode == 403) throw Exception('You do not have permission to access cases.');
+    throw Exception('Failed to load cases: ${r.statusCode} - ${r.body}');
   }
 
   Future<Map<String, dynamic>> createCase({
     required String title,
     required String description,
   }) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/cases/'),
-        headers: headers,
-        body: jsonEncode({
-          'title': title,
-          'description': description,
-        }),
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to create case: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error creating case: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/cases/'),
+          headers: headers,
+          body: jsonEncode({'title': title, 'description': description}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
+    throw Exception('Failed to create case: ${r.body}');
   }
 
   Future<Map<String, dynamic>> updateCase(int id, Map<String, dynamic> data) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse('$baseUrl/cases/$id'),
-        headers: headers,
-        body: jsonEncode(data),
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to update case: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error updating case: $e');
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .put(
+          Uri.parse('$_baseUrl/cases/$id'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to update case: ${r.body}');
   }
 
   Future<void> deleteCase(int id) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
-        Uri.parse('$baseUrl/cases/$id'),
-        headers: headers,
-      );
-      
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to delete case: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error deleting case: $e');
+    final headers = await _getHeaders();
+    final r = await http
+        .delete(Uri.parse('$_baseUrl/cases/$id'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 204) {
+      throw Exception('Failed to delete case: ${r.body}');
     }
   }
 
-  // Chats API
   Future<List<Map<String, dynamic>>> getChats() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/chats/'),
-        headers: headers,
-      );
-      
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication required. Please login again.');
-      } else {
-        throw Exception('Failed to load chats: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to backend server. Please ensure the backend is running.');
-      }
-      rethrow;
-    }
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/chats/'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
+    throw Exception('Failed to load chats: ${r.statusCode} - ${r.body}');
   }
 
-  
   Future<List<Map<String, dynamic>>> getRegularUsers() async {
-    try {
-      final users = await getUsers();
-      return users.where((user) => 
-        user['role'] == 'user'
-      ).toList();
-    } catch (e) {
-      throw Exception('Error fetching users: $e');
+    final users = await getUsers();
+    return users.where((u) => u['role'] == 'user').toList();
+  }
+
+  /// Send message to AI chatbot. Requires auth. Returns bot reply or throws.
+  Future<String> sendChatMessage(String message, String senderId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/chats/ai'),
+          headers: headers,
+          body: jsonEncode({
+            'sender_id': senderId,
+            'receiver_id': 1,
+            'message': message,
+          }),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) {
+      final data = jsonDecode(r.body);
+      return data['message'] as String? ?? "Sorry, I couldn't process that.";
     }
+    throw Exception('Chat failed: ${r.statusCode}');
   }
 }
-

@@ -5,10 +5,10 @@ class AdminCasesScreen extends StatefulWidget {
   const AdminCasesScreen({super.key});
 
   @override
-  _AdminCasesScreenState createState() => _AdminCasesScreenState();
+  AdminCasesScreenState createState() => AdminCasesScreenState();
 }
 
-class _AdminCasesScreenState extends State<AdminCasesScreen> {
+class AdminCasesScreenState extends State<AdminCasesScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _cases = [];
   bool _isLoading = true;
@@ -85,11 +85,13 @@ class _AdminCasesScreenState extends State<AdminCasesScreen> {
           title: titleController.text,
           description: descriptionController.text,
         );
+        if (!mounted) return;
         _loadCases();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Case added successfully'), backgroundColor: Color(0xFF36454F)),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
         );
@@ -120,11 +122,13 @@ class _AdminCasesScreenState extends State<AdminCasesScreen> {
     if (confirm == true) {
       try {
         await _apiService.deleteCase(caseData['id']);
+        if (!mounted) return;
         _loadCases();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Case deleted successfully'), backgroundColor: Color(0xFF36454F)),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
         );

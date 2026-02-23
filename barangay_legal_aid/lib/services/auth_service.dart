@@ -1,73 +1,34 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:barangay_legal_aid/config/env_config.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'api_service.dart';
+import 'secure_storage_service.dart';
+
+/// Online-first auth. No local password or PII storage.
+/// Tokens stored only in [SecureStorageService].
+Map<String, dynamic> _decodeJson(String body) {
+  if (body.isEmpty) return {};
+  try {
+    return json.decode(body) as Map<String, dynamic>;
+  } catch (_) {
+    return {};
+  }
+}
 
 class AuthService {
-  final Map<String, Map<String, dynamic>> _demoUsers = {
-    'user@legalaid.com': {
-      'password': 'password123',
-      'firstName': 'Juan',
-      'lastName': 'Dela Cruz',
-      'role': UserRole.user,
-      'barangay': 'Barangay 1',
-      'phone': '09123456789',
-      'address': '123 Main Street'
-    },
-    'admin@legalaid.com': {
-      'password': 'admin123',
-      'firstName': 'Maria',
-      'lastName': 'Santos',
-      'role': UserRole.admin,
-      'barangay': 'Barangay 1',
-      'phone': '09123456788',
-      'address': '456 Admin Avenue'
-    },
-    'test@legalaid.com': {
-      'password': 'test123',
-      'firstName': 'Test',
-      'lastName': 'User',
-      'role': UserRole.user,
-      'barangay': 'Barangay 2',
-      'phone': '09123456766',
-      'address': '321 Test Street'
-    },
-    
-    'testuser@legalaid.com': {
-      'password': 'testuser123',
-      'firstName': 'Test',
-      'lastName': 'User',
-      'role': UserRole.user,
-      'barangay': 'Barangay Cabaluay',
-      'phone': '09123456765',
-      'address': '123 Test User Street'
-    },
-    'testadmin@legalaid.com': {
-      'password': 'testadmin123',
-      'firstName': 'Test',
-      'lastName': 'Admin',
-      'role': UserRole.admin,
-      'barangay': 'Barangay Cabatangan',
-      'phone': '09123456764',
-      'address': '456 Test Admin Avenue'
-    },
-    
-    'mysuperadmin@legalaid.com': {
-      'password': 'mysuper123',
-      'firstName': 'My',
-      'lastName': 'SuperAdmin',
-      'role': UserRole.superadmin,
-      'barangay': 'System',
-      'phone': '09123456762',
-      'address': '999 SuperAdmin Headquarters'
-    },
-  };
+  AuthService({
+    SecureStorageService? secureStorage,
+    ApiService? apiService,
+  })  : _secure = secureStorage ?? SecureStorageService() {
+    _api = apiService ?? ApiService(_secure);
+  }
+
+  final SecureStorageService _secure;
+  late final ApiService _api;
 
   Future<bool> signUp({
     required String firstName,
@@ -78,239 +39,117 @@ class AuthService {
     required String address,
     required String barangay,
     required String idPhotoPath,
-    Uint8List? idPhotoBytes,
+    dynamic idPhotoBytes,
   }) async {
-    await Future.delayed(Duration(seconds: 2));
-
-    final prefs = await SharedPreferences.getInstance();
-    
-    if (_demoUsers.containsKey(email) || await _isEmailRegistered(prefs, email)) {
-      throw Exception('Email already registered');
-    }
-
-    await prefs.setString('firstName', firstName);
-    await prefs.setString('lastName', lastName);
-    await prefs.setString('email', email);
-    await prefs.setString('phone', phone);
-    await prefs.setString('address', address);
-    await prefs.setString('barangay', barangay);
-    await prefs.setString('password', password);
-    await prefs.setString('role', UserRole.user.toString().split('.').last);
-    await prefs.setBool('isLoggedIn', true);
-    await prefs.setString('lastLogin', DateTime.now().toString());
-    await _storeIdPhoto(prefs, idPhotoPath, idPhotoBytes);
-    await prefs.setBool('idPhotoApproved', false);
-
+    await _api.register(
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      password: password,
+      phone: phone,
+      address: address,
+      barangay: barangay,
+      idPhotoPath: idPhotoPath,
+      idPhotoBytes: idPhotoBytes,
+    );
     return true;
   }
 
-  Future<void> _storeIdPhoto(SharedPreferences prefs, String idPhotoPath, Uint8List? idPhotoBytes) async {
-    Uint8List bytes;
-    String filename;
-    
-    if (kIsWeb && idPhotoBytes != null) {
-      // Use bytes directly for web
-      bytes = idPhotoBytes;
-      filename = 'id_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    } else if (!kIsWeb) {
-      // Read from file for mobile/desktop
-      final file = File(idPhotoPath);
-      if (!await file.exists()) {
-        throw Exception('ID photo file not found. Please try again.');
-      }
-      bytes = await file.readAsBytes();
-      filename = p.basename(idPhotoPath);
-    } else {
-      throw Exception('ID photo is required. Please upload a valid ID photo.');
-    }
-    
-    final base64Photo = base64Encode(bytes);
-    await prefs.setString('idPhotoBase64', base64Photo);
-    await prefs.setString('idPhotoFilename', filename);
-  }
-
-  Future<bool> _isEmailRegistered(SharedPreferences prefs, String email) async {
-    final storedEmail = prefs.getString('email');
-    return storedEmail == email || _demoUsers.containsKey(email);
-  }
-
+  /// Login: backend only. Tokens stored in secure storage.
   Future<User?> login({
     required String email,
     required String password,
     required bool rememberMe,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    try {
-      // Backend login
-      final loginUrl = Uri.parse('http://127.0.0.1:8000/auth/login');
-      final loginResponse = await http.post(
-        loginUrl,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'username=${Uri.encodeComponent(email)}&password=${Uri.encodeComponent(password)}',
-      ).timeout(Duration(seconds: 10));
+    final loginUrl = Uri.parse('$apiBaseUrl/auth/login');
+    final response = await http
+        .post(
+          loginUrl,
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body:
+              'username=${Uri.encodeComponent(email)}&password=${Uri.encodeComponent(password)}',
+        )
+        .timeout(const Duration(seconds: 15));
 
-      if (loginResponse.statusCode == 200) {
-        final tokenData = jsonDecode(loginResponse.body);
-        final accessToken = tokenData['access_token'] as String;
-        
-        await prefs.setString('access_token', accessToken);
-        
-        // Get user info
-        final userUrl = Uri.parse('http://127.0.0.1:8000/auth/me');
-        final userResponse = await http.get(
-          userUrl,
-          headers: {
-            'Authorization': 'Bearer $accessToken',
-            'Content-Type': 'application/json',
-          },
-        ).timeout(Duration(seconds: 10));
-
-        if (userResponse.statusCode == 200) {
-          final userData = jsonDecode(userResponse.body);
-          final roleString = userData['role'] ?? 'user';
-          print('Backend returned role: $roleString');
-          final user = User(
-            id: userData['id'].toString(),
-            email: userData['email'] ?? email,
-            firstName: userData['first_name'] ?? '',
-            lastName: userData['last_name'] ?? '',
-            role: _getRoleFromString(roleString),
-            barangay: userData['barangay_id']?.toString() ?? 'System',
-            createdAt: DateTime.now(),
-          );
-          print('Parsed role: ${user.role}, isSuperAdmin: ${user.isSuperAdmin}');
-          
-          await _setLoginState(prefs, user, rememberMe);
-          return user;
-        } else {
-          throw Exception('Failed to fetch user information: ${userResponse.statusCode}');
-        }
-      } else {
-        final errorBody = loginResponse.body;
-        try {
-          final errorData = jsonDecode(errorBody);
-          throw Exception(errorData['detail'] ?? 'Login failed: ${loginResponse.statusCode}');
-        } catch (e) {
-          throw Exception('Login failed: ${loginResponse.statusCode} - $errorBody');
-        }
+    if (response.statusCode != 200) {
+      final body = response.body;
+      try {
+        final data = _decodeJson(body);
+        throw Exception(data['detail'] ?? 'Login failed: ${response.statusCode}');
+      } catch (e) {
+        if (e is Exception) rethrow;
+        throw Exception('Login failed: ${response.statusCode} - $body');
       }
-    } on http.ClientException {
-      throw Exception('Cannot connect to server. Please make sure the backend is running on http://127.0.0.1:8000');
-    } on TimeoutException {
-      throw Exception('Connection timeout. Please check your network connection.');
-    } on FormatException {
-      throw Exception('Invalid server response. Please check the backend configuration.');
-    } catch (e) {
-      if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
-        throw Exception('Invalid email or password. Please check your credentials.');
-      }
-      rethrow;
     }
-  }
 
-  Future<void> _setLoginState(SharedPreferences prefs, User user, bool rememberMe) async {
+    final data = _decodeJson(response.body);
+    final accessToken = data['access_token'] as String?;
+    if (accessToken == null || accessToken.isEmpty) {
+      throw Exception('Invalid login response: no access token');
+    }
+
+    await _secure.setAccessToken(accessToken);
+    final refresh = data['refresh_token'] as String?;
+    if (refresh != null && refresh.isNotEmpty) {
+      await _secure.setRefreshToken(refresh);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
     await prefs.setBool('rememberMe', rememberMe);
-    await prefs.setString('lastLogin', DateTime.now().toString());
-    await prefs.setString('currentUserEmail', user.email);
-    await prefs.setString('currentUserRole', user.role.toString().split('.').last);
-    await prefs.setString('currentUserId', user.id);
+
+    final user = await _fetchMe(accessToken);
+    if (user != null) {
+      await prefs.setString('currentUserEmail', user.email);
+      await prefs.setString('currentUserRole', user.role.toString().split('.').last);
+      await prefs.setString('currentUserId', user.id);
+    }
+    return user;
   }
 
+  /// Current user from backend only. No demo or prefs fallback.
   Future<User?> getCurrentUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    
-    if (!isLoggedIn) return null;
+    final token = await _secure.getAccessToken();
+    if (token == null || token.isEmpty) return null;
 
-    final email = prefs.getString('currentUserEmail') ?? prefs.getString('email');
-    if (email == null) return null;
+    final user = await _fetchMe(token);
+    if (user != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('currentUserRole', user.role.toString().split('.').last);
+    }
+    return user;
+  }
 
-    
-    final accessToken = prefs.getString('access_token');
-    if (accessToken != null && accessToken.isNotEmpty) {
-      try {
-        final userUrl = Uri.parse('http://127.0.0.1:8000/auth/me');
-        final userResponse = await http.get(
-          userUrl,
+  Future<User?> _fetchMe(String accessToken) async {
+    final url = Uri.parse('$apiBaseUrl/auth/me');
+    final response = await http
+        .get(
+          url,
           headers: {
             'Authorization': 'Bearer $accessToken',
             'Content-Type': 'application/json',
           },
-        ).timeout(Duration(seconds: 5));
+        )
+        .timeout(const Duration(seconds: 10));
 
-        if (userResponse.statusCode == 200) {
-          final userData = jsonDecode(userResponse.body);
-          final roleString = userData['role'] ?? 'user';
-          print('getCurrentUser - Backend returned role: $roleString');
-          final user = User(
-            id: userData['id'].toString(),
-            email: userData['email'] ?? email,
-            firstName: userData['first_name'] ?? '',
-            lastName: userData['last_name'] ?? '',
-            role: _getRoleFromString(roleString),
-            barangay: userData['barangay_id']?.toString() ?? 'System',
-            createdAt: DateTime.now(),
-          );
-          print('getCurrentUser - Parsed role: ${user.role}, isSuperAdmin: ${user.isSuperAdmin}');
-          
-          
-          await prefs.setString('currentUserRole', user.role.toString().split('.').last);
-          return user;
-        }
-      } catch (e) {
-        print('Error fetching user from backend: $e');
-        
-      }
-    }
-
-    
-    if (_demoUsers.containsKey(email)) {
-      final userData = _demoUsers[email]!;
-      return User(
-        id: email.hashCode.toString(),
-        email: email,
-        firstName: userData['firstName'] as String,
-        lastName: userData['lastName'] as String,
-        role: userData['role'] as UserRole,
-        barangay: userData['barangay'] as String,
-        createdAt: DateTime.now(),
-      );
-    }
-
+    if (response.statusCode != 200) return null;
+    final data = _decodeJson(response.body);
+    final roleString = data['role'] ?? 'user';
     return User(
-      id: email.hashCode.toString(),
-      email: email,
-      firstName: prefs.getString('firstName') ?? 'User',
-      lastName: prefs.getString('lastName') ?? '',
-      role: _getRoleFromString(prefs.getString('currentUserRole') ?? prefs.getString('role') ?? 'user'),
-      barangay: prefs.getString('barangay') ?? 'Barangay 1',
+      id: (data['id'] ?? '').toString(),
+      email: data['email'] ?? '',
+      firstName: data['first_name'] ?? '',
+      lastName: data['last_name'] ?? '',
+      role: _roleFromString(roleString),
+      barangay: data['barangay_id']?.toString() ?? 'System',
       createdAt: DateTime.now(),
     );
   }
 
   Future<bool> isLoggedIn() async {
+    if (!await _secure.hasToken()) return false;
     final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    final rememberMe = prefs.getBool('rememberMe') ?? false;
-    
-    if (rememberMe && isLoggedIn) {
-      return true;
-    }
-    
-    final lastLogin = prefs.getString('lastLogin');
-    if (lastLogin != null) {
-      final lastLoginDate = DateTime.parse(lastLogin);
-      final difference = DateTime.now().difference(lastLoginDate);
-      
-      if (difference.inDays < 7) {
-        return isLoggedIn;
-      }
-    }
-    
-    await prefs.setBool('isLoggedIn', false);
-    return false;
+    return prefs.getBool('isLoggedIn') ?? false;
   }
 
   Future<bool> isAdmin() async {
@@ -324,54 +163,38 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    await _secure.clearAll();
     final prefs = await SharedPreferences.getInstance();
-    final rememberMe = prefs.getBool('rememberMe') ?? false;
-    
-    if (!rememberMe) {
-      await prefs.setBool('isLoggedIn', false);
-      await prefs.remove('lastLogin');
-      await prefs.remove('currentUserEmail');
-      await prefs.remove('currentUserRole');
-      await prefs.remove('currentUserId');
-    }
-    await prefs.remove('access_token');
+    await prefs.setBool('isLoggedIn', false);
+    await prefs.remove('lastLogin');
+    await prefs.remove('currentUserEmail');
+    await prefs.remove('currentUserRole');
+    await prefs.remove('currentUserId');
   }
 
   Future<Map<String, String>> getUserData() async {
-    final prefs = await SharedPreferences.getInstance();
     final user = await getCurrentUser();
-    
-    if (user != null) {
+    if (user == null) {
       return {
-        'firstName': user.firstName,
-        'lastName': user.lastName,
-        'email': user.email,
-        'phone': prefs.getString('phone') ?? '',
-        'address': prefs.getString('address') ?? '',
-        'barangay': user.barangay,
-        'role': user.role.toString().split('.').last,
+        'firstName': '',
+        'lastName': '',
+        'email': '',
+        'phone': '',
+        'address': '',
+        'barangay': '',
+        'role': 'user',
       };
     }
-    
+    final prefs = await SharedPreferences.getInstance();
     return {
-      'firstName': '',
-      'lastName': '',
-      'email': '',
-      'phone': '',
-      'address': '',
-      'barangay': '',
-      'role': 'user',
+      'firstName': user.firstName,
+      'lastName': user.lastName,
+      'email': user.email,
+      'phone': prefs.getString('phone') ?? '',
+      'address': prefs.getString('address') ?? '',
+      'barangay': user.barangay,
+      'role': user.role.toString().split('.').last,
     };
-  }
-
-  Future<bool> hasUserRegistered() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('email') != null;
-  }
-
-  Future<void> clearAllData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
   }
 
   Future<bool> updateProfile({
@@ -381,35 +204,36 @@ class AuthService {
     String? address,
     String? barangay,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    try {
+    final success = await _api.updateProfile(
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+      address: address,
+      barangay: barangay,
+    );
+    if (success) {
+      final prefs = await SharedPreferences.getInstance();
       if (firstName != null) await prefs.setString('firstName', firstName);
       if (lastName != null) await prefs.setString('lastName', lastName);
       if (phone != null) await prefs.setString('phone', phone);
       if (address != null) await prefs.setString('address', address);
       if (barangay != null) await prefs.setString('barangay', barangay);
-      
-      return true;
-    } catch (e) {
-      return false;
     }
+    return success;
   }
 
+  /// Change password via backend (current + new). No local password check.
   Future<bool> changePassword(String currentPassword, String newPassword) async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedPassword = prefs.getString('password');
-    
-    if (storedPassword == currentPassword) {
-      await prefs.setString('password', newPassword);
-      return true;
-    }
-    
-    return false;
+    return _api.changePassword(currentPassword, newPassword);
   }
 
-  UserRole _getRoleFromString(String roleString) {
-    switch (roleString) {
+  /// For API service / interceptors: read token without exposing storage.
+  Future<String?> getAccessToken() => _secure.getAccessToken();
+
+  SecureStorageService get secureStorage => _secure;
+
+  UserRole _roleFromString(String s) {
+    switch (s) {
       case 'admin':
         return UserRole.admin;
       case 'superadmin':
@@ -417,41 +241,5 @@ class AuthService {
       default:
         return UserRole.user;
     }
-  }
-
-  List<User> getDemoUsers() {
-    return _demoUsers.entries.map((entry) {
-      final email = entry.key;
-      final userData = entry.value;
-      return User(
-        id: email.hashCode.toString(),
-        email: email,
-        firstName: userData['firstName'] as String,
-        lastName: userData['lastName'] as String,
-        role: userData['role'] as UserRole,
-        barangay: userData['barangay'] as String,
-        createdAt: DateTime.now(),
-      );
-    }).toList();
-  }
-
-  List<User> getUsersByBarangay(String barangay) {
-    return getDemoUsers().where((user) => user.barangay == barangay).toList();
-  }
-
-  List<User> getAdmins() {
-    return getDemoUsers().where((user) => user.isAdmin).toList();
-  }
-
-  Future<bool> createAdmin({
-    required String email,
-    required String password,
-    required String firstName,
-    required String lastName,
-    required String barangay,
-  }) async {
-    await Future.delayed(Duration(seconds: 1));
-    
-    return true;
   }
 }

@@ -5,10 +5,10 @@ class LogsScreen extends StatefulWidget {
   const LogsScreen({super.key});
 
   @override
-  _LogsScreenState createState() => _LogsScreenState();
+  LogsScreenState createState() => LogsScreenState();
 }
 
-class _LogsScreenState extends State<LogsScreen> {
+class LogsScreenState extends State<LogsScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _logs = [];
   bool _isLoading = true;

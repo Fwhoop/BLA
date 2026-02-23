@@ -32,14 +32,23 @@ dependencies:
     sdk: flutter
   provider: ^6.0.5
   http: ^1.1.0
+  # Non-sensitive preferences only (e.g. theme); tokens in flutter_secure_storage
   shared_preferences: ^2.2.2
   google_fonts: ^6.3.1
-  sqflite: ^2.3.3+1
   path: ^1.9.0
   image_picker: ^1.1.1
+  # Security: tokens and sensitive data only in secure storage
+  flutter_secure_storage: ^9.2.2
+  # Configurable API base URL (no hardcoded localhost in code)
+  flutter_dotenv: ^5.2.1
+  # Structured logging (replace print in production)
+  logger: ^2.4.0
+  # Date/number formatting (e.g. audit logs, profile)
+  intl: ^0.19.0
+  # Keep for now so app_database compiles; migrate to remove sensitive tables (see docs/ARCHITECTURE_SECURITY.md)
+  sqflite: ^2.3.3+1
 
   # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -67,6 +76,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/barangay_law_flutter.json
+    # Base URL and env loaded at runtime (do not commit real secrets)
+    - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

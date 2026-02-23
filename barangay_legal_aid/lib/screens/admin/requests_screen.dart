@@ -5,10 +5,10 @@ class AdminRequestsScreen extends StatefulWidget {
   const AdminRequestsScreen({super.key});
 
   @override
-  _AdminRequestsScreenState createState() => _AdminRequestsScreenState();
+  AdminRequestsScreenState createState() => AdminRequestsScreenState();
 }
 
-class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
+class AdminRequestsScreenState extends State<AdminRequestsScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _requests = [];
   bool _isLoading = true;
@@ -29,14 +29,11 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
 
     try {
       final requests = await _apiService.getRequests();
-      print('Loaded ${requests.length} requests');
-      print('Requests data: $requests');
       setState(() {
         _requests = requests;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading requests: $e');
       setState(() {
         _error = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
@@ -47,6 +44,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
   Future<void> _updateRequestStatus(int id, String status) async {
     try {
       await _apiService.updateRequest(id, {'status': status});
+      if (!mounted) return;
       _loadRequests();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -55,6 +53,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
@@ -87,11 +86,13 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
     if (confirm == true) {
       try {
         await _apiService.deleteRequest(id);
+        if (!mounted) return;
         _loadRequests();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Request deleted successfully'), backgroundColor: Color(0xFF36454F)),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Color(0xFF99272D)),
         );
@@ -226,7 +227,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                                   child: ListTile(
                                     contentPadding: EdgeInsets.all(16),
                                     leading: CircleAvatar(
-                                      backgroundColor: Color(0xFF99272D).withOpacity(0.1),
+                                      backgroundColor: Color(0xFF99272D).withValues(alpha:0.1),
                                       child: Icon(
                                         Icons.description,
                                         color: Color(0xFF99272D),
@@ -255,7 +256,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                                           'Purpose: ${request['purpose'] ?? 'N/A'}',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Color(0xFF36454F).withOpacity(0.7),
+                                            color: Color(0xFF36454F).withValues(alpha:0.7),
                                           ),
                                         ),
                                         if (request['created_at'] != null)
@@ -274,7 +275,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                                         Container(
                                           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                           decoration: BoxDecoration(
-                                            color: statusColor.withOpacity(0.1),
+                                            color: statusColor.withValues(alpha:0.1),
                                             borderRadius: BorderRadius.circular(12),
                                             border: Border.all(color: statusColor, width: 1),
                                           ),

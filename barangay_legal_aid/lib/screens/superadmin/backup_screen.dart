@@ -5,10 +5,10 @@ class BackupScreen extends StatefulWidget {
   const BackupScreen({super.key});
 
   @override
-  _BackupScreenState createState() => _BackupScreenState();
+  BackupScreenState createState() => BackupScreenState();
 }
 
-class _BackupScreenState extends State<BackupScreen> {
+class BackupScreenState extends State<BackupScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _backups = [];
   bool _isLoading = false;
@@ -36,11 +36,13 @@ class _BackupScreenState extends State<BackupScreen> {
     setState(() => _isLoading = true);
     try {
       await _apiService.createBackup();
+      if (!mounted) return;
       _loadBackups();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Backup created successfully'), backgroundColor: Color(0xFF36454F)),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error creating backup: $e'), backgroundColor: Color(0xFF99272D)),
       );

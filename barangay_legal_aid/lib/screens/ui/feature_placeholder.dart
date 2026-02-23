@@ -41,7 +41,7 @@ class FeaturePlaceholder extends StatelessWidget {
                 description,
                 style: TextStyle(
                   fontSize: 16,
-                  color: Color(0xFF36454F).withOpacity(0.8),
+                  color: Color(0xFF36454F).withValues(alpha:0.8),
                 ),
                 textAlign: TextAlign.center,
               ),

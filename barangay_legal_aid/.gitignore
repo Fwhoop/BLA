@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local env overrides (optional; repo includes .env with safe default API_URL)
+# .env

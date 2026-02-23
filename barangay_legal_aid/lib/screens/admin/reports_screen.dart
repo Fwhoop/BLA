@@ -5,10 +5,10 @@ class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
 
   @override
-  _AdminReportsScreenState createState() => _AdminReportsScreenState();
+  AdminReportsScreenState createState() => AdminReportsScreenState();
 }
 
-class _AdminReportsScreenState extends State<AdminReportsScreen> {
+class AdminReportsScreenState extends State<AdminReportsScreen> {
   final ApiService _apiService = ApiService();
   Map<String, dynamic> _stats = {};
   List<Map<String, dynamic>> _requests = [];

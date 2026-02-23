@@ -101,7 +101,7 @@ class UITester extends StatelessWidget {
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Color(0xFF36454F).withOpacity(0.3)),
+              border: Border.all(color: Color(0xFF36454F).withValues(alpha:0.3)),
             ),
           ),
           SizedBox(width: 12),
@@ -109,7 +109,7 @@ class UITester extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(name, style: GoogleFonts.roboto(fontWeight: FontWeight.w500)),
-              Text(color.value.toRadixString(16).toUpperCase(), style: GoogleFonts.roboto(fontSize: 12)),
+              Text(color.toARGB32().toRadixString(16).toUpperCase(), style: GoogleFonts.roboto(fontSize: 12)),
             ],
           ),
         ],

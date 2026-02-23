@@ -5,10 +5,10 @@ class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
 
   @override
-  _AdminUsersScreenState createState() => _AdminUsersScreenState();
+  AdminUsersScreenState createState() => AdminUsersScreenState();
 }
 
-class _AdminUsersScreenState extends State<AdminUsersScreen> {
+class AdminUsersScreenState extends State<AdminUsersScreen> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;

@@ -20,18 +20,20 @@ def hash_password(password: str) -> str:
 
 @router.post("/", response_model=schemas.UserRead)
 def create_user(
-    user: schemas.UserCreate, 
+    user: schemas.UserCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    # TEMPORARY: auth disabled for testing – re-enable after creating accounts (see comment below)
+    # current_user: models.User = Depends(get_current_user)
 ):
     requested_role = user.role or "user"
-    if requested_role in ["admin", "superadmin"]:
-        if current_user.role != "superadmin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only superadmin can create admin or superadmin users"
-            )
-    
+    # When auth is re-enabled, uncomment the dependency above and this check:
+    # if requested_role in ["admin", "superadmin"]:
+    #     if current_user.role != "superadmin":
+    #         raise HTTPException(
+    #             status_code=status.HTTP_403_FORBIDDEN,
+    #             detail="Only superadmin can create admin or superadmin users"
+    #         )
+
     if db.query(models.User).filter(models.User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     if db.query(models.User).filter(models.User.username == user.username).first():

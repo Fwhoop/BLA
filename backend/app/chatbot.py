@@ -3,10 +3,33 @@ import json
 from typing import Optional
 from difflib import SequenceMatcher
 
+# Optional ML model (Sentence Transformer in app/bla_chatbot_model)
+try:
+    from sentence_transformers import SentenceTransformer
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+
 # Load JSON data once at startup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 JSON_FILE = os.path.join(os.path.dirname(BASE_DIR), "barangay_law_flutter.json")
+MODEL_DIR = os.path.join(BASE_DIR, "bla_chatbot_model")
 faq_data = None
+sbert_model = None
+model_loaded = False
+
+if ML_AVAILABLE:
+    try:
+        if os.path.exists(MODEL_DIR):
+            sbert_model = SentenceTransformer(MODEL_DIR)
+            model_loaded = True
+            print(f"Chatbot model loaded successfully from {MODEL_DIR}")
+        else:
+            print(f"Model directory not found at {MODEL_DIR} (resolved: {os.path.abspath(MODEL_DIR)}). Using FAQ-based responses.")
+    except Exception as e:
+        print(f"Could not load chatbot model: {e}. Using FAQ-based responses.")
+elif os.path.exists(MODEL_DIR):
+    print(f"Model found at {MODEL_DIR} but ML libraries not installed (pip install sentence-transformers). Using FAQ.")
 
 def load_faq_data():
     """Load FAQ data from JSON file."""
@@ -90,20 +113,20 @@ def generate_chat_response(user_input: str) -> str:
     try:
         logger.info(f"Searching FAQ for: {user_input}")
         
-        # Search for matching answer
+        # Search for matching answer (threshold 0.5 = clear match)
         answer = find_best_match(user_input, threshold=0.5)
-        
+
         if answer:
             logger.info(f"Found matching answer in FAQ")
             return answer
         else:
             logger.info(f"No matching answer found, using default response")
-            # Try a lower threshold for partial matches
-            answer = find_best_match(user_input, threshold=0.3)
+            # Try a lower threshold for partial matches (e.g. "videoke 10pm"), but not too low (avoid "weather" → random FAQ)
+            answer = find_best_match(user_input, threshold=0.42)
             if answer:
                 return answer
-            
-            # Default response if no match found
+
+            # Default response if no match found (avoids irrelevant FAQ for "Hello", "weather", etc.)
             return "I'm here to help with Barangay Legal Aid questions. I couldn't find a specific answer to your question. Please try rephrasing your question, or contact the barangay office directly for assistance. You can also browse the categories to find relevant questions."
     
     except Exception as e:

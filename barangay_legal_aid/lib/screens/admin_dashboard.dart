@@ -11,10 +11,10 @@ class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
   @override
-  _AdminDashboardState createState() => _AdminDashboardState();
+  AdminDashboardState createState() => AdminDashboardState();
 }
 
-class _AdminDashboardState extends State<AdminDashboard> {
+class AdminDashboardState extends State<AdminDashboard> {
   
   @override
   Widget build(BuildContext context) {
@@ -27,6 +27,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           TextButton(
             onPressed: () async {
               await AuthService().logout();
+              if (!context.mounted) return;
               Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
             },
             child: Text(

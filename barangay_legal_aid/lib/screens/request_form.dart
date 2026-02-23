@@ -14,10 +14,10 @@ class RequestForm extends StatefulWidget {
   });
 
   @override
-  _RequestFormState createState() => _RequestFormState();
+  RequestFormState createState() => RequestFormState();
 }
 
-class _RequestFormState extends State<RequestForm> {
+class RequestFormState extends State<RequestForm> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
 
@@ -67,15 +67,14 @@ class _RequestFormState extends State<RequestForm> {
               setState(() {
                 _barangayId = userData['barangay_id'] as int;
               });
-              print('Loaded barangay_id: $_barangayId');
               return;
             }
           }
-        } catch (e) {
-          print('Error fetching user barangay_id: $e');
+        } catch (_) {
+          // /auth/me failed; try parse or barangays list
         }
       }
-      
+
       try {
         final barangayIdInt = int.tryParse(widget.userBarangay);
         if (barangayIdInt != null) {
@@ -84,7 +83,8 @@ class _RequestFormState extends State<RequestForm> {
           });
           return;
         }
-      } catch (e) {
+      } catch (_) {
+        // User barangay_id not from /auth/me; try parse or barangays list
       }
       
       try {
@@ -102,13 +102,12 @@ class _RequestFormState extends State<RequestForm> {
           setState(() {
             _barangayId = matchingBarangay['id'] as int;
           });
-          print('Matched barangay by name: $_barangayId');
         }
-      } catch (e) {
-        print('Error matching barangay by name: $e');
+      } catch (_) {
+        // Barangay name match failed
       }
-    } catch (e) {
-      print('Error loading barangay_id: $e');
+    } catch (_) {
+      // _loadBarangayId failed; form may still submit if backend accepts
     }
   }
 
@@ -148,7 +147,7 @@ class _RequestFormState extends State<RequestForm> {
           documentType: _selectedDocumentType!,
           purpose: _purposeController.text.trim(),
         );
-
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Request submitted successfully!'),
@@ -159,6 +158,7 @@ class _RequestFormState extends State<RequestForm> {
 
         Navigator.pop(context, true);
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error submitting request: ${e.toString().replaceAll('Exception: ', '')}'),
@@ -227,7 +227,7 @@ class _RequestFormState extends State<RequestForm> {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha:0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -250,7 +250,7 @@ class _RequestFormState extends State<RequestForm> {
               'Request a document from ${widget.userBarangay}',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
               ),
               textAlign: TextAlign.center,
             ),

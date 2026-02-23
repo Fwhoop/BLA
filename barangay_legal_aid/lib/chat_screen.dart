@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/chat_model.dart';
 import 'package:barangay_legal_aid/chat_provider.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class ChatScreen extends StatefulWidget {
   final ChatProvider chatProvider;
@@ -16,10 +14,10 @@ class ChatScreen extends StatefulWidget {
   });
 
   @override
-  _ChatScreenState createState() => _ChatScreenState();
+  ChatScreenState createState() => ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
@@ -59,46 +57,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final message = _messageController.text.trim();
     if (message.isEmpty || _isSending) return;
 
-    widget.chatProvider.addMessage(message, true);
     _messageController.clear();
+    setState(() => _isSending = true);
 
-    setState(() {
-      _isSending = true;
-    });
+    await widget.chatProvider.sendMessageToBot(message, widget.currentUser);
 
-    try {
-      final url = Uri.parse('http://127.0.0.1:8000/chats/ai'); 
-
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'sender_id': widget.currentUser.id,
-          'receiver_id': 1, 
-          'message': message,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        final botReply = data['message'] ?? "Sorry, I couldn't understand that.";
-
-        widget.chatProvider.addMessage(botReply, false);
-      } else {
-        print('Error status code: ${response.statusCode}');
-        print('Error response: ${response.body}');
-        final errorMsg = "Error ${response.statusCode}: Could not reach chatbot. ${response.body}";
-        widget.chatProvider.addMessage(errorMsg, false);
-      }
-    } catch (e) {
-      print('Error: $e');
-      widget.chatProvider
-          .addMessage("Error: Could not connect to server. Details: $e", false);
-    } finally {
-      setState(() {
-        _isSending = false;
-      });
-    }
+    if (mounted) setState(() => _isSending = false);
   }
 
   @override
@@ -120,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Color(0xFFFFFFFF).withOpacity(0.2),
+                    color: Color(0xFFFFFFFF).withValues(alpha:0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -170,7 +134,7 @@ class _ChatScreenState extends State<ChatScreen> {
             decoration: BoxDecoration(
               color: Color(0xFFFFFFFF),
               border: Border(
-                top: BorderSide(color: Color(0xFF36454F).withOpacity(0.2)),
+                top: BorderSide(color: Color(0xFF36454F).withValues(alpha:0.2)),
               ),
             ),
             child: Row(
@@ -183,7 +147,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(
-                            color: Color(0xFF36454F).withOpacity(0.3)),
+                            color: Color(0xFF36454F).withValues(alpha:0.3)),
                       ),
                     ),
                     onSubmitted: (_) => _sendMessage(),
