@@ -175,8 +175,41 @@ class ChatBubble extends StatelessWidget {
 
   const ChatBubble({super.key, required this.message});
 
+  static _ActionCardData? _resolveAction(String? uiAction) {
+    switch (uiAction) {
+      case 'HIGHLIGHT_MENU:complaint':
+        return _ActionCardData(
+          icon: Icons.report_problem_outlined,
+          label: 'Go to Complaint Form',
+          color: Color(0xFFB71C1C),
+        );
+      case 'HIGHLIGHT_MENU:document':
+        return _ActionCardData(
+          icon: Icons.description_outlined,
+          label: 'Go to Document Request',
+          color: Color(0xFF1565C0),
+        );
+      case 'HIGHLIGHT_MENU:suggestion':
+        return _ActionCardData(
+          icon: Icons.lightbulb_outline,
+          label: 'Go to Suggestion Box',
+          color: Color(0xFF2E7D32),
+        );
+      case 'OPEN:tracking':
+        return _ActionCardData(
+          icon: Icons.track_changes_outlined,
+          label: 'Go to Request Tracking',
+          color: Color(0xFF6A1B9A),
+        );
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final actionData = !message.isUser ? _resolveAction(message.uiAction) : null;
+
     return Container(
       margin: EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -189,16 +222,25 @@ class ChatBubble extends StatelessWidget {
             ),
           if (!message.isUser) SizedBox(width: 8),
           Expanded(
-            child: Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: message.isUser ? Color(0xFF99272D) : Color(0xFF36454F),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                message.content,
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: message.isUser ? Color(0xFF99272D) : Color(0xFF36454F),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    message.content,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+                if (actionData != null) ...[
+                  SizedBox(height: 6),
+                  _ActionCard(data: actionData),
+                ],
+              ],
             ),
           ),
           if (message.isUser) SizedBox(width: 8),
@@ -207,6 +249,51 @@ class ChatBubble extends StatelessWidget {
               backgroundColor: Color(0xFF99272D),
               child: Text('YOU', style: TextStyle(color: Colors.white, fontSize: 10)),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionCardData {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _ActionCardData({required this.icon, required this.label, required this.color});
+}
+
+class _ActionCard extends StatelessWidget {
+  final _ActionCardData data;
+
+  const _ActionCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = data.icon;
+    final label = data.label;
+    final color = data.color;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(width: 6),
+          Icon(Icons.arrow_forward_ios, color: color, size: 12),
         ],
       ),
     );

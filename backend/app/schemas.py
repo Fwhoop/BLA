@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -96,6 +96,16 @@ class ChatRead(ChatCreate):
 
     class Config:
         from_attributes = True
+
+class HistoryEntry(BaseModel):
+    role: str   # 'user' or 'bot'
+    content: str
+
+class AiChatCreate(BaseModel):
+    sender_id: int
+    receiver_id: int
+    message: str
+    history: Optional[List[HistoryEntry]] = None
 
 # REQUEST SCHEMAS
 class RequestBase(BaseModel):

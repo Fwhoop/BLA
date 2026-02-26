@@ -3,12 +3,14 @@ class ChatMessage {
   final String content;
   final bool isUser;
   final DateTime timestamp;
+  final String? uiAction; // e.g. 'HIGHLIGHT_MENU:complaint', 'OPEN:tracking'
 
   ChatMessage({
     required this.id,
     required this.content,
     required this.isUser,
     required this.timestamp,
+    this.uiAction,
   });
 
   Map<String, dynamic> toJson() => {
@@ -16,6 +18,7 @@ class ChatMessage {
         'content': content,
         'isUser': isUser,
         'timestamp': timestamp.toIso8601String(),
+        if (uiAction != null) 'uiAction': uiAction,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -23,6 +26,7 @@ class ChatMessage {
         content: json['content'],
         isUser: json['isUser'],
         timestamp: DateTime.parse(json['timestamp']),
+        uiAction: json['uiAction'] as String?,
       );
 }
 

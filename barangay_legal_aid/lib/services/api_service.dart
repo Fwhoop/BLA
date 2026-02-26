@@ -465,23 +465,32 @@ class ApiService {
     return users.where((u) => u['role'] == 'user').toList();
   }
 
-  /// Send message to AI chatbot. Requires auth. Returns bot reply or throws.
-  Future<String> sendChatMessage(String message, String senderId) async {
+  /// Send message to AI chatbot with conversation history for context.
+  /// Returns { 'message': String, 'ui_action': String? }.
+  Future<Map<String, dynamic>> sendChatMessage(
+    String message,
+    String senderId, {
+    List<Map<String, String>> history = const [],
+  }) async {
     final headers = await _getHeaders();
     final r = await http
         .post(
           Uri.parse('$_baseUrl/chats/ai'),
           headers: headers,
           body: jsonEncode({
-            'sender_id': senderId,
+            'sender_id': int.tryParse(senderId) ?? 0,
             'receiver_id': 1,
             'message': message,
+            'history': history,
           }),
         )
         .timeout(_timeout);
     if (r.statusCode == 200 || r.statusCode == 201) {
-      final data = jsonDecode(r.body);
-      return data['message'] as String? ?? "Sorry, I couldn't process that.";
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      return {
+        'message': data['message'] as String? ?? "Sorry, I couldn't process that.",
+        'ui_action': data['ui_action'] as String?,
+      };
     }
     throw Exception('Chat failed: ${r.statusCode}');
   }

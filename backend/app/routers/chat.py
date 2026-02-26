@@ -58,34 +58,33 @@ def get_faq_data():
         )
 
 @router.post("/ai", response_model=dict)
-def chat_with_ai(chat: schemas.ChatCreate, db: Session = Depends(get_db)):
+def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     """
-    Simple AI endpoint that returns the response directly without saving to database.
+    AI chatbot endpoint — intent-routed with conversation history support.
+    Returns: { message, ui_action, sender_id, receiver_id }
     """
     import logging
     logger = logging.getLogger(__name__)
-    
+
     try:
-        logger.info(f"Received chat request: sender_id={chat.sender_id}, message={chat.message}")
-        
-        logger.info("Generating AI response...")
-        
-        try:
-            ai_response = generate_chat_response(chat.message)
-            logger.info(f"Generated response: {ai_response[:50]}...")
-        except Exception as ai_error:
-            logger.error(f"Error generating AI response: {ai_error}")
-            ai_response = f"Thank you for your message: '{chat.message}'. I'm the Barangay Legal Aid chatbot. Please contact the barangay office directly for assistance."
-        
+        logger.info(f"AI chat: sender={chat.sender_id} message={chat.message!r}")
+
+        history = [{"role": h.role, "content": h.content} for h in (chat.history or [])]
+
+        message, ui_action = generate_chat_response(chat.message, history)
+        logger.info(f"Response → ui_action={ui_action!r}")
+
         return {
-            "message": ai_response,
+            "message": message,
+            "ui_action": ui_action,
             "sender_id": chat.sender_id,
-            "receiver_id": getattr(chat, 'receiver_id', 1)
+            "receiver_id": chat.receiver_id,
         }
     except Exception as e:
-        logger.error(f"Unexpected error in chat_with_ai: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error in chat_with_ai: {e}", exc_info=True)
         return {
             "message": "I apologize, but I encountered an error. Please try again or contact the barangay office directly.",
+            "ui_action": None,
             "sender_id": chat.sender_id,
-            "receiver_id": getattr(chat, 'receiver_id', 1)
+            "receiver_id": chat.receiver_id,
         }

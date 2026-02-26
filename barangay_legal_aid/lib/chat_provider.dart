@@ -55,7 +55,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void addMessage(String content, bool isUser) {
+  void addMessage(String content, bool isUser, {String? uiAction}) {
     if (_currentSession == null) {
       createNewSession();
     }
@@ -65,6 +65,7 @@ class ChatProvider with ChangeNotifier {
       content: content,
       isUser: isUser,
       timestamp: DateTime.now(),
+      uiAction: uiAction,
     );
 
     _currentSession!.messages.add(message);
@@ -77,6 +78,19 @@ class ChatProvider with ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Last N messages (most recent) as history entries for the backend.
+  List<Map<String, String>> _buildHistory({int maxTurns = 5}) {
+    final msgs = _currentSession?.messages ?? [];
+    // Take the LAST maxTurns*2 messages (excluding current user message)
+    final window = msgs.length > 1 ? msgs.sublist(0, msgs.length - 1) : <ChatMessage>[];
+    final recent = window.length > maxTurns * 2
+        ? window.sublist(window.length - maxTurns * 2)
+        : window;
+    return recent
+        .map((m) => {'role': m.isUser ? 'user' : 'bot', 'content': m.content})
+        .toList();
   }
 
   void deleteSession(String sessionId) {
@@ -96,8 +110,15 @@ class ChatProvider with ChangeNotifier {
       return;
     }
     try {
-      final aiMessage = await _apiService.sendChatMessage(content, currentUser.id);
-      addMessage(aiMessage, false);
+      final history = _buildHistory();
+      final result = await _apiService.sendChatMessage(
+        content,
+        currentUser.id,
+        history: history,
+      );
+      final message = result['message'] as String? ?? "Sorry, I couldn't process that.";
+      final uiAction = result['ui_action'] as String?;
+      addMessage(message, false, uiAction: uiAction);
     } catch (e) {
       final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Unable to reach chatbot. Please try again.';
       addMessage(msg, false);
