@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+python-multipart
+sqlalchemy
+pydantic
+pydantic-settings
+pymysql
+passlib[bcrypt]
+python-jose[cryptography]
+torch
+transformers
+peft
+accelerate
+sentencepiece
