@@ -13,3 +13,4 @@ transformers
 peft
 accelerate
 sentencepiece
+langdetect

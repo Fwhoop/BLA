@@ -61,11 +61,16 @@ class CaseCreate(CaseBase):
 class CaseUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
 
 class CaseRead(CaseBase):
     id: int
     reporter_id: int
+    status: str = "pending"
     created_at: datetime
+    updated_at: Optional[datetime] = None
+    reporter_name: Optional[str] = None
+    reporter_email: Optional[str] = None
 
     class Config:
         from_attributes = True

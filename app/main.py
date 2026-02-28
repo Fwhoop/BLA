@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 import logging
 
 logging.basicConfig(
@@ -31,12 +32,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def _run_migrations():
+    """Add any missing columns to existing tables (safe to run on every startup)."""
+    try:
+        inspector = inspect(engine)
+        with engine.connect() as conn:
+            existing = {c["name"] for c in inspector.get_columns("cases")}
+            if "status" not in existing:
+                conn.execute(text(
+                    "ALTER TABLE cases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"
+                ))
+                logger.info("Migration: added 'status' column to cases")
+            if "updated_at" not in existing:
+                conn.execute(text(
+                    "ALTER TABLE cases ADD COLUMN updated_at DATETIME "
+                    "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+                ))
+                logger.info("Migration: added 'updated_at' column to cases")
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Migration step skipped (cases table may not exist yet): {e}")
+
+
 # Create database tables on startup (with error handling)
 @app.on_event("startup")
 async def create_tables():
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created/verified successfully")
+        _run_migrations()
     except Exception as e:
         logger.warning(f"Could not create database tables: {e}")
         logger.warning("Server will continue, but database operations may fail until connection is fixed")

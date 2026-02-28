@@ -5,7 +5,57 @@ import logging
 from typing import Optional, List, Dict, Tuple
 from difflib import SequenceMatcher
 
+try:
+    from langdetect import detect, DetectorFactory
+    DetectorFactory.seed = 0  # ensures consistent results
+    _LANGDETECT_AVAILABLE = True
+except ImportError:
+    _LANGDETECT_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
+
+# ─── Tagalog keyword detector ─────────────────────────────────────────────────
+# Common Tagalog function words and particles — these almost never appear in English.
+# Keyword matching is far more reliable than langdetect for short/mixed sentences.
+_TAGALOG_KEYWORDS = {
+    'ang', 'ng', 'sa', 'na', 'ay', 'at', 'ni', 'mga', 'ko', 'mo', 'po',
+    'ho', 'ba', 'kaya', 'nga', 'yung', 'rin', 'din', 'naman', 'pala',
+    'kasi', 'pero', 'para', 'kung', 'kapag', 'siya', 'sila', 'kami',
+    'tayo', 'kayo', 'lang', 'magkano', 'paano', 'bakit', 'kailan', 'saan',
+    'sino', 'ano', 'ito', 'iyon', 'dito', 'doon', 'nito', 'nila', 'namin',
+    'natin', 'ninyo', 'mayroon', 'wala', 'oo', 'hindi', 'huwag',
+    'pumunta', 'kumuha', 'humingi', 'ibigay', 'makuha', 'nandito',
+    'gusto', 'pwede', 'puwede', 'kailangan', 'dapat', 'talaga', 'sana',
+    'yun', 'daw', 'raw', 'po', 'naman', 'kayo', 'ikaw', 'ako', 'siya',
+    'kami', 'tayo', 'kanila', 'niya', 'namin', 'natin', 'ninyo',
+    'magsumbong', 'magreklamo', 'ireport', 'sumbong', 'reklamo',
+    'clearance', 'barangay', 'opisina', 'tanggapan',
+}
+
+_PUNCT_STRIP = re.compile(r'[^\w\s]')
+
+
+def _is_tagalog(text: str) -> bool:
+    """
+    Returns True if the text is Tagalog/Filipino.
+    Uses keyword frequency as primary signal; langdetect as fallback.
+    Keyword matching is preferred because langdetect is unreliable for
+    short Tagalog sentences and Taglish (mixed) text.
+    """
+    words = _PUNCT_STRIP.sub('', text.lower()).split()
+    if not words:
+        return False
+    hits = sum(1 for w in words if w in _TAGALOG_KEYWORDS)
+    # >15% of words are Tagalog markers → treat as Tagalog
+    if hits / len(words) > 0.15:
+        return True
+    # Fallback to langdetect for borderline / longer sentences
+    if _LANGDETECT_AVAILABLE:
+        try:
+            return detect(text) == "tl"
+        except Exception:
+            pass
+    return False
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LORA_MODEL_DIR = os.path.join(BASE_DIR, "bla_chatbot_model_gemma_lora_project", "full_model")
@@ -390,6 +440,25 @@ def _generate_with_gemma(user_input: str, history: List[Dict] = None) -> str:
         cleaned.pop(0)
     cleaned = cleaned[-4:]  # keep last 4 turns max
 
+    # ── Tagalog detection — choose system prompt variant and inject instruction ──
+    if _is_tagalog(user_input):
+        # Patch the system prompt so the language rule is explicit for this turn
+        active_system = (
+            _GEMMA_SYSTEM_PROMPT +
+            "\n\nCRITICAL: The user is writing in Filipino/Tagalog. "
+            "You MUST reply ENTIRELY in Filipino/Tagalog. "
+            "Do NOT use English words in your response."
+        )
+        # Also prepend a Tagalog-language instruction directly in the user turn
+        # so it appears as close to the generation point as possible
+        user_input = (
+            "IMPORTANTENG TAGUBILIN: Sagutin ang tanong na ito sa Filipino/Tagalog LAMANG. "
+            "Huwag gumamit ng Ingles.\n\n"
+            + user_input
+        )
+    else:
+        active_system = _GEMMA_SYSTEM_PROMPT
+
     # ── Build messages — system prompt embedded in first user turn ────────────
     messages: List[Dict] = []
     if cleaned:
@@ -397,13 +466,13 @@ def _generate_with_gemma(user_input: str, history: List[Dict] = None) -> str:
             if i == 0 and msg["role"] == "user":
                 messages.append({
                     "role": "user",
-                    "content": f"{_GEMMA_SYSTEM_PROMPT}\n\nUser: {msg['content']}",
+                    "content": f"{active_system}\n\nUser: {msg['content']}",
                 })
             else:
                 messages.append({"role": msg["role"], "content": msg["content"]})
         messages.append({"role": "user", "content": user_input})
     else:
-        messages = [{"role": "user", "content": f"{_GEMMA_SYSTEM_PROMPT}\n\nUser: {user_input}"}]
+        messages = [{"role": "user", "content": f"{active_system}\n\nUser: {user_input}"}]
 
     # Guarantee final message is user
     if messages[-1]["role"] != "user":
@@ -422,11 +491,15 @@ def _generate_with_gemma(user_input: str, history: List[Dict] = None) -> str:
         input_ids = encoded.to(model.device)
 
     # ── Generate ──────────────────────────────────────────────────────────────
+    # do_sample=True is required for the model to follow soft instructions
+    # like "respond in Tagalog" — greedy decoding ignores them.
     with torch.no_grad():
         output_ids = model.generate(
             input_ids=input_ids,
-            max_new_tokens=200,
-            do_sample=False,
+            max_new_tokens=256,
+            do_sample=True,
+            temperature=0.3,
+            top_p=0.9,
             repetition_penalty=1.1,
             pad_token_id=tokenizer.eos_token_id,
         )
