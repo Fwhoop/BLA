@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/services/auth_service.dart';
+import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,19 +34,24 @@ class SignupPageState extends State<SignupPage> {
   File? _idPhotoFile;
   Uint8List? _idPhotoBytes; // For web platform
 
-  final List<String> _barangays = [
-    'Barangay Cabaluay',
-    'Barangay Cabatangan',
-    'Barangay Culianan',
-    'Barangay Mercedes',
-    'Barangay Pasonanca',
-    'Barangay San Jose Cawa-Cawa',
-    'Barangay San Jose Gusu',
-    'Barangay San Roque',
-    'Barangay Sta. Maria',
-    'Barangay Talabaan',
-    'Barangay Taluksangay',
-  ];
+  List<Map<String, dynamic>> _barangayItems = [];
+  bool _barangaysLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBarangays();
+  }
+
+  Future<void> _loadBarangays() async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final items = await api.getBarangays();
+      if (mounted) setState(() { _barangayItems = items; _barangaysLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _barangaysLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -610,23 +616,46 @@ class SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildBarangayDropdown() {
+    if (_barangaysLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Loading barangays…', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+    if (_barangayItems.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'No barangays available. Please contact your administrator.',
+          style: TextStyle(color: Colors.red, fontSize: 13),
+        ),
+      );
+    }
     return DropdownButtonFormField<String>(
       initialValue: _selectedBarangay,
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         labelText: 'Select barangay',
         prefixIcon: Icon(Icons.location_on_outlined),
       ),
-      items: _barangays.map((String barangay) {
-        return DropdownMenuItem<String>(
-          value: barangay,
-          child: Text(barangay),
-        );
+      items: _barangayItems.map((b) {
+        final name = b['name'] as String? ?? '';
+        return DropdownMenuItem<String>(value: name, child: Text(name));
       }).toList(),
       onChanged: (String? newValue) {
         setState(() => _selectedBarangay = newValue);
       },
       validator: (value) {
-        if (value == null) {
+        if (value == null || value.isEmpty) {
           return 'Please select your barangay';
         }
         return null;

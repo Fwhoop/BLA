@@ -64,6 +64,63 @@ def create_user(
     return new_user
 
 
+@router.post("/staff-member", response_model=schemas.UserRead)
+def create_staff_member(
+    user: schemas.UserCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Admin creates a staff account for their own barangay. Superadmin can specify any barangay."""
+    if current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create staff accounts",
+        )
+
+    if current_user.role == "admin":
+        if not current_user.barangay_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Your account is not assigned to a barangay",
+            )
+        barangay_id = current_user.barangay_id
+    else:  # superadmin
+        if not user.barangay_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="barangay_id is required",
+            )
+        barangay_id = user.barangay_id
+
+    if db.query(models.User).filter(models.User.email == user.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(models.User).filter(models.User.username == user.username).first():
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    hashed_pw = hash_password(user.password)
+    new_user = models.User(
+        email=user.email,
+        username=user.username,
+        hashed_password=hashed_pw,
+        first_name=user.first_name or "",
+        last_name=user.last_name or "",
+        role="staff",
+        barangay_id=barangay_id,
+        is_active=True,
+        created_at=datetime.utcnow(),
+    )
+
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+    return new_user
+
+
 @router.get("/", response_model=List[schemas.UserRead])
 def read_users(
     db: Session = Depends(get_db),

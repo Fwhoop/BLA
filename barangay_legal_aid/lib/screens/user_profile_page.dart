@@ -257,21 +257,26 @@ class UserProfilePageState extends State<UserProfilePage> {
         color: Color(0xFFFFFFFF),
         child: _isLoading && _currentUser == null
             ? Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: EdgeInsets.all(20),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildProfileHeader(),
-                      SizedBox(height: 24),
-                      _buildProfileInfoCard(),
-                      SizedBox(height: 20),
-                      _buildPasswordCard(),
-                      SizedBox(height: 20),
-                      _buildActionButtons(),
-                    ],
+            : Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 860),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(20),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildProfileHeader(),
+                          SizedBox(height: 24),
+                          _buildProfileInfoCard(),
+                          SizedBox(height: 20),
+                          _buildPasswordCard(),
+                          SizedBox(height: 20),
+                          _buildActionButtons(),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

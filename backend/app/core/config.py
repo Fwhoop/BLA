@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     mysql_user: str | None = None
     mysql_password: str | None = None
 
+    hf_token: str | None = None
+
     class Config:
         env_file = ".env"
 

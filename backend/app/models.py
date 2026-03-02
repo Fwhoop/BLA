@@ -27,6 +27,7 @@ class User(Base):
     role = Column(String(20), default="user")
     barangay_id = Column(Integer, ForeignKey("barangays.id"), nullable=True)
     is_active = Column(Boolean, default=True)
+    id_photo_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     barangay = relationship("Barangay", back_populates="users")
@@ -43,8 +44,10 @@ class Case(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
+    status = Column(String(20), default="pending", nullable=False)
     reporter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     reporter = relationship("User", back_populates="cases")
 
@@ -75,3 +78,18 @@ class Request(Base):
 
     requester = relationship("User", back_populates="requests")
     barangay = relationship("Barangay", back_populates="requests")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    notif_type = Column(String(50), default="info")  # request_update | new_request | case_update | new_case
+    reference_id = Column(Integer, nullable=True)     # FK to request.id or case.id
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="notifications")

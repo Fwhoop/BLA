@@ -50,7 +50,7 @@ class LoginPageState extends State<LoginPage> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Invalid email or password. Please try again.'),
             backgroundColor: Color(0xFF99272D),
             duration: Duration(seconds: 3),
@@ -61,8 +61,10 @@ class LoginPageState extends State<LoginPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Login failed. Please try again.'),
-            backgroundColor: Color(0xFF99272D),
+            content: Text(e is Exception
+                ? e.toString().replaceFirst('Exception: ', '')
+                : 'Login failed. Please try again.'),
+            backgroundColor: const Color(0xFF99272D),
           ),
         );
       }
@@ -77,7 +79,7 @@ class LoginPageState extends State<LoginPage> {
 
   void _navigateToForgotPassword() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text('Forgot password feature coming soon!'),
         backgroundColor: Color(0xFF99272D),
       ),
@@ -87,39 +89,34 @@ class LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Login to Legal Aid'),
-        backgroundColor: Color(0xFF99272D),
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: const Color(0xFFF0F2F5),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 480),
+            constraints: const BoxConstraints(maxWidth: 480),
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildLogo(),
-                    SizedBox(height: 32),
-                    _buildEmailField(),
-                    SizedBox(height: 16),
-                    _buildPasswordField(),
-                    SizedBox(height: 8),
-                    _buildRememberMeCheckbox(),
-                    SizedBox(height: 20),
-                    _buildLoginButton(),
-                    SizedBox(height: 16),
-                    _buildDivider(),
-                    SizedBox(height: 16),
-                    _buildSignupLink(),
-                    SizedBox(height: 8),
-                    _buildForgotPasswordLink(),
-                  ],
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHero(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildFormCard(),
+                          const SizedBox(height: 16),
+                          _buildDivider(),
+                          const SizedBox(height: 12),
+                          _buildSignupLink(),
+                          _buildForgotPasswordLink(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -128,52 +125,90 @@ class LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildHero() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 48, 24, 36),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF99272D), Color(0xFF6B1A1E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.3), width: 2),
+            ),
+            child: const Icon(Icons.gavel, size: 56, color: Colors.white),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Barangay Legal Aid',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your gateway to barangay legal services',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormCard() {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Color(0xFF99272D), Color(0xFFCC3A47)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+      margin: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
         ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha:0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.gavel,
-                size: 60,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Barangay Legal Aid',
+            const Text(
+              'Welcome back!',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Color(0xFF36454F),
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
-              'Welcome back! Please login to continue',
+              'Sign in to your account',
               style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withValues(alpha:0.9),
+                fontSize: 14,
+                color: const Color(0xFF36454F).withValues(alpha: 0.6),
               ),
-              textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 24),
+            _buildEmailField(),
+            const SizedBox(height: 16),
+            _buildPasswordField(),
+            const SizedBox(height: 8),
+            _buildRememberMeCheckbox(),
+            const SizedBox(height: 20),
+            _buildLoginButton(),
           ],
         ),
       ),
@@ -184,7 +219,8 @@ class LoginPageState extends State<LoginPage> {
     return TextFormField(
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      decoration: InputDecoration(
+      textInputAction: TextInputAction.next,
+      decoration: const InputDecoration(
         labelText: 'Email address',
         hintText: 'you@example.com',
         prefixIcon: Icon(Icons.email_outlined),
@@ -206,9 +242,11 @@ class LoginPageState extends State<LoginPage> {
     return TextFormField(
       controller: _passwordController,
       obscureText: _obscurePassword,
+      textInputAction: TextInputAction.done,
+      onFieldSubmitted: (_) => _isLoading ? null : _submitForm(),
       decoration: InputDecoration(
         labelText: 'Password',
-        prefixIcon: Icon(Icons.lock_outline),
+        prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           icon: Icon(
             _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -238,10 +276,10 @@ class LoginPageState extends State<LoginPage> {
           onChanged: (value) {
             setState(() => _rememberMe = value ?? false);
           },
-          activeColor: Color(0xFF99272D),
+          activeColor: const Color(0xFF99272D),
         ),
-        Text('Remember me', style: TextStyle(color: Color(0xFF99272D))),
-        Spacer(),
+        const Text('Remember me', style: TextStyle(color: Color(0xFF36454F))),
+        const Spacer(),
       ],
     );
   }
@@ -249,8 +287,15 @@ class LoginPageState extends State<LoginPage> {
   Widget _buildLoginButton() {
     return ElevatedButton(
       onPressed: _isLoading ? null : _submitForm,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF99272D),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 2,
+      ),
       child: _isLoading
-          ? SizedBox(
+          ? const SizedBox(
               height: 20,
               width: 20,
               child: CircularProgressIndicator(
@@ -258,9 +303,13 @@ class LoginPageState extends State<LoginPage> {
                 strokeWidth: 2,
               ),
             )
-          : Text(
+          : const Text(
               'Login',
-            style: Theme.of(context).textTheme.labelLarge,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
     );
   }
@@ -268,12 +317,16 @@ class LoginPageState extends State<LoginPage> {
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: Color(0xFF99272D).withValues(alpha:0.3))),
+        Expanded(
+            child: Divider(color: const Color(0xFF99272D).withValues(alpha: 0.3))),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Text('OR', style: TextStyle(color: Color(0xFF99272D))),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text('OR',
+              style: TextStyle(
+                  color: const Color(0xFF99272D).withValues(alpha: 0.7))),
         ),
-        Expanded(child: Divider(color: Color(0xFF99272D).withValues(alpha:0.3))),
+        Expanded(
+            child: Divider(color: const Color(0xFF99272D).withValues(alpha: 0.3))),
       ],
     );
   }
@@ -283,11 +336,12 @@ class LoginPageState extends State<LoginPage> {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text("Don't have an account?", style: TextStyle(color: Color(0xFF99272D))),
-        SizedBox(width: 5),
+        const Text("Don't have an account?",
+            style: TextStyle(color: Color(0xFF36454F))),
+        const SizedBox(width: 5),
         TextButton(
           onPressed: _navigateToSignup,
-          child: Text(
+          child: const Text(
             'Sign Up',
             style: TextStyle(
               color: Color(0xFF99272D),
@@ -302,7 +356,7 @@ class LoginPageState extends State<LoginPage> {
   Widget _buildForgotPasswordLink() {
     return TextButton(
       onPressed: _navigateToForgotPassword,
-      child: Text(
+      child: const Text(
         'Forgot Password?',
         style: TextStyle(
           color: Color(0xFF99272D),

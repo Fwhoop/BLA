@@ -25,10 +25,12 @@ class UserUpdate(BaseModel):
     address: Optional[str] = None
     barangay_id: Optional[int] = None
     role: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class UserRead(UserBase):
     id: int
     is_active: bool = True
+    id_photo_url: Optional[str] = None
     created_at: datetime
 
     @field_validator('is_active', mode='before')
@@ -61,11 +63,16 @@ class CaseCreate(CaseBase):
 class CaseUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
 
 class CaseRead(CaseBase):
     id: int
     reporter_id: int
+    status: str = "pending"
     created_at: datetime
+    updated_at: Optional[datetime] = None
+    reporter_name: Optional[str] = None
+    reporter_email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -128,3 +135,22 @@ class RequestRead(RequestBase):
 
     class Config:
         from_attributes = True
+
+
+# NOTIFICATION SCHEMAS
+class NotificationRead(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    notif_type: str
+    reference_id: Optional[int] = None
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UnreadCountRead(BaseModel):
+    count: int

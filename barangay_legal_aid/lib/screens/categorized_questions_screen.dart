@@ -146,19 +146,6 @@ class CategorizedQuestionsScreenState
     }
   }
 
-  List<Category> get _filteredCategories {
-    if (_faqData == null) return [];
-    if (_searchQuery.isEmpty) return _faqData!.categories;
-
-    final query = _searchQuery.toLowerCase();
-    return _faqData!.categories.where((category) {
-      if (category.name.toLowerCase().contains(query)) return true;
-      return category.questions.any((q) =>
-          q.question.toLowerCase().contains(query) ||
-          q.answer.toLowerCase().contains(query));
-    }).toList();
-  }
-
   List<Question> get _allQuestions {
     if (_faqData == null) return [];
     if (_selectedCategory != null) {
@@ -178,11 +165,6 @@ class CategorizedQuestionsScreenState
     return all;
   }
 
-  void _selectCategory(Category category) {
-    setState(() {
-      _selectedCategory = category;
-    });
-  }
 
   void _clearSelection() {
     setState(() {
@@ -376,24 +358,27 @@ class CategorizedQuestionsScreenState
     final session = currentSession!;
     final chips = _suggestionChips;
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      itemCount: session.messages.length + (_isSending ? 1 : 0) + (chips.isEmpty ? 0 : 1),
-      itemBuilder: (context, index) {
-        if (index < session.messages.length) {
-          final message = session.messages[index];
-          return ChatBubble(message: message);
-        }
-        if (index == session.messages.length && _isSending) {
-          return _buildTypingIndicator();
-        }
-        if (index == session.messages.length + (_isSending ? 1 : 0)) {
-          return _buildSuggestionChipsSection(chips);
-        }
-        return SizedBox.shrink();
-      },
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      final hPad = constraints.maxWidth >= 700 ? 48.0 : 16.0;
+      return ListView.builder(
+        controller: _scrollController,
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
+        itemCount: session.messages.length + (_isSending ? 1 : 0) + (chips.isEmpty ? 0 : 1),
+        itemBuilder: (context, index) {
+          if (index < session.messages.length) {
+            final message = session.messages[index];
+            return ChatBubble(message: message);
+          }
+          if (index == session.messages.length && _isSending) {
+            return _buildTypingIndicator();
+          }
+          if (index == session.messages.length + (_isSending ? 1 : 0)) {
+            return _buildSuggestionChipsSection(chips);
+          }
+          return SizedBox.shrink();
+        },
+      );
+    });
   }
 
   Widget _buildSuggestionChipsSection(List<Question> questions) {
@@ -457,25 +442,28 @@ class CategorizedQuestionsScreenState
     final searchResults = _searchQuery.isNotEmpty ? _allQuestions : <Question>[];
     final hasSearchResults = searchResults.isNotEmpty;
 
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcomeCard(),
-          SizedBox(height: 24),
-          if (_selectedCategory != null)
-            _buildQuestionsListInline(_selectedCategory!.questions, _selectedCategory!.name)
-          else if (_searchQuery.isNotEmpty)
-            hasSearchResults
-                ? _buildQuestionsListInline(searchResults, 'Search Results')
-                : _buildEmptySearchState()
-          else
-            _buildCategoriesListInline(),
-        ],
-      ),
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      final hPad = constraints.maxWidth >= 700 ? 48.0 : 16.0;
+      return SingleChildScrollView(
+        controller: _scrollController,
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildWelcomeCard(),
+            SizedBox(height: 24),
+            if (_selectedCategory != null)
+              _buildQuestionsListInline(_selectedCategory!.questions, _selectedCategory!.name)
+            else if (_searchQuery.isNotEmpty)
+              hasSearchResults
+                  ? _buildQuestionsListInline(searchResults, 'Search Results')
+                  : _buildEmptySearchState()
+            else
+              _buildBrowseCard(),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildWelcomeCard() {
@@ -505,10 +493,73 @@ class CategorizedQuestionsScreenState
           ),
           SizedBox(height: 8),
           Text(
-            'Choose a topic below or type your question',
+            'Type your question or browse topics',
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
+      ),
+    );
+  }
+
+  /// A compact card that opens the browse-questions bottom sheet.
+  /// Replaces the old full inline category list on the welcome screen.
+  Widget _buildBrowseCard() {
+    final categoryCount = _faqData?.categories.length ?? 0;
+    final questionCount =
+        _faqData?.categories.fold<int>(0, (sum, c) => sum + c.questions.length) ?? 0;
+
+    return GestureDetector(
+      onTap: () => _showBrowseSheet(context),
+      child: Container(
+        margin: EdgeInsets.only(top: 8),
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Color(0xFF99272D).withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Color(0xFF99272D).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.library_books_outlined,
+                  color: Color(0xFF99272D), size: 28),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Browse Questions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF36454F),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '$categoryCount categories · $questionCount questions',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Color(0xFF99272D)),
+          ],
+        ),
       ),
     );
   }
@@ -535,32 +586,10 @@ class CategorizedQuestionsScreenState
     );
   }
 
-  Widget _buildCategoriesListInline() {
-    final categories = _filteredCategories;
-    if (categories.isEmpty) return _buildEmptySearchState();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Browse by category',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF36454F),
-          ),
-        ),
-        SizedBox(height: 12),
-        ...categories.map((c) => Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: _buildCategoryCard(c),
-        )),
-      ],
-    );
-  }
-
   Widget _buildChatInput() {
+    final hPad = MediaQuery.of(context).size.width >= 700 ? 48.0 : 16.0;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -814,89 +843,6 @@ class CategorizedQuestionsScreenState
     );
   }
 
-  Widget _buildCategoryCard(Category category) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _selectCategory(category),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF99272D).withValues(alpha:0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.folder_outlined,
-                    color: Color(0xFF99272D),
-                    size: 24,
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        category.name,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF36454F),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.help_outline,
-                            size: 14,
-                            color: Colors.grey[600],
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            '${category.questions.length} question${category.questions.length != 1 ? 's' : ''}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF99272D),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildQuestionCard(Question question) {
     return Container(
       margin: EdgeInsets.only(bottom: 12),
@@ -1006,35 +952,38 @@ class ChatBubble extends StatelessWidget {
             SizedBox(width: 12),
           ],
           Flexible(
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: message.isUser
-                    ? LinearGradient(
-                        colors: [Color(0xFF99272D), Color(0xFFB83A42)],
-                      )
-                    : null,
-                color: message.isUser ? null : Color(0xFF36454F),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                  bottomLeft: Radius.circular(message.isUser ? 20 : 4),
-                  bottomRight: Radius.circular(message.isUser ? 4 : 20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha:0.1),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: message.isUser
+                      ? LinearGradient(
+                          colors: [Color(0xFF99272D), Color(0xFFB83A42)],
+                        )
+                      : null,
+                  color: message.isUser ? null : Color(0xFF36454F),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(message.isUser ? 20 : 4),
+                    bottomRight: Radius.circular(message.isUser ? 4 : 20),
                   ),
-                ],
-              ),
-              child: Text(
-                message.content,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  height: 1.5,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  message.content,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ),

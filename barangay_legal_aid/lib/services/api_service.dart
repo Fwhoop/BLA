@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/config/env_config.dart';
+import 'package:barangay_legal_aid/models/notification_model.dart';
 import 'package:http/http.dart' as http;
 
 import 'secure_storage_service.dart';
@@ -13,6 +14,8 @@ class ApiService {
 
   final SecureStorageService _secure;
   static const _timeout = Duration(seconds: 15);
+  // AI model inference takes ~40–60 s; use a longer timeout only for chat
+  static const _aiTimeout = Duration(seconds: 120);
 
   String get _baseUrl => apiBaseUrl;
 
@@ -151,9 +154,9 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getBarangays() async {
-    final headers = await _getHeaders();
+    // Public endpoint — no auth needed (called from signup screen before login)
     final r = await http
-        .get(Uri.parse('$_baseUrl/barangays/'), headers: headers)
+        .get(Uri.parse('$_baseUrl/barangays/'))
         .timeout(_timeout);
     if (r.statusCode == 200) {
       return List<Map<String, dynamic>>.from(jsonDecode(r.body));
@@ -450,6 +453,46 @@ class ApiService {
     }
   }
 
+  Future<List<NotificationModel>> getNotifications() async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/notifications/'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) {
+      return (jsonDecode(r.body) as List)
+          .map((e) => NotificationModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (r.statusCode == 401) throw Exception('Authentication required.');
+    throw Exception('Failed to load notifications: ${r.statusCode}');
+  }
+
+  Future<int> getUnreadNotificationCount() async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/notifications/unread-count'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) {
+      final data = jsonDecode(r.body) as Map<String, dynamic>;
+      return data['count'] as int? ?? 0;
+    }
+    return 0;
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    final headers = await _getHeaders();
+    await http
+        .put(Uri.parse('$_baseUrl/notifications/$id/read'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final headers = await _getHeaders();
+    await http
+        .put(Uri.parse('$_baseUrl/notifications/read-all'), headers: headers)
+        .timeout(_timeout);
+  }
+
   Future<List<Map<String, dynamic>>> getChats() async {
     final headers = await _getHeaders();
     final r = await http
@@ -463,6 +506,39 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getRegularUsers() async {
     final users = await getUsers();
     return users.where((u) => u['role'] == 'user').toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getStaffUsers() async {
+    final users = await getUsers();
+    return users.where((u) => u['role'] == 'staff').toList();
+  }
+
+  Future<Map<String, dynamic>> createStaffMember({
+    required String email,
+    required String username,
+    required String firstName,
+    required String lastName,
+    required String password,
+  }) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/users/staff-member'),
+          headers: headers,
+          body: jsonEncode({
+            'email': email,
+            'username': username,
+            'first_name': firstName,
+            'last_name': lastName,
+            'password': password,
+          }),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) {
+      return Map<String, dynamic>.from(jsonDecode(r.body));
+    }
+    final body = jsonDecode(r.body);
+    throw Exception(body['detail'] ?? 'Failed to create staff member');
   }
 
   /// Send message to AI chatbot with conversation history for context.
@@ -484,7 +560,7 @@ class ApiService {
             'history': history,
           }),
         )
-        .timeout(_timeout);
+        .timeout(_aiTimeout); // model inference takes ~40–60 s
     if (r.statusCode == 200 || r.statusCode == 201) {
       final data = jsonDecode(r.body) as Map<String, dynamic>;
       return {
