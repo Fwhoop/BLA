@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+backend/app/bla_chatbot_model/
+backend/app/BLA_MODEL/
+backend/app/BLA_Gemma3_Training_v2/
+uploads/
