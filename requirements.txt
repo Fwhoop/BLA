@@ -3,7 +3,8 @@ uvicorn[standard]
 python-dotenv
 python-multipart
 sqlalchemy
-pydantic
+pydantic[email]
+email-validator
 pydantic-settings
 pymysql
 cryptography
