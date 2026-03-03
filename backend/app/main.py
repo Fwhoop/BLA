@@ -1,6 +1,8 @@
+from dotenv import load_dotenv
+load_dotenv()  # Must run before any app imports that read env vars
+
 from fastapi import Depends, FastAPI
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text

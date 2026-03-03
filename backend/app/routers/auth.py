@@ -11,9 +11,10 @@ import uuid
 
 from .. import models, schemas
 from ..db import get_db
+from ..core.config import settings
 
 
-SECRET_KEY = "your_secret_key_here" 
+SECRET_KEY = settings.jwt_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -56,7 +57,14 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = authenticate_user(db, form_data.username, form_data.password)
+    try:
+        user = authenticate_user(db, form_data.username, form_data.password)
+    except Exception as e:
+        print(f"Login DB error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable. Please try again later.",
+        )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -68,7 +76,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending approval by the barangay admin.",
         )
-    access_token = create_access_token(data={"sub": user.email}, 
+    access_token = create_access_token(data={"sub": user.email},
                                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
 
