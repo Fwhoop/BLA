@@ -1,5 +1,7 @@
-from fastapi import Depends, FastAPI
 from dotenv import load_dotenv
+load_dotenv()  # Must run before any app imports that read env vars
+
+from fastapi import Depends, FastAPI
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
@@ -21,8 +23,6 @@ from app.routers import auth, barangays, cases, chat, users, requests
 from app.schemas import UserRead
 
 app = FastAPI(title="Barangay Legal Aid API", version="0.1.0")
-
-load_dotenv()
 
 app.add_middleware(
     CORSMiddleware,

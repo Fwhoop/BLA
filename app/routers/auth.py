@@ -7,9 +7,10 @@ import bcrypt
 
 from .. import models, schemas
 from ..db import get_db
+from ..core.config import settings
 
 
-SECRET_KEY = "your_secret_key_here" 
+SECRET_KEY = settings.jwt_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -39,6 +40,8 @@ def authenticate_user(db: Session, email: str, password: str):
         return False
     if not verify_password(password, user.hashed_password):
         return False
+    if not user.is_active:
+        return "pending"
     return user
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -50,14 +53,26 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = authenticate_user(db, form_data.username, form_data.password)
+    try:
+        user = authenticate_user(db, form_data.username, form_data.password)
+    except Exception as e:
+        print(f"Login DB error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable. Please try again later.",
+        )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(data={"sub": user.email}, 
+    if user == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by the barangay admin.",
+        )
+    access_token = create_access_token(data={"sub": user.email},
                                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
 

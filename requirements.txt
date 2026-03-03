@@ -6,11 +6,7 @@ sqlalchemy
 pydantic
 pydantic-settings
 pymysql
+cryptography
 passlib[bcrypt]
 python-jose[cryptography]
-torch
-transformers
-peft
-accelerate
-sentencepiece
 langdetect

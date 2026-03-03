@@ -1,8 +1,8 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    database_url: str
-    jwt_secret: str
+    database_url: str = "sqlite:///./fallback.db"
+    jwt_secret: str = "change-me-in-production"
     port: int = 8000
     debug: bool = True
 
