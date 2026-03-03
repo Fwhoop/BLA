@@ -1,4 +1,5 @@
 .env
+backend/.env
 __pycache__/
 *.pyc
 .vscode/
@@ -7,3 +8,35 @@ backend/app/bla_chatbot_model/
 backend/app/BLA_MODEL/
 backend/app/BLA_Gemma3_Training_v2/
 uploads/
+
+# Python venvs / tooling
+venv/
+.venv/
+.pytest_cache/
+
+# Local databases / artifacts
+*.db
+*.sqlite3
+backend/bla.db
+
+# Backend runtime artifacts
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/**/__pycache__/
+
+# Model folders (keep local, don't commit)
+backend/app/bla_chatbot_model*/
+backend/app/bla_chatbot_model_*/
+
+# Backups & logs
+backend/backups/
+backend/system_logs.jsonl
+
+# OS junk
+Thumbs.db
+Desktop.ini
+
+# Accidental duplicate folders/files
+backend/barangay_legal_aid/
+barangay_legal_aid/barangay_legal_aid/
+barangay_legal_aid/requirements.txt
