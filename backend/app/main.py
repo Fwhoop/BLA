@@ -7,10 +7,12 @@ from sqlalchemy import inspect, text
 import logging
 
 from app.db import Base, engine
+from app import models
 from app.routers.auth import get_current_user
 from app.models import User
 from app.routers import auth, barangays, cases, chat, users, requests, notifications
 from app.schemas import UserRead
+
 
 # ----------------- Logging -----------------
 logging.basicConfig(
