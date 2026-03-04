@@ -2,6 +2,7 @@ import os
 import re
 import json
 import logging
+import requests as _http
 from typing import Optional, List, Dict, Tuple
 from difflib import SequenceMatcher
 
@@ -13,6 +14,12 @@ except ImportError:
     _LANGDETECT_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+# ─── Offline mode: never contact Hugging Face ──────────────────────────────────
+# Must be set before any transformers / huggingface_hub imports resolve.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
 
 # ─── Tagalog keyword detector ──────────────────────────────────────────────────
 _TAGALOG_KEYWORDS = {
@@ -49,32 +56,65 @@ def _is_tagalog(text: str) -> bool:
 
 # ─── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
-_NEW_MODEL_DIR  = os.path.join(BASE_DIR, "BLA_Gemma3_Training_v2")
+
+# Primary: exact developer path on Windows local machine.
+# Fallback: relative path for Railway / Linux container (copy bla_model/ next to chatbot.py).
+_EXACT_MODEL_PATH = r"D:\Capstone BLA\BLA\BLA\barangay_legal_aid\backend\app\bla_model"
+_REL_MODEL_PATH   = os.path.join(BASE_DIR, "bla_model")
+_NEW_MODEL_DIR    = _EXACT_MODEL_PATH if os.path.exists(_EXACT_MODEL_PATH) else _REL_MODEL_PATH
+
+logger.info(f"[STARTUP] bla_model path resolved → {_NEW_MODEL_DIR}")
+
 FULL_MODEL_DIR  = os.path.join(_NEW_MODEL_DIR, "Gemma3_BLA_full")
 LORA_ADAPTER_DIR = os.path.join(_NEW_MODEL_DIR, "lora_adapter")
 BASE_MODEL_ID   = "google/gemma-3-1b-it"
 DATASET_FILE    = os.path.join(_NEW_MODEL_DIR, "bla_dataset (1).jsonl")
 JSON_FILE       = os.path.join(os.path.dirname(BASE_DIR), "barangay_law_flutter.json")
 
-# ─── System prompt ─────────────────────────────────────────────────────────────
-_GEMMA_SYSTEM_PROMPT = (
-    "You are the official AI Legal Assistant of the Barangay Legal Aid (BLA) Application, "
-    "serving residents of barangays in the Philippines. "
-    "Your primary duty is to provide DETAILED, accurate, and actionable legal guidance "
-    "on barangay matters, Filipino laws, and community services."
-    "\n\nStrict Rules:"
-    "\n1. ALWAYS give comprehensive, step-by-step answers. Never give one-line or vague replies."
-    "\n2. Explain the FULL PROCESS — requirements, fees, offices to visit, timelines, and what to expect."
-    "\n3. Cite relevant Philippine laws when appropriate (RA 7160, Katarungang Pambarangay, "
-    "Civil Code, Revised Penal Code, etc.)."
-    "\n4. Answer in the SAME LANGUAGE the user writes in — Filipino/Tagalog or English. "
-    "If the user writes in Tagalog, respond FULLY in Tagalog."
-    "\n5. Be empathetic and professional. Residents rely on you for real, practical legal help."
-    "\n6. Never say 'I cannot help with legal matters' — that IS your purpose."
-    "\n7. If asked about a document, complaint, or legal process, explain all steps completely."
-)
+# ── MASTER SYSTEM PROMPT ────────────────────────────
+MASTER_SYSTEM_PROMPT = """
+You are Gemma 3 LoRA – a Philippine Barangay Legal Advisory AI Assistant.
 
-# ─── Model (loaded once at startup) ────────────────────────────────────────────
+ROLE:
+You provide structured legal guidance strictly limited to barangay-level jurisdiction under Philippine law.
+
+SCOPE:
+You may answer only about:
+- Barangay disputes
+- Katarungang Pambarangay process
+- Mediation and settlement
+- Barangay clearance issues
+- Minor civil disputes (utang, boundary, noise, slander, trespass)
+- RA 9482 (Anti-Rabies Act)
+- RA 9262 (VAWC) – barangay protection level only
+- Execution of amicable settlement
+- Rights of complainant and respondent in barangay cases
+
+If a topic is outside barangay jurisdiction, respond clearly:
+“This matter is outside barangay jurisdiction and requires proper legal or professional consultation.”
+
+RESPONSE STRUCTURE (MANDATORY):
+
+1. Short acknowledgment
+2. GENERAL SAFETY ADVICE (only if relevant, generic)
+3. LEGAL BASIS (cite correct Philippine law if applicable)
+4. RIGHTS OF THE COMPLAINANT
+5. STEP-BY-STEP BARANGAY PROCEDURE
+6. POSSIBLE OUTCOMES
+7. WHAT TO PREPARE
+8. Clarifying follow-up questions
+
+RULES:
+- Do not fabricate article numbers
+- Do not invent legal penalties
+- Do not give deep medical advice
+- Do not escalate directly to court unless procedure requires it
+- Maintain bilingual tone (English + Filipino when natural)
+- Maintain consistency across follow-up questions
+- Use structured formatting with headings
+- Never contradict earlier statements unless correcting clearly
+"""
+
 model = None
 tokenizer = None
 model_loaded = False
@@ -85,49 +125,154 @@ import concurrent.futures as _cf
 _model_executor = _cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="gemma_gen")
 _GENERATION_TIMEOUT = 45  # seconds — fall back to raw context if exceeded
 
-_LOAD_MODEL = os.environ.get("LOAD_MODEL", "true").lower() != "false"
+_LOAD_MODEL    = os.environ.get("LOAD_MODEL", "true").lower() != "false"
+_HF_API_TOKEN  = os.environ.get("HF_API_TOKEN", "")
+_HF_MODEL_ID   = os.environ.get("HF_MODEL_ID", "fwhoop/bla_model")
+_hf_available  = bool(_HF_API_TOKEN)
+
+logger.info(f"[STARTUP] LOAD_MODEL={_LOAD_MODEL} | hf_available={_hf_available} | model_id={_HF_MODEL_ID}")
 
 if _LOAD_MODEL:
     try:
         from transformers import AutoTokenizer, AutoModelForCausalLM
         import torch
+        # optional HF helper for downloading model files if local missing
+        try:
+            from huggingface_hub import snapshot_download
+            _HF_HUB_AVAILABLE = True
+        except Exception:
+            _HF_HUB_AVAILABLE = False
+
+        def _attempt_hf_snapshot_download(target_dir: str) -> bool:
+            if not _HF_HUB_AVAILABLE or not _hf_available or not _HF_MODEL_ID:
+                return False
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+                logger.info(f"Attempting to download HF model '{_HF_MODEL_ID}' into {target_dir}…")
+                snapshot_download(
+                    repo_id=_HF_MODEL_ID,
+                    token=_HF_API_TOKEN,
+                    local_dir=target_dir,
+                    allow_patterns=[
+                        "config.json",
+                        "tokenizer.json",
+                        "tokenizer_config.json",
+                        "special_tokens_map.json",
+                        "*.bin",
+                        "*.safetensors",
+                        "vocab*",
+                    ],
+                )
+                logger.info("HF model files downloaded (snapshot_download completed).")
+                return True
+            except Exception as e:
+                logger.warning(f"HF snapshot download failed: {e}")
+                return False
+        def _find_full_model_dir() -> Optional[str]:
+            # Check explicit expected path first
+            if os.path.exists(FULL_MODEL_DIR) and os.path.exists(os.path.join(FULL_MODEL_DIR, "config.json")):
+                return FULL_MODEL_DIR
+            # If user placed model files directly under bla_model
+            if os.path.exists(_NEW_MODEL_DIR) and os.path.exists(os.path.join(_NEW_MODEL_DIR, "config.json")):
+                return _NEW_MODEL_DIR
+            # Otherwise look for any subdirectory containing config.json or weights
+            if os.path.exists(_NEW_MODEL_DIR):
+                for name in os.listdir(_NEW_MODEL_DIR):
+                    cand = os.path.join(_NEW_MODEL_DIR, name)
+                    if os.path.isdir(cand) and os.path.exists(os.path.join(cand, "config.json")):
+                        return cand
+            # As a fallback, search the repository upward for any folder named 'bla_model'
+            try:
+                project_root = os.path.abspath(os.path.join(BASE_DIR, "..", "..", ".."))
+                for dirpath, dirnames, filenames in os.walk(project_root):
+                    if os.path.basename(dirpath) == 'bla_model':
+                        if os.path.exists(os.path.join(dirpath, "config.json")) or any(f.endswith(('.bin', '.safetensors')) for f in filenames):
+                            return dirpath
+            except Exception:
+                pass
+            return None
+
+        def _find_lora_adapter_dir() -> Optional[str]:
+            # Check explicit expected adapter dir
+            if os.path.exists(LORA_ADAPTER_DIR):
+                return LORA_ADAPTER_DIR
+            # Some users may have placed adapter files directly under bla_model
+            if os.path.exists(_NEW_MODEL_DIR):
+                # look for typical adapter files or directories
+                for name in os.listdir(_NEW_MODEL_DIR):
+                    cand = os.path.join(_NEW_MODEL_DIR, name)
+                    # simple heuristic: contains adapter_config.json or adapter weights
+                    if os.path.isdir(cand) and (
+                        os.path.exists(os.path.join(cand, "adapter_config.json"))
+                        or any(f.endswith(('.bin', '.safetensors')) for f in os.listdir(cand))
+                    ):
+                        return cand
+            # fallback: search upward for any 'bla_model' directory that looks like an adapter
+            try:
+                project_root = os.path.abspath(os.path.join(BASE_DIR, "..", "..", ".."))
+                for dirpath, dirnames, filenames in os.walk(project_root):
+                    if os.path.basename(dirpath) == 'bla_model':
+                        for name in os.listdir(dirpath):
+                            cand = os.path.join(dirpath, name)
+                            if os.path.isdir(cand) and (
+                                os.path.exists(os.path.join(cand, "adapter_config.json"))
+                                or any(f.endswith(('.safetensors', '.bin')) for f in os.listdir(cand))
+                            ):
+                                return cand
+                        # if adapter files are directly inside this bla_model folder
+                        if os.path.exists(os.path.join(dirpath, "adapter_config.json")) or any(f.endswith(('.safetensors', '.bin')) for f in os.listdir(dirpath)):
+                            return dirpath
+            except Exception:
+                pass
+            return None
+
+        # ── Strategy 0: no online downloads — model must exist locally ──────────
+        # HF_HUB_OFFLINE=1 / TRANSFORMERS_OFFLINE=1 are set at module top.
+
+        # locate a full model directory (accepts files directly under `bla_model`)
+        _detected_full_dir = _find_full_model_dir()
 
         # ── Strategy 1: load the full merged model ────────────────────────────
-        if os.path.exists(FULL_MODEL_DIR) and os.path.exists(
-            os.path.join(FULL_MODEL_DIR, "config.json")
-        ):
+        if _detected_full_dir and os.path.exists(os.path.join(_detected_full_dir, "config.json")):
             logger.info(f"Loading BLA_Gemma3 full model from {FULL_MODEL_DIR}…")
             try:
-                tokenizer = AutoTokenizer.from_pretrained(FULL_MODEL_DIR)
+                tokenizer = AutoTokenizer.from_pretrained(_detected_full_dir, local_files_only=True)
                 model = AutoModelForCausalLM.from_pretrained(
-                    FULL_MODEL_DIR,
+                    _detected_full_dir,
                     device_map="auto",
+                    local_files_only=True,
                     # dtype already specified in config.json quantization_config
                     # (bnb_4bit_compute_dtype = float16); don't override here
                 )
                 model.eval()
                 model_loaded = True
-                logger.info("BLA_Gemma3 full model loaded successfully!")
+                logger.info(f"BLA_Gemma3 full model loaded successfully from {_detected_full_dir}!")
             except Exception as e_full:
                 logger.warning(f"Full model load failed ({e_full}). Trying LoRA adapter…")
                 tokenizer = None
                 model = None
 
         # ── Strategy 2: LoRA adapter + base model ────────────────────────────
-        if not model_loaded and os.path.exists(LORA_ADAPTER_DIR):
+        if not model_loaded:
+            _detected_lora_dir = _find_lora_adapter_dir()
+        else:
+            _detected_lora_dir = None
+
+        if not model_loaded and _detected_lora_dir:
             try:
                 from peft import PeftModel
-                logger.info(f"Loading LoRA adapter from {LORA_ADAPTER_DIR}…")
-                tokenizer = AutoTokenizer.from_pretrained(LORA_ADAPTER_DIR)
+                logger.info(f"Loading LoRA adapter from {_detected_lora_dir}…")
+                tokenizer = AutoTokenizer.from_pretrained(_detected_lora_dir, local_files_only=True)
                 base = AutoModelForCausalLM.from_pretrained(
                     BASE_MODEL_ID,
                     torch_dtype=torch.float32,
                     device_map="auto",
+                    local_files_only=True,
                 )
-                model = PeftModel.from_pretrained(base, LORA_ADAPTER_DIR)
+                model = PeftModel.from_pretrained(base, _detected_lora_dir, local_files_only=True)
                 model.eval()
                 model_loaded = True
-                logger.info("LoRA adapter loaded successfully!")
+                logger.info(f"LoRA adapter loaded successfully from {_detected_lora_dir}!")
             except Exception as e_lora:
                 logger.error(f"LoRA adapter load also failed ({e_lora}). Using FAQ fallback.")
 
@@ -137,7 +282,6 @@ if _LOAD_MODEL:
         logger.error(f"Unexpected model load error: {e}. Using FAQ fallback.")
 else:
     logger.info("LOAD_MODEL=false — skipping model load (Railway free tier mode).")
-
 
 # ─── Intent patterns ───────────────────────────────────────────────────────────
 _COMPLAINT_PATS = [
@@ -1401,7 +1545,7 @@ def _generate_with_model(
     # Truncate context to keep input token count manageable for the 1B model.
     # A full _LEGAL_TOPIC_ANSWERS entry (~1200 chars) would make generation very
     # slow; 400 chars gives the model the key facts without blowing up input size.
-    base_system = _GEMMA_SYSTEM_PROMPT
+    base_system = MASTER_SYSTEM_PROMPT
     if context:
         base_system += (
             "\n\nKEY LEGAL REFERENCE (use as grounding — respond conversationally):\n"
@@ -1495,6 +1639,167 @@ def _generate_with_model(
 
     new_tokens = output_ids[0][input_ids.shape[-1]:]
     return tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+
+
+# ─── HuggingFace Inference API (cloud fallback) ────────────────────────────────
+def call_huggingface_api(prompt: str) -> Optional[str]:
+    """
+    Low-level call to the HuggingFace Inference API.
+
+    Args:
+        prompt: Pre-formatted prompt string (Gemma 3 chat template).
+
+    Returns:
+        Generated text string, or None if the call fails or returns an
+        unexpected format.
+    """
+    logger.info("🔥 CALLING HUGGINGFACE API 🔥")
+    try:
+        resp = _http.post(
+            f"https://api-inference.huggingface.co/models/{os.environ.get('HF_MODEL_ID', _HF_MODEL_ID)}",
+            headers={
+                "Authorization": f"Bearer {os.environ.get('HF_API_TOKEN', '')}",
+                "x-wait-for-model": "true",
+            },
+            json={
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": 200,
+                    "temperature": 0.7,
+                    "return_full_text": False,
+                },
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list) and data:
+            return data[0].get("generated_text", "").strip() or None
+        if isinstance(data, dict) and "error" in data:
+            logger.error(f"HF API error: {data['error']}")
+        return None
+    except Exception as exc:
+        logger.error(f"HF API request failed: {exc}")
+        return None
+
+
+def _generate_with_hf_api(
+    user_input: str,
+    history: List[Dict] = None,
+    context: str = None,
+) -> str:
+    """
+    Calls the HuggingFace Inference API when the local model is not loaded.
+    Builds the same prompt structure as _generate_with_model() so responses
+    are consistent between local and cloud inference.
+    """
+    # ── Sanitize history (mirrors _generate_with_model) ───────────────────────
+    cleaned: List[Dict] = []
+    last_role: Optional[str] = None
+    for h in (history or [])[-8:]:
+        raw_role = h.get("role", "")
+        role = "assistant" if raw_role in ("bot", "assistant") else "user"
+        content = h.get("content", "").strip()
+        if not content:
+            continue
+        if role == last_role:
+            cleaned[-1] = {"role": role, "content": content}
+        else:
+            cleaned.append({"role": role, "content": content})
+            last_role = role
+    while cleaned and cleaned[0]["role"] == "assistant":
+        cleaned.pop(0)
+    cleaned = cleaned[-4:]
+
+    # ── Build system prompt ────────────────────────────────────────────────────
+    base_system = MASTER_SYSTEM_PROMPT
+    if context:
+        base_system += (
+            "\n\nKEY LEGAL REFERENCE (use as grounding — respond conversationally):\n"
+            + context[:400]
+        )
+
+    user_is_tagalog = _is_tagalog(user_input)
+    if user_is_tagalog:
+        active_system = (
+            base_system +
+            "\n\nMAPAKHALAGAHAN: Ang gumagamit ay nagsulat sa Filipino/Tagalog. "
+            "KAILANGAN mong sumagot nang BUO sa Filipino/Tagalog. "
+            "Huwag gumamit ng Ingles maliban sa mga legal na termino."
+        )
+        user_input = (
+            "IMPORTANTENG TAGUBILIN: Sagutin ang tanong na ito sa Filipino/Tagalog LAMANG. "
+            "Magbigay ng detalyadong sagot.\n\n" + user_input
+        )
+    else:
+        active_system = base_system
+
+    # ── Build messages ─────────────────────────────────────────────────────────
+    messages: List[Dict] = []
+    if cleaned:
+        for i, msg in enumerate(cleaned):
+            if i == 0 and msg["role"] == "user":
+                messages.append({
+                    "role": "user",
+                    "content": f"{active_system}\n\n{msg['content']}",
+                })
+            else:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": user_input})
+    else:
+        messages = [{"role": "user", "content": f"{active_system}\n\n{user_input}"}]
+
+    if messages[-1]["role"] != "user":
+        messages.append({"role": "user", "content": user_input})
+
+    # ── Format as Gemma 3 chat template ───────────────────────────────────────
+    # Gemma 3 has no "system" role; system prompt is embedded in the first user turn.
+    parts = ["<bos>"]
+    for msg in messages:
+        role = "model" if msg["role"] == "assistant" else "user"
+        parts.append(f"<start_of_turn>{role}\n{msg['content']}<end_of_turn>\n")
+    parts.append("<start_of_turn>model\n")
+    prompt = "".join(parts)
+
+    # ── Call HF Inference API ─────────────────────────────────────────────────
+    return call_huggingface_api(prompt) or ""
+
+
+def _generate(
+    user_input: str,
+    history: List[Dict] = None,
+    context: str = None,
+) -> str:
+    """Generate a response using the best available backend.
+
+    Priority:
+      1. Local model (if loaded) – return result if non-empty
+      2. HF Inference API (if token present) – return result if non-empty
+      3. FAQ/knowledge search fallback – never return None
+
+    This central helper is called by the higher-level logic in ``generate_chat_response``
+    so that we can encapsulate routing and make failure modes simpler.
+    """
+    # try local model first
+    if model_loaded:
+        try:
+            resp = _generate_with_model(user_input, history, context)
+            if resp:
+                return resp
+        except Exception as e:
+            logger.warning(f"Local model generation failed: {e}")
+    # next, attempt HF API if a token is configured
+    hf_token_now = os.environ.get("HF_API_TOKEN", "")
+    if hf_token_now:
+        try:
+            resp = _generate_with_hf_api(user_input, history, context)
+            if resp:
+                return resp
+        except Exception as e:
+            logger.warning(f"HF API generation failed: {e}")
+    # final fallback: knowledge base (FAQ/dataset)
+    kb = _search_knowledge(user_input)
+    return kb or ""
 
 
 def _resolve_numbered_choice(user_input: str, history: List[Dict]) -> Optional[str]:
@@ -1622,12 +1927,12 @@ def generate_chat_response(
                         else:
                             return tl_answer, None
                 # Generate in Tagalog with context (grounded + conversational)
-                if model_loaded:
+                if model_loaded or _hf_available:
                     tl_input = (
                         "SAGUTIN SA TAGALOG LAMANG. Huwag gumamit ng Ingles maliban sa "
                         "mga legal na termino. Tanong: " + original
                     )
-                    response = _generate_with_model(tl_input, history, context=tl_ctx)
+                    response = _generate(tl_input, history, context=tl_ctx)
                     if response:
                         return response, None
 
@@ -1652,12 +1957,12 @@ def generate_chat_response(
                     "You can ask about barangay laws, documents, or your legal rights.",
                     None,
                 )
-            if model_loaded:
+            if model_loaded or _hf_available:
                 meta_input = (
                     "Re-explain the following in clear, well-organized, easy-to-understand "
                     "language. Keep it concise but complete:\n\n" + last_bot
                 )
-                response = _generate_with_model(meta_input, [])
+                response = _generate(meta_input, [])
                 if response:
                     return response, None
             # No-model fallback: extract the first meaningful block
@@ -1687,8 +1992,8 @@ def generate_chat_response(
                 kb = _search_knowledge(extracted_norm)
                 if kb:
                     return kb, None
-                if model_loaded:
-                    response = _generate_with_model(_expand_query(extracted_norm), history)
+                if model_loaded or _hf_available:
+                    response = _generate(_expand_query(extracted_norm), history)
                     if response:
                         return response, None
             if user_is_tagalog:
@@ -1730,15 +2035,41 @@ def generate_chat_response(
             logger.info("KB hit.")
             return kb, None
 
-        # ── Model: only for novel questions not covered by KB or topic DB ─────
-        # Shorter input (no context) = faster generation = less likely to timeout.
+        # ── Generation: local model or HF API ────────────────────────────────
+        expanded = _expand_query(enriched)
+        if expanded != enriched:
+            logger.info(f"Query expanded for generation: {expanded[:80]!r}…")
+
+        # Re-read token at call time — module-level _hf_available may be stale
+        # if Railway injects env vars after the module was first imported.
+        _hf_token_now = os.environ.get("HF_API_TOKEN", "")
+        _hf_model_now = os.environ.get("HF_MODEL_ID", _HF_MODEL_ID)
+        logger.info(
+            f"Generation routing: model_loaded={model_loaded} "
+            f"hf_available={bool(_hf_token_now)} "
+            f"model_id={_hf_model_now}"
+        )
+
         if model_loaded:
-            expanded = _expand_query(enriched)
-            if expanded != enriched:
-                logger.info(f"Query expanded for model: {expanded[:80]!r}…")
+            logger.info("Using local model for generation.")
             response = _generate_with_model(expanded, history)
             if response:
                 return response, None
+        elif _hf_token_now:
+            prompt = (
+                f"<bos><start_of_turn>user\n"
+                f"{MASTER_SYSTEM_PROMPT}\n\n{expanded}"
+                f"<end_of_turn>\n<start_of_turn>model\n"
+            )
+            logger.info(f"🔥 CALLING HUGGINGFACE API 🔥 | Prompt: {prompt[:200]!r}…")
+            response = call_huggingface_api(prompt)
+            if response:
+                return response, None
+        else:
+            logger.warning(
+                "No generation backend available "
+                "(model_loaded=False, HF_API_TOKEN not set). Using fallback."
+            )
 
         # ── Generic fallback (language-aware) ─────────────────────────────────
         if user_is_tagalog:
@@ -1772,3 +2103,27 @@ def generate_chat_response(
             "Please try again, or contact the barangay office directly for immediate assistance.",
             None,
         )
+
+
+# ─── Endpoint-ready wrapper ────────────────────────────────────────────────────
+def chat_response(sender: int, message: str) -> dict:
+    """
+    Accept { sender: int, message: str } and return { response, enriched, sender }.
+
+    Called by POST /chats/ai. The local model is used exclusively — no HF online calls.
+    """
+    logger.info(f"[CHAT_REQUEST] sender={sender} message={message!r}")
+
+    # Normalise typos and expand short legal queries before passing to the model
+    normalised = _normalize_typos(message)
+    enriched   = _expand_query(normalised)
+    logger.info(f"[ENRICHED_INPUT] {enriched!r}")
+
+    response_text, _ui_action = generate_chat_response(enriched)
+    logger.info(f"[MODEL_OUTPUT] sender={sender} response={response_text!r}")
+
+    return {
+        "response": response_text,
+        "enriched": enriched,
+        "sender":   sender,
+    }
