@@ -47,6 +47,9 @@ dependencies:
   intl: ^0.19.0
   # Keep for now so app_database compiles; migrate to remove sensitive tables (see docs/ARCHITECTURE_SECURITY.md)
   sqflite: ^2.3.3+1
+  # PDF generation and printing for document request receipts
+  pdf: ^3.11.1
+  printing: ^5.13.2
 
   # The following adds the Cupertino Icons font to your application.
   cupertino_icons: ^1.0.8

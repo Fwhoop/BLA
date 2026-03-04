@@ -3,6 +3,7 @@ import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/request_form.dart';
 import 'package:barangay_legal_aid/screens/complaint_form_screen.dart';
 import 'package:barangay_legal_aid/screens/suggestion_box_screen.dart';
+import 'package:barangay_legal_aid/screens/my_requests_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
@@ -137,6 +138,25 @@ class FormsHubPageState extends State<FormsHubPage> {
             SizedBox(width: 12),
             Expanded(
               child: _buildQuickActionCard(
+                title: 'My Requests',
+                subtitle: 'Track & Download',
+                icon: Icons.folder_open_outlined,
+                color: Color(0xFF1565C0),
+                onTap: () {
+                  if (_currentUser != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MyRequestsScreen(currentUser: _currentUser!),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildQuickActionCard(
                 title: 'File a Complaint',
                 subtitle: 'Submit Now',
                 icon: Icons.report_problem_rounded,
@@ -147,7 +167,11 @@ class FormsHubPageState extends State<FormsHubPage> {
                 ),
               ),
             ),
-            SizedBox(width: 12),
+          ],
+        ),
+        SizedBox(height: 12),
+        Row(
+          children: [
             Expanded(
               child: _buildQuickActionCard(
                 title: 'Suggestion',
@@ -160,6 +184,10 @@ class FormsHubPageState extends State<FormsHubPage> {
                 ),
               ),
             ),
+            SizedBox(width: 12),
+            Expanded(child: SizedBox()),
+            SizedBox(width: 12),
+            Expanded(child: SizedBox()),
           ],
         ),
       ],

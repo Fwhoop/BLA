@@ -578,6 +578,48 @@ class ApiService {
     throw Exception(body['detail'] ?? 'Failed to create staff member');
   }
 
+  /// Forgot password – request an OTP for the given email.
+  /// Returns `{'detail': String, 'dev_otp': String?}`.
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/forgot-password'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Failed to send OTP');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to send OTP: ${r.body}');
+    }
+  }
+
+  /// Reset password – verify OTP and set a new password.
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/reset-password'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'token': token, 'new_password': newPassword}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Password reset failed');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Password reset failed: ${r.body}');
+    }
+  }
+
   /// Send message to AI chatbot with conversation history for context.
   /// Returns { 'message': String, 'ui_action': String? }.
   Future<Map<String, dynamic>> sendChatMessage(

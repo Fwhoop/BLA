@@ -1,6 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/top_snack.dart';
@@ -204,7 +208,7 @@ class RequestFormState extends State<RequestForm> {
       setState(() => _isLoading = true);
 
       try {
-        await _apiService.createRequest(
+        final created = await _apiService.createRequest(
           barangayId: _barangayId!,
           documentType: _selectedDocumentType!,
           purpose: _purposeController.text.trim(),
@@ -218,7 +222,7 @@ class RequestFormState extends State<RequestForm> {
           duration: Duration(seconds: 3),
         );
 
-        await _showRequirementsSheet(_selectedDocumentType!);
+        await _showRequirementsSheet(_selectedDocumentType!, requestData: created);
         if (mounted) Navigator.pop(context, true);
       } catch (e) {
         if (!mounted) return;
@@ -235,7 +239,10 @@ class RequestFormState extends State<RequestForm> {
     }
   }
 
-  Future<void> _showRequirementsSheet(String documentType) async {
+  Future<void> _showRequirementsSheet(
+    String documentType, {
+    Map<String, dynamic>? requestData,
+  }) async {
     final reqs = _docRequirements[documentType] ?? [
       'Valid government-issued ID',
       'Completed application form (available at barangay hall)',
@@ -301,6 +308,44 @@ class RequestFormState extends State<RequestForm> {
               ),
             )),
             SizedBox(height: 12),
+            // Download / Print receipt buttons
+            if (requestData != null) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _handleReceiptAction(requestData, print: false),
+                      icon: Icon(Icons.download_outlined, size: 18),
+                      label: Text('Download Receipt'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Color(0xFF99272D),
+                        side: BorderSide(color: Color(0xFF99272D)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _handleReceiptAction(requestData, print: true),
+                      icon: Icon(Icons.print_outlined, size: 18),
+                      label: Text('Print Receipt'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF36454F),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+            ],
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -317,6 +362,161 @@ class RequestFormState extends State<RequestForm> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _handleReceiptAction(
+    Map<String, dynamic> req, {
+    required bool print,
+  }) async {
+    try {
+      final bytes = await _buildReceiptPdf(req);
+      final docType =
+          (req['document_type'] as String? ?? 'request').replaceAll(' ', '_');
+      final requestId = req['id']?.toString() ?? '0';
+
+      if (print) {
+        await Printing.layoutPdf(
+          onLayout: (_) async => bytes,
+          name: 'Receipt_${requestId}_$docType',
+        );
+      } else {
+        await Printing.sharePdf(
+          bytes: bytes,
+          filename: 'Receipt_${requestId}_$docType.pdf',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showTopSnack(
+          context,
+          message: 'Could not generate PDF: ${e.toString().replaceFirst('Exception: ', '')}',
+          backgroundColor: Color(0xFF99272D),
+          icon: Icons.error_outline,
+        );
+      }
+    }
+  }
+
+  Future<List<int>> _buildReceiptPdf(Map<String, dynamic> req) async {
+    final doc = pw.Document();
+    final docType = req['document_type'] as String? ?? '—';
+    final purpose = req['purpose'] as String? ?? '—';
+    final requestId = req['id']?.toString() ?? '—';
+    final status = (req['status'] as String? ?? 'pending').toUpperCase();
+
+    String _fmt(String? iso) {
+      if (iso == null) return '—';
+      try {
+        return DateFormat('MMM d, yyyy – h:mm a').format(DateTime.parse(iso).toLocal());
+      } catch (_) {
+        return iso;
+      }
+    }
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (pw.Context ctx) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(20),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('99272D'),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text('BARANGAY LEGAL AID',
+                        style: pw.TextStyle(
+                            fontSize: 20,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('Document Request Receipt',
+                        style: pw.TextStyle(fontSize: 14, color: PdfColors.white)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: pw.BoxDecoration(
+                  color: status == 'APPROVED'
+                      ? PdfColor.fromHex('2E7D32')
+                      : status == 'REJECTED'
+                          ? PdfColor.fromHex('B71C1C')
+                          : PdfColor.fromHex('E65100'),
+                  borderRadius: pw.BorderRadius.circular(20),
+                ),
+                child: pw.Text(status,
+                    style: pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.white,
+                        fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.SizedBox(height: 20),
+              _pdfRow('Request ID', '#$requestId'),
+              pw.Divider(color: PdfColor.fromHex('EEEEEE'), height: 1),
+              _pdfRow('Document Type', docType),
+              pw.Divider(color: PdfColor.fromHex('EEEEEE'), height: 1),
+              _pdfRow('Purpose', purpose),
+              pw.Divider(color: PdfColor.fromHex('EEEEEE'), height: 1),
+              _pdfRow('Date Submitted', _fmt(req['created_at'] as String?)),
+              pw.SizedBox(height: 24),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('F5F5F5'),
+                  border: pw.Border.all(color: PdfColor.fromHex('DDDDDD')),
+                  borderRadius: pw.BorderRadius.circular(6),
+                ),
+                child: pw.Text(
+                  'Present this receipt at the barangay hall when following up on your request.',
+                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ),
+              pw.Spacer(),
+              pw.Divider(),
+              pw.Text(
+                'Generated on ${DateFormat('MMMM d, yyyy – h:mm a').format(DateTime.now())}',
+                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    return doc.save();
+  }
+
+  pw.Widget _pdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 8),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 140,
+            child: pw.Text(label,
+                style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('36454F'))),
+          ),
+          pw.Expanded(
+            child: pw.Text(value,
+                style: const pw.TextStyle(fontSize: 11, color: PdfColors.black)),
+          ),
+        ],
       ),
     );
   }

@@ -174,19 +174,6 @@ class CategorizedQuestionsScreenState
     });
   }
 
-  /// First few questions from FAQ to show as quick-reply chips below the conversation.
-  List<Question> get _suggestionChips {
-    if (_faqData == null || _faqData!.categories.isEmpty) return [];
-    final List<Question> chips = [];
-    for (final c in _faqData!.categories) {
-      for (final q in c.questions) {
-        chips.add(q);
-        if (chips.length >= 8) return chips;
-      }
-    }
-    return chips;
-  }
-
   @override
   Widget build(BuildContext context) {
     final currentSession = widget.chatProvider.currentSession;
@@ -356,14 +343,13 @@ class CategorizedQuestionsScreenState
 
   Widget _buildConversationView(ChatSession? currentSession) {
     final session = currentSession!;
-    final chips = _suggestionChips;
 
     return LayoutBuilder(builder: (context, constraints) {
       final hPad = constraints.maxWidth >= 700 ? 48.0 : 16.0;
       return ListView.builder(
         controller: _scrollController,
         padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
-        itemCount: session.messages.length + (_isSending ? 1 : 0) + (chips.isEmpty ? 0 : 1),
+        itemCount: session.messages.length + (_isSending ? 1 : 0),
         itemBuilder: (context, index) {
           if (index < session.messages.length) {
             final message = session.messages[index];
@@ -372,51 +358,10 @@ class CategorizedQuestionsScreenState
           if (index == session.messages.length && _isSending) {
             return _buildTypingIndicator();
           }
-          if (index == session.messages.length + (_isSending ? 1 : 0)) {
-            return _buildSuggestionChipsSection(chips);
-          }
           return SizedBox.shrink();
         },
       );
     });
-  }
-
-  Widget _buildSuggestionChipsSection(List<Question> questions) {
-    if (questions.isEmpty) return SizedBox.shrink();
-    return Padding(
-      padding: EdgeInsets.only(top: 24, bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Suggested questions',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-            ),
-          ),
-          SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: questions.map((q) {
-              return ActionChip(
-                label: Text(
-                  q.question,
-                  style: TextStyle(fontSize: 13),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                backgroundColor: Color(0xFF99272D).withValues(alpha: 0.08),
-                side: BorderSide(color: Color(0xFF99272D).withValues(alpha: 0.3)),
-                onPressed: () => _handleQuestionTap(q),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildWelcomeAndSuggestionsView() {

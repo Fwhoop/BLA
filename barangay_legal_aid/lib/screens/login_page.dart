@@ -78,12 +78,7 @@ class LoginPageState extends State<LoginPage> {
   }
 
   void _navigateToForgotPassword() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Forgot password feature coming soon!'),
-        backgroundColor: Color(0xFF99272D),
-      ),
-    );
+    Navigator.pushNamed(context, '/forgot-password');
   }
 
   @override
