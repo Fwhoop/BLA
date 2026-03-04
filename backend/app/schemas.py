@@ -137,6 +137,15 @@ class RequestRead(RequestBase):
         from_attributes = True
 
 
+# PASSWORD RESET SCHEMAS
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 # NOTIFICATION SCHEMAS
 class NotificationRead(BaseModel):
     id: int

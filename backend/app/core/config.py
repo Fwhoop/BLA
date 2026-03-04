@@ -13,6 +13,13 @@ class Settings(BaseSettings):
 
     hf_token: str | None = None
 
+    # SMTP / email settings (optional — used for forgot-password OTP emails)
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+
     class Config:
         env_file = ".env"
 

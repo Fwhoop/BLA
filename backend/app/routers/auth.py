@@ -1,17 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from typing import Optional
 import bcrypt
 import re
 import os
 import uuid
+import secrets
+import hashlib
+import smtplib
+import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from .. import models, schemas
 from ..db import get_db
 from ..core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 SECRET_KEY = settings.jwt_secret
@@ -203,3 +211,142 @@ def register(
             pass  # Notification failure must not block registration
 
     return new_user
+
+
+# ─── Password Reset Helpers ────────────────────────────────────────────────
+
+def _hash_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _generate_otp() -> str:
+    """Return a 6-digit zero-padded OTP."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _send_reset_email(to_email: str, first_name: str, otp: str) -> bool:
+    """Send OTP via SMTP. Returns True on success, False if SMTP unconfigured."""
+    host = settings.smtp_host
+    username = settings.smtp_username
+    password = settings.smtp_password
+    port = settings.smtp_port
+    from_addr = settings.smtp_from_email or username
+
+    if not host or not username:
+        return False  # SMTP not configured
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = from_addr
+    msg["To"] = to_email
+    msg["Subject"] = "Barangay Legal Aid – Password Reset OTP"
+
+    body = (
+        f"Hello {first_name},\n\n"
+        f"Your one-time password (OTP) to reset your account password is:\n\n"
+        f"    {otp}\n\n"
+        f"This OTP expires in 15 minutes. Do not share it with anyone.\n\n"
+        f"If you did not request a password reset, please ignore this email.\n\n"
+        f"— Barangay Legal Aid System"
+    )
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(username, password)
+            server.sendmail(from_addr, to_email, msg.as_string())
+        return True
+    except Exception as exc:
+        logger.error("SMTP send failed: %s", exc)
+        return False
+
+
+# ─── Forgot Password Endpoints ─────────────────────────────────────────────
+
+@router.post("/forgot-password")
+def forgot_password(
+    payload: schemas.ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Step 1 – Generate a 6-digit OTP and (optionally) email it.
+
+    Always returns HTTP 200 with a generic message to prevent user enumeration.
+    In development (SMTP not configured) the OTP is returned in the response
+    so the feature can be tested without an email server.
+    """
+    user = db.query(models.User).filter(
+        models.User.email == payload.email
+    ).first()
+
+    if not user:
+        # Return the same response to prevent user enumeration
+        return {"detail": "If that email is registered, an OTP has been sent."}
+
+    # Invalidate any existing unused tokens for this user
+    db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.user_id == user.id,
+        models.PasswordResetToken.used == False,
+    ).delete(synchronize_session=False)
+
+    otp = _generate_otp()
+    token_hash = _hash_token(otp)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+    reset_token = models.PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    db.add(reset_token)
+    db.commit()
+
+    email_sent = _send_reset_email(user.email, user.first_name, otp)
+
+    if email_sent:
+        return {"detail": "If that email is registered, an OTP has been sent."}
+    else:
+        # Dev/demo mode: return OTP directly (SMTP not configured)
+        logger.warning("SMTP not configured – returning OTP in response (dev mode).")
+        return {
+            "detail": "OTP generated. (SMTP not configured – dev mode only.)",
+            "dev_otp": otp,
+        }
+
+
+@router.post("/reset-password")
+def reset_password(
+    payload: schemas.ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Step 2 – Verify OTP and set a new password.
+    """
+    if len(payload.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="New password must be at least 8 characters.",
+        )
+
+    token_hash = _hash_token(payload.token.strip())
+    now = datetime.now(timezone.utc)
+
+    reset_record = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token_hash == token_hash,
+        models.PasswordResetToken.used == False,
+        models.PasswordResetToken.expires_at > now,
+    ).first()
+
+    if not reset_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP.",
+        )
+
+    user = reset_record.user
+    user.hashed_password = get_password_hash(payload.new_password)
+    reset_record.used = True
+    db.commit()
+
+    return {"detail": "Password reset successfully. You may now log in."}
