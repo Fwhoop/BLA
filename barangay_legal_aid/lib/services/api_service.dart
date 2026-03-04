@@ -1,23 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-
-import 'package:barangay_legal_aid/config/env_config.dart';
-import 'package:barangay_legal_aid/models/notification_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ add this
 import 'package:http/http.dart' as http;
-
 import 'secure_storage_service.dart';
+import 'package:barangay_legal_aid/models/notification_model.dart';
 
 class ApiService {
   ApiService([SecureStorageService? secure])
-      : _secure = secure ?? SecureStorageService();
+    : _secure = secure ?? SecureStorageService();
 
   final SecureStorageService _secure;
   static const _timeout = Duration(seconds: 15);
-  // AI model inference takes ~40–60 s; use a longer timeout only for chat
   static const _aiTimeout = Duration(seconds: 120);
 
-  String get _baseUrl => apiBaseUrl;
+  String get _baseUrl => dotenv.env['API_URL'] ?? 'http://127.0.0.1:8000';
 
   Future<String?> _getToken() => _secure.getAccessToken();
 
@@ -75,19 +72,23 @@ class ApiService {
       photoBytes = idPhotoBytes;
     }
     if (photoBytes != null && photoBytes.isNotEmpty) {
-      request.files.add(http.MultipartFile.fromBytes(
-        'id_photo',
-        photoBytes,
-        filename: 'id_photo.jpg',
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'id_photo',
+          photoBytes,
+          filename: 'id_photo.jpg',
+        ),
+      );
     } else if (idPhotoPath.isNotEmpty && !idPhotoPath.startsWith('web_')) {
       final file = File(idPhotoPath);
       if (await file.exists()) {
-        request.files.add(await http.MultipartFile.fromPath(
-          'id_photo',
-          idPhotoPath,
-          filename: idPhotoPath.split(RegExp(r'[/\\]')).last,
-        ));
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'id_photo',
+            idPhotoPath,
+            filename: idPhotoPath.split(RegExp(r'[/\\]')).last,
+          ),
+        );
       }
     }
 
@@ -97,7 +98,9 @@ class ApiService {
       final body = response.body;
       try {
         final d = json.decode(body) as Map<String, dynamic>;
-        throw Exception(d['detail'] ?? 'Registration failed: ${response.statusCode}');
+        throw Exception(
+          d['detail'] ?? 'Registration failed: ${response.statusCode}',
+        );
       } catch (e) {
         if (e is Exception) rethrow;
         throw Exception('Registration failed: ${response.statusCode} - $body');
@@ -130,7 +133,10 @@ class ApiService {
     return r.statusCode == 200;
   }
 
-  Future<bool> changePassword(String currentPassword, String newPassword) async {
+  Future<bool> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     final r = await http
         .post(
           Uri.parse('$_baseUrl/auth/change-password'),
@@ -161,8 +167,10 @@ class ApiService {
     if (r.statusCode == 200) {
       return List<Map<String, dynamic>>.from(jsonDecode(r.body));
     }
-    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
-    if (r.statusCode == 403) throw Exception('You do not have permission to access barangays.');
+    if (r.statusCode == 401)
+      throw Exception('Authentication required. Please login again.');
+    if (r.statusCode == 403)
+      throw Exception('You do not have permission to access barangays.');
     throw Exception('Failed to load barangays: ${r.statusCode} - ${r.body}');
   }
 
@@ -207,15 +215,20 @@ class ApiService {
     final r = await http
         .get(Uri.parse('$_baseUrl/users/'), headers: headers)
         .timeout(_timeout);
-    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
-    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
-    if (r.statusCode == 403) throw Exception('You do not have permission to access users.');
+    if (r.statusCode == 200)
+      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401)
+      throw Exception('Authentication required. Please login again.');
+    if (r.statusCode == 403)
+      throw Exception('You do not have permission to access users.');
     throw Exception('Failed to load users: ${r.statusCode} - ${r.body}');
   }
 
   Future<List<Map<String, dynamic>>> getAdmins() async {
     final users = await getUsers();
-    return users.where((u) => u['role'] == 'admin' || u['role'] == 'superadmin').toList();
+    return users
+        .where((u) => u['role'] == 'admin' || u['role'] == 'superadmin')
+        .toList();
   }
 
   /// Create admin. Password sent over HTTPS only; backend must hash and never log.
@@ -247,7 +260,10 @@ class ApiService {
     throw Exception('Failed to create admin: ${r.body}');
   }
 
-  Future<Map<String, dynamic>> updateUser(int id, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateUser(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
     final headers = await _getHeaders();
     final r = await http
         .put(
@@ -292,7 +308,8 @@ class ApiService {
       final r = await http
           .get(Uri.parse('$_baseUrl/logs/'), headers: headers)
           .timeout(_timeout);
-      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+      if (r.statusCode == 200)
+        return List<Map<String, dynamic>>.from(jsonDecode(r.body));
     } catch (_) {}
     return [];
   }
@@ -312,7 +329,8 @@ class ApiService {
       final r = await http
           .get(Uri.parse('$_baseUrl/backup/'), headers: headers)
           .timeout(_timeout);
-      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+      if (r.statusCode == 200)
+        return List<Map<String, dynamic>>.from(jsonDecode(r.body));
     } catch (_) {}
     return [];
   }
@@ -350,7 +368,9 @@ class ApiService {
     if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
     try {
       final d = jsonDecode(r.body);
-      throw Exception(d['detail'] ?? 'Failed to create request: ${r.statusCode}');
+      throw Exception(
+        d['detail'] ?? 'Failed to create request: ${r.statusCode}',
+      );
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Failed to create request: ${r.statusCode} - ${r.body}');
@@ -366,9 +386,12 @@ class ApiService {
     final r = await http
         .get(Uri.parse('$_baseUrl/requests/'), headers: headers)
         .timeout(_timeout);
-    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
-    if (r.statusCode == 401) throw Exception('Authentication failed. Please login again.');
-    if (r.statusCode == 403) throw Exception('You do not have permission to access requests.');
+    if (r.statusCode == 200)
+      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401)
+      throw Exception('Authentication failed. Please login again.');
+    if (r.statusCode == 403)
+      throw Exception('You do not have permission to access requests.');
     if (r.statusCode == 404) {
       try {
         final d = jsonDecode(r.body);
@@ -380,7 +403,10 @@ class ApiService {
     throw Exception('Failed to load requests: ${r.statusCode} - ${r.body}');
   }
 
-  Future<Map<String, dynamic>> updateRequest(int id, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateRequest(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
     final headers = await _getHeaders();
     final r = await http
         .put(
@@ -408,9 +434,12 @@ class ApiService {
     final r = await http
         .get(Uri.parse('$_baseUrl/cases/'), headers: headers)
         .timeout(_timeout);
-    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
-    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
-    if (r.statusCode == 403) throw Exception('You do not have permission to access cases.');
+    if (r.statusCode == 200)
+      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401)
+      throw Exception('Authentication required. Please login again.');
+    if (r.statusCode == 403)
+      throw Exception('You do not have permission to access cases.');
     throw Exception('Failed to load cases: ${r.statusCode} - ${r.body}');
   }
 
@@ -430,7 +459,10 @@ class ApiService {
     throw Exception('Failed to create case: ${r.body}');
   }
 
-  Future<Map<String, dynamic>> updateCase(int id, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateCase(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
     final headers = await _getHeaders();
     final r = await http
         .put(
@@ -470,7 +502,10 @@ class ApiService {
   Future<int> getUnreadNotificationCount() async {
     final headers = await _getHeaders();
     final r = await http
-        .get(Uri.parse('$_baseUrl/notifications/unread-count'), headers: headers)
+        .get(
+          Uri.parse('$_baseUrl/notifications/unread-count'),
+          headers: headers,
+        )
         .timeout(_timeout);
     if (r.statusCode == 200) {
       final data = jsonDecode(r.body) as Map<String, dynamic>;
@@ -498,8 +533,10 @@ class ApiService {
     final r = await http
         .get(Uri.parse('$_baseUrl/chats/'), headers: headers)
         .timeout(_timeout);
-    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
-    if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
+    if (r.statusCode == 200)
+      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    if (r.statusCode == 401)
+      throw Exception('Authentication required. Please login again.');
     throw Exception('Failed to load chats: ${r.statusCode} - ${r.body}');
   }
 
@@ -564,7 +601,8 @@ class ApiService {
     if (r.statusCode == 200 || r.statusCode == 201) {
       final data = jsonDecode(r.body) as Map<String, dynamic>;
       return {
-        'message': data['message'] as String? ?? "Sorry, I couldn't process that.",
+        'message':
+            data['message'] as String? ?? "Sorry, I couldn't process that.",
         'ui_action': data['ui_action'] as String?,
       };
     }

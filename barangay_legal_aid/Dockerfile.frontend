@@ -1,0 +1,35 @@
+# Stage 1: Build
+# cirrusci/flutter was moved to ghcr.io/cirruslabs/flutter
+FROM ghcr.io/cirruslabs/flutter:stable AS build
+
+# Pass your Railway backend URL at build time:
+#   docker build --build-arg API_URL=https://your-backend.railway.app ...
+# Build context must be: barangay_legal_aid/barangay_legal_aid/  (where pubspec.yaml lives)
+ARG API_URL=https://bla-production-a186.up.railway.app
+
+WORKDIR /app
+COPY . .
+
+# Inject the correct API_URL into .env before building
+RUN echo "API_URL=${API_URL}" > .env
+
+RUN flutter pub get
+RUN flutter build web --release
+
+# Stage 2: Serve
+FROM nginx:alpine
+
+# SPA routing: redirect all paths to index.html so Flutter router works
+RUN echo 'server { \
+    listen 80; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+COPY --from=build /app/build/web /usr/share/nginx/html
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

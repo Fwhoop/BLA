@@ -19,13 +19,16 @@ import 'package:barangay_legal_aid/screens/forms_hub_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
+  await dotenv.load(fileName: '.env'); // load the backend URL
 
   final secure = SecureStorageService();
-  final authService = AuthService(secureStorage: secure, apiService: ApiService(secure));
+  final authService = AuthService(
+    secureStorage: secure,
+    apiService: ApiService(secure),
+  );
   final isLoggedIn = await authService.isLoggedIn();
 
-  final apiService = ApiService(secure);
+  final apiService = ApiService(secure); // this reads API_URL from .env
   runApp(MyApp(
     isLoggedIn: isLoggedIn,
     authService: authService,
