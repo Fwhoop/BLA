@@ -136,14 +136,23 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadCurrentUser() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final user = await auth.getCurrentUser();
-    if (!mounted) return;
-    setState(() {
-      _currentUser = user;
-      _isLoading = false;
-      _guardRedirect = user == null;
-    });
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final user = await auth.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _currentUser = user;
+        _isLoading = false;
+        _guardRedirect = user == null;
+      });
+    } catch (_) {
+      // Network/CORS error — treat as logged-out and go to login
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _guardRedirect = true;
+      });
+    }
   }
 
   Future<void> _logout() async {
