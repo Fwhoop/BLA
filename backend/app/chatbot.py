@@ -90,11 +90,22 @@ _executor = _cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="bla_gen")
 
 # ── Model loading ─────────────────────────────────────────────────────────────
 def _load_model() -> None:
-    """Load the BLA model once at startup. Called at module import time."""
+    """Load the BLA model once at startup. Called in a background thread."""
     global _tokenizer, _model, _model_loaded, _device
 
     if not _LOAD_MODEL:
         logger.info("[STARTUP] LOAD_MODEL=false — skipping model load (FAQ-only mode).")
+        return
+
+    # Check for model files BEFORE importing torch (torch import holds the GIL
+    # for 10-30 s and blocks uvicorn's event loop if done eagerly).
+    _full_dir    = os.path.join(MODEL_DIR, "Gemma3_BLA_full")
+    _adapter_cfg = os.path.join(MODEL_DIR, "adapter_config.json")
+    if not (os.path.isdir(_full_dir) or os.path.exists(_adapter_cfg)):
+        logger.warning(
+            f"[STARTUP] No loadable model found at {MODEL_DIR}. "
+            "Running in FAQ-fallback mode."
+        )
         return
 
     try:
