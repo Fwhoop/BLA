@@ -16,3 +16,4 @@ bitsandbytes
 sentencepiece
 langdetect
 email-validator
+requests
