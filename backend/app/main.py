@@ -28,12 +28,24 @@ logging.getLogger('python_multipart').setLevel(logging.WARNING)
 app = FastAPI(title="Barangay Legal Aid API", version="0.1.0")
 load_dotenv()
 
+ALLOWED_ORIGINS = [
+    "https://barangaylegalaid.up.railway.app",
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://localhost:5000",
+    "http://127.0.0.1",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # ----------------- Migrations -----------------
