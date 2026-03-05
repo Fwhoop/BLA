@@ -7,6 +7,26 @@ from ..routers.auth import get_current_user
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
+
+def _enrich(case: models.Case) -> dict:
+    """Add reporter_name and reporter_email to a case dict."""
+    d = {
+        "id": case.id,
+        "title": case.title,
+        "description": case.description,
+        "status": case.status if case.status else "pending",
+        "reporter_id": case.reporter_id,
+        "created_at": case.created_at,
+        "updated_at": case.updated_at,
+        "reporter_name": None,
+        "reporter_email": None,
+    }
+    if case.reporter:
+        d["reporter_name"] = f"{case.reporter.first_name} {case.reporter.last_name}".strip()
+        d["reporter_email"] = case.reporter.email
+    return d
+
+
 @router.post("/", response_model=schemas.CaseRead)
 def create_case(
     case: schemas.CaseCreate,
@@ -16,123 +36,170 @@ def create_case(
     new_case = models.Case(
         title=case.title,
         description=case.description,
+        status="pending",
         reporter_id=current_user.id
     )
     db.add(new_case)
     db.commit()
     db.refresh(new_case)
-    return new_case
+
+    # Notify all active admins and staff in the reporter's barangay about the new case
+    if current_user.barangay_id:
+        admins = db.query(models.User).filter(
+            models.User.barangay_id == current_user.barangay_id,
+            models.User.role.in_(["admin", "superadmin", "staff"]),
+            models.User.is_active == True,
+        ).all()
+        for admin in admins:
+            db.add(models.Notification(
+                user_id=admin.id,
+                title="New Case Filed",
+                message=(
+                    f"{current_user.first_name} {current_user.last_name} "
+                    f"filed a case: '{new_case.title[:60]}'."
+                ),
+                notif_type="new_case",
+                reference_id=new_case.id,
+            ))
+        if admins:
+            db.commit()
+
+    return _enrich(new_case)
+
 
 @router.get("/", response_model=List[schemas.CaseRead])
 def get_cases(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Get all cases - filtered by role"""
     if current_user.role == "superadmin":
-        return db.query(models.Case).all()
-    elif current_user.role == "admin":
+        cases = db.query(models.Case).order_by(models.Case.created_at.desc()).all()
+    elif current_user.role in ("admin", "staff"):
         if not current_user.barangay_id:
             return []
-        return db.query(models.Case).join(models.User).filter(
-            models.User.barangay_id == current_user.barangay_id
-        ).all()
+        cases = (
+            db.query(models.Case)
+            .join(models.User, models.Case.reporter_id == models.User.id)
+            .filter(models.User.barangay_id == current_user.barangay_id)
+            .order_by(models.Case.created_at.desc())
+            .all()
+        )
     else:
-        return db.query(models.Case).filter(
-            models.Case.reporter_id == current_user.id
-        ).all()
+        cases = (
+            db.query(models.Case)
+            .filter(models.Case.reporter_id == current_user.id)
+            .order_by(models.Case.created_at.desc())
+            .all()
+        )
+    return [_enrich(c) for c in cases]
+
 
 @router.get("/{case_id}", response_model=schemas.CaseRead)
 def get_case(
-    case_id: int, 
+    case_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     case = db.query(models.Case).filter(models.Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
-    
-    # Check permissions
+
     if current_user.role == "user":
-        # Users can only see their own cases
         if case.reporter_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view this case"
-            )
-    elif current_user.role == "admin":
-        # Admins can only see cases from users in their barangay
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Not authorized to view this case")
+    elif current_user.role in ("admin", "staff"):
         reporter = db.query(models.User).filter(models.User.id == case.reporter_id).first()
         if not reporter or reporter.barangay_id != current_user.barangay_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view cases from other barangays"
-            )
-    
-    return case
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Not authorized to view cases from other barangays")
+
+    return _enrich(case)
+
 
 @router.put("/{case_id}", response_model=schemas.CaseRead)
 def update_case(
-    case_id: int, 
-    updated_case: schemas.CaseUpdate, 
+    case_id: int,
+    updated_case: schemas.CaseUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     case = db.query(models.Case).filter(models.Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
-    
-    # Check permissions
+
     if current_user.role == "user":
-        # Users can only update their own cases
+        # Users can only edit their own cases (not status)
         if case.reporter_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this case"
-            )
-    elif current_user.role == "admin":
-        # Admins can only update cases from users in their barangay
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Not authorized to update this case")
+        # Users cannot change status
+        updated_case.status = None
+    elif current_user.role in ("admin", "staff"):
         reporter = db.query(models.User).filter(models.User.id == case.reporter_id).first()
         if not reporter or reporter.barangay_id != current_user.barangay_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update cases from other barangays"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Not authorized to update cases from other barangays")
 
-    for key, value in updated_case.dict(exclude_unset=True).items():
-        setattr(case, key, value)
+    old_status = case.status
+    for key, value in updated_case.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(case, key, value)
 
     db.commit()
     db.refresh(case)
-    return case
+
+    # Notify the reporter when admin changes case status
+    new_status = updated_case.model_dump(exclude_unset=True).get("status")
+    if (
+        new_status is not None
+        and new_status != old_status
+        and current_user.role in ("admin", "superadmin", "staff")
+        and case.reporter_id
+    ):
+        labels = {
+            "reviewing": "is now under review 🔍",
+            "resolved": "has been resolved ✓",
+            "dismissed": "has been dismissed",
+        }
+        label = labels.get(new_status, f"status updated to '{new_status}'")
+        db.add(models.Notification(
+            user_id=case.reporter_id,
+            title="Case Status Update",
+            message=f"Your case '{case.title[:60]}' {label}.",
+            notif_type="case_update",
+            reference_id=case.id,
+        ))
+        db.commit()
+
+    return _enrich(case)
+
 
 @router.delete("/{case_id}")
 def delete_case(
-    case_id: int, 
+    case_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     case = db.query(models.Case).filter(models.Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
-    
-    # Check permissions
+
+    # Staff cannot delete cases
+    if current_user.role == "staff":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Staff cannot delete cases")
+
     if current_user.role == "user":
-        # Users can only delete their own cases
         if case.reporter_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete this case"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Not authorized to delete this case")
     elif current_user.role == "admin":
-        # Admins can only delete cases from users in their barangay
         reporter = db.query(models.User).filter(models.User.id == case.reporter_id).first()
         if not reporter or reporter.barangay_id != current_user.barangay_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete cases from other barangays"
-            )
-    
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Not authorized to delete cases from other barangays")
+
     db.delete(case)
     db.commit()
     return {"detail": "Case deleted successfully"}

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -25,10 +25,12 @@ class UserUpdate(BaseModel):
     address: Optional[str] = None
     barangay_id: Optional[int] = None
     role: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class UserRead(UserBase):
     id: int
     is_active: bool = True
+    id_photo_url: Optional[str] = None
     created_at: datetime
 
     @field_validator('is_active', mode='before')
@@ -61,11 +63,16 @@ class CaseCreate(CaseBase):
 class CaseUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
 
 class CaseRead(CaseBase):
     id: int
     reporter_id: int
+    status: str = "pending"
     created_at: datetime
+    updated_at: Optional[datetime] = None
+    reporter_name: Optional[str] = None
+    reporter_email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -97,6 +104,16 @@ class ChatRead(ChatCreate):
     class Config:
         from_attributes = True
 
+class HistoryEntry(BaseModel):
+    role: str   # 'user' or 'bot'
+    content: str
+
+class AiChatCreate(BaseModel):
+    sender_id: int
+    receiver_id: int
+    message: str
+    history: Optional[List[HistoryEntry]] = None
+
 # REQUEST SCHEMAS
 class RequestBase(BaseModel):
     document_type: str
@@ -118,3 +135,22 @@ class RequestRead(RequestBase):
 
     class Config:
         from_attributes = True
+
+
+# NOTIFICATION SCHEMAS
+class NotificationRead(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    notif_type: str
+    reference_id: Optional[int] = None
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UnreadCountRead(BaseModel):
+    count: int

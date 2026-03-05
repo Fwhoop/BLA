@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/request_form.dart';
+import 'package:barangay_legal_aid/screens/complaint_form_screen.dart';
+import 'package:barangay_legal_aid/screens/suggestion_box_screen.dart';
+import 'package:barangay_legal_aid/screens/my_requests_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
@@ -8,10 +11,10 @@ class FormsHubPage extends StatefulWidget {
   const FormsHubPage({super.key});
 
   @override
-  _FormsHubPageState createState() => _FormsHubPageState();
+  FormsHubPageState createState() => FormsHubPageState();
 }
 
-class _FormsHubPageState extends State<FormsHubPage> {
+class FormsHubPageState extends State<FormsHubPage> {
   final AuthService _authService = AuthService();
   User? _currentUser;
 
@@ -38,19 +41,22 @@ class _FormsHubPageState extends State<FormsHubPage> {
       ),
       body: Container(
         color: Color(0xFFFFFFFF),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWelcomeCard(),
-              SizedBox(height: 24),
-              _buildQuickActionsSection(),
-              SizedBox(height: 24),
-              _buildFormsSection(),
-              SizedBox(height: 24),
-              _buildServicesSection(),
-            ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcomeCard(),
+                  SizedBox(height: 24),
+                  _buildQuickActionsSection(),
+                  SizedBox(height: 24),
+                  _buildFormsSection(),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -93,7 +99,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
               'Access all forms and services in one place. Complete your profile, submit requests, and manage your account easily.',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
               ),
             ),
           ],
@@ -132,21 +138,56 @@ class _FormsHubPageState extends State<FormsHubPage> {
             SizedBox(width: 12),
             Expanded(
               child: _buildQuickActionCard(
-                title: 'Document Request',
-                subtitle: 'Submit Request',
-                icon: Icons.description,
-                color: Color(0xFF36454F),
+                title: 'My Requests',
+                subtitle: 'Track & Download',
+                icon: Icons.folder_open_outlined,
+                color: Color(0xFF1565C0),
+                onTap: () {
+                  if (_currentUser != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MyRequestsScreen(currentUser: _currentUser!),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildQuickActionCard(
+                title: 'File a Complaint',
+                subtitle: 'Submit Now',
+                icon: Icons.report_problem_rounded,
+                color: Color(0xFFF44336),
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => RequestForm(
-                      userBarangay: _currentUser?.barangay ?? '',
-                      preselectedDocumentType: null, 
-                    ),
-                  ),
+                  MaterialPageRoute(builder: (_) => const ComplaintFormScreen()),
                 ),
               ),
             ),
+          ],
+        ),
+        SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionCard(
+                title: 'Suggestion',
+                subtitle: 'Share Ideas',
+                icon: Icons.lightbulb,
+                color: Color(0xFFFFC107),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SuggestionBoxScreen()),
+                ),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(child: SizedBox()),
+            SizedBox(width: 12),
+            Expanded(child: SizedBox()),
           ],
         ),
       ],
@@ -197,45 +238,53 @@ class _FormsHubPageState extends State<FormsHubPage> {
           color: Color(0xFF9C27B0),
           onTap: () => _navigateToRequestForm('Certificate of Indigency'),
         ),
-      ],
-    );
-  }
-
-  Widget _buildServicesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Other Services',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF36454F),
-          ),
-        ),
-        SizedBox(height: 16),
-        _buildServiceCard(
-          title: 'Legal Consultation',
-          description: 'Schedule a legal consultation appointment',
-          icon: Icons.gavel,
-          color: Color(0xFF99272D),
-          onTap: () => _showComingSoon('Legal Consultation'),
+        SizedBox(height: 12),
+        _buildFormCard(
+          title: 'Certificate of No Property',
+          description: 'Certify that you do not own real property',
+          icon: Icons.house_outlined,
+          color: Color(0xFF607D8B),
+          onTap: () => _navigateToRequestForm('Certificate of No Property'),
         ),
         SizedBox(height: 12),
-        _buildServiceCard(
-          title: 'Complaint Form',
-          description: 'Submit complaints or concerns',
-          icon: Icons.report_problem,
-          color: Color(0xFFF44336),
-          onTap: () => _showComingSoon('Complaint Form'),
+        _buildFormCard(
+          title: 'Certificate of No Income',
+          description: 'Certify that you have no regular income',
+          icon: Icons.money_off,
+          color: Color(0xFF795548),
+          onTap: () => _navigateToRequestForm('Certificate of No Income'),
         ),
         SizedBox(height: 12),
-        _buildServiceCard(
-          title: 'Suggestion Box',
-          description: 'Share your suggestions for improvement',
-          icon: Icons.lightbulb,
-          color: Color(0xFFFFC107),
-          onTap: () => _showComingSoon('Suggestion Box'),
+        _buildFormCard(
+          title: 'Certificate of Live Birth',
+          description: 'Barangay certification for birth registration',
+          icon: Icons.child_care,
+          color: Color(0xFF00BCD4),
+          onTap: () => _navigateToRequestForm('Certificate of Live Birth'),
+        ),
+        SizedBox(height: 12),
+        _buildFormCard(
+          title: 'Certificate of Death',
+          description: 'Barangay certification for death registration',
+          icon: Icons.person_off_outlined,
+          color: Color(0xFF9E9E9E),
+          onTap: () => _navigateToRequestForm('Certificate of Death'),
+        ),
+        SizedBox(height: 12),
+        _buildFormCard(
+          title: 'Certificate of Marriage',
+          description: 'Barangay certification supporting marriage documents',
+          icon: Icons.favorite_outline,
+          color: Color(0xFFE91E63),
+          onTap: () => _navigateToRequestForm('Certificate of Marriage'),
+        ),
+        SizedBox(height: 12),
+        _buildFormCard(
+          title: 'Certificate of Single Status',
+          description: 'Certify that you are unmarried / single',
+          icon: Icons.person_search,
+          color: Color(0xFF3F51B5),
+          onTap: () => _navigateToRequestForm('Certificate of Single Status'),
         ),
       ],
     );
@@ -261,7 +310,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha:0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -281,7 +330,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
                 subtitle,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF36454F).withOpacity(0.7),
+                  color: Color(0xFF36454F).withValues(alpha:0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -312,7 +361,7 @@ class _FormsHubPageState extends State<FormsHubPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -335,70 +384,13 @@ class _FormsHubPageState extends State<FormsHubPage> {
                       description,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF36454F).withOpacity(0.7),
+                        color: Color(0xFF36454F).withValues(alpha:0.7),
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withOpacity(0.5), size: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildServiceCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF36454F),
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF36454F).withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withOpacity(0.5), size: 16),
+              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withValues(alpha:0.5), size: 16),
             ],
           ),
         ),
@@ -418,13 +410,4 @@ class _FormsHubPageState extends State<FormsHubPage> {
     );
   }
 
-  void _showComingSoon(String service) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$service - Coming Soon!'),
-        backgroundColor: Color(0xFF36454F),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
 }

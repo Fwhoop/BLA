@@ -26,19 +26,9 @@ def create_barangay(
     return new_barangay
 
 @router.get("/", response_model=List[schemas.BarangayRead])
-def get_barangays(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    if current_user.role == "superadmin":
-        return db.query(models.Barangay).all()
-    elif current_user.role == "admin":
-        if not current_user.barangay_id:
-            return []
-        barangay = db.query(models.Barangay).filter(models.Barangay.id == current_user.barangay_id).first()
-        return [barangay] if barangay else []
-    else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid role")
+def get_barangays(db: Session = Depends(get_db)):
+    """Public endpoint — barangay list is needed on the signup screen."""
+    return db.query(models.Barangay).all()
 
 @router.put("/{barangay_id}", response_model=schemas.BarangayRead)
 def update_barangay(

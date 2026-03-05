@@ -26,6 +26,27 @@ def create_request(
     db.add(new_request)
     db.commit()
     db.refresh(new_request)
+
+    # Notify all active admins and staff in this barangay about the new request
+    admins = db.query(models.User).filter(
+        models.User.barangay_id == new_request.barangay_id,
+        models.User.role.in_(["admin", "superadmin", "staff"]),
+        models.User.is_active == True,
+    ).all()
+    for admin in admins:
+        db.add(models.Notification(
+            user_id=admin.id,
+            title="New Document Request",
+            message=(
+                f"{current_user.first_name} {current_user.last_name} "
+                f"requested '{new_request.document_type}'."
+            ),
+            notif_type="new_request",
+            reference_id=new_request.id,
+        ))
+    if admins:
+        db.commit()
+
     return new_request
 
 @router.get("/", response_model=List[schemas.RequestRead])
@@ -37,8 +58,8 @@ def get_requests(
     try:
         if current_user.role == "superadmin":
             return db.query(models.Request).all()
-        elif current_user.role == "admin":
-            # Admins only see requests from their barangay
+        elif current_user.role in ("admin", "staff"):
+            # Admins and staff only see requests from their barangay
             if not current_user.barangay_id:
                 return []
             return db.query(models.Request).filter(
@@ -70,7 +91,7 @@ def get_request(
     if current_user.role == "user":
         if request.requester_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorized")
-    elif current_user.role == "admin":
+    elif current_user.role in ("admin", "staff"):
         if request.barangay_id != current_user.barangay_id:
             raise HTTPException(status_code=403, detail="Not authorized")
     
@@ -83,25 +104,41 @@ def update_request(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Update request status (only for admins)"""
-    if current_user.role not in ["admin", "superadmin"]:
-        raise HTTPException(status_code=403, detail="Only admins can update requests")
-    
+    """Update request status (admins and staff)"""
+    if current_user.role not in ["admin", "superadmin", "staff"]:
+        raise HTTPException(status_code=403, detail="Only admins/staff can update requests")
+
     request = db.query(models.Request).filter(models.Request.id == request_id).first()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
-    
-    # Check if admin is from the same barangay
-    if current_user.role == "admin":
+
+    # Check barangay scope for admin and staff
+    if current_user.role in ("admin", "staff"):
         if request.barangay_id != current_user.barangay_id:
             raise HTTPException(status_code=403, detail="Not authorized for this barangay")
     
     if request_update.status:
         request.status = request_update.status
         request.updated_at = datetime.now()
-    
+
     db.commit()
     db.refresh(request)
+
+    # Notify the requester when admin approves or rejects
+    if request_update.status in ("approved", "rejected"):
+        labels = {"approved": "approved ✓", "rejected": "rejected ✗"}
+        db.add(models.Notification(
+            user_id=request.requester_id,
+            title=f"Request {request_update.status.capitalize()}",
+            message=(
+                f"Your request for '{request.document_type}' has been "
+                f"{labels[request_update.status]}."
+            ),
+            notif_type="request_update",
+            reference_id=request.id,
+        ))
+        db.commit()
+
     return request
 
 @router.delete("/{request_id}")
@@ -115,10 +152,13 @@ def delete_request(
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
-    # Check permissions
+    # Check permissions — staff cannot delete
+    if current_user.role == "staff":
+        raise HTTPException(status_code=403, detail="Staff cannot delete requests")
+
     if current_user.role == "user" and request.requester_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     if current_user.role == "admin" and request.barangay_id != current_user.barangay_id:
         raise HTTPException(status_code=403, detail="Not authorized for this barangay")
     

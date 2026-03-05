@@ -1,111 +1,90 @@
+"""
+chatbot.py — BLA FAQ search and fallback engine.
+
+Local ML model loading has been removed. The HF Inference API is the
+primary AI source (chat.py handles that). This module provides:
+  - load_faq_data()        — load barangay_law_flutter.json
+  - chat_response(sender, message) -> dict  — FAQ search + canned fallback
+"""
+
 import os
+import re
 import json
+import logging
 from typing import Optional
-from difflib import SequenceMatcher
 
-# Load JSON data once at startup
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-JSON_FILE = os.path.join(os.path.dirname(BASE_DIR), "barangay_law_flutter.json")
-faq_data = None
+logger = logging.getLogger(__name__)
 
-def load_faq_data():
-    """Load FAQ data from JSON file."""
-    global faq_data
-    if faq_data is not None:
-        return faq_data
-    
-    try:
-        if os.path.exists(JSON_FILE):
-            with open(JSON_FILE, 'r', encoding='utf-8') as f:
-                faq_data = json.load(f)
-            print(f"FAQ data loaded successfully from {JSON_FILE}")
-            print(f"Loaded {len(faq_data.get('categories', []))} categories")
-            return faq_data
-        else:
-            print(f"Warning: JSON file not found at {JSON_FILE}")
-            return None
-    except Exception as e:
-        print(f"Error loading FAQ data: {e}")
+# Knowledge-base JSON bundled with the backend image.
+_BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+_JSON_FILE = os.path.join(os.path.dirname(_BASE_DIR), "barangay_law_flutter.json")
+
+logger.info(f"[STARTUP] FAQ JSON path → {_JSON_FILE}")
+
+# ── FAQ / knowledge base ──────────────────────────────────────────────────────
+_faq_cache: Optional[dict] = None
+
+
+def load_faq_data() -> Optional[dict]:
+    """Load barangay_law_flutter.json once and cache it."""
+    global _faq_cache
+    if _faq_cache is not None:
+        return _faq_cache
+    if not os.path.exists(_JSON_FILE):
+        logger.warning(f"FAQ file not found: {_JSON_FILE}")
         return None
+    try:
+        with open(_JSON_FILE, "r", encoding="utf-8") as f:
+            _faq_cache = json.load(f)
+        logger.info(f"[STARTUP] FAQ loaded — {len(_faq_cache.get('categories', []))} categories")
+    except Exception as e:
+        logger.error(f"FAQ load error: {e}")
+    return _faq_cache
 
-def similarity_score(str1: str, str2: str) -> float:
-    """Calculate similarity between two strings."""
-    return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
 
-def find_best_match(user_input: str, threshold: float = 0.5) -> Optional[str]:
-    """
-    Search for the best matching question in the FAQ data.
-    Returns the answer if a match is found above the threshold.
-    """
+def _faq_search(query: str) -> Optional[str]:
+    """Simple keyword search over the FAQ JSON. Returns best answer or None."""
     data = load_faq_data()
-    if data is None:
+    if not data:
         return None
-    
-    user_input_lower = user_input.lower().strip()
-    best_match = None
-    best_score = 0.0
-    
-    # Search through all categories and questions
-    for category in data.get('categories', []):
-        for question_obj in category.get('questions', []):
-            question = question_obj.get('question', '')
-            answer = question_obj.get('answer', '')
-            
-            question_lower = question.lower().strip()
-            
-            # Check for exact match first
-            if question_lower == user_input_lower:
-                return answer
-            
-            # Calculate similarity score
-            score = similarity_score(user_input, question)
-            
-            # Also check if user input contains keywords from the question
-            question_words = set(question_lower.split())
-            input_words = set(user_input_lower.split())
-            common_words = question_words.intersection(input_words)
-            if len(common_words) > 0:
-                # Boost score if there are common words
-                word_score = len(common_words) / max(len(question_words), len(input_words))
-                score = max(score, word_score * 0.8)
-            
-            if score > best_score:
-                best_score = score
-                best_match = answer
-    
-    # Return best match if above threshold
-    if best_score >= threshold and best_match:
-        return best_match
-    
-    return None
 
-def generate_chat_response(user_input: str) -> str:
+    q_lower = re.sub(r"[^\w\s]", "", query.lower())
+    q_words  = set(q_lower.split())
+
+    best_answer = None
+    best_score  = 0.0
+
+    for cat in data.get("categories", []):
+        for item in cat.get("questions", []):
+            candidate = re.sub(r"[^\w\s]", "", item.get("question", "").lower())
+            c_words   = set(candidate.split())
+            if not c_words:
+                continue
+            overlap = len(q_words & c_words) / max(len(q_words), len(c_words))
+            if candidate and q_lower in candidate:
+                overlap = max(overlap, 0.9)
+            if overlap > best_score:
+                best_score  = overlap
+                best_answer = item.get("answer", "") or None
+
+    return best_answer if best_score >= 0.35 else None
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+def chat_response(sender: int, message: str) -> dict:
     """
-    Generates a response by searching the FAQ JSON file.
-    Falls back to a default response if no match is found.
+    FAQ search + canned fallback. Called by chat.py when HF API is unavailable.
+
+    Returns: { "response": str, "sender": int }
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    try:
-        logger.info(f"Searching FAQ for: {user_input}")
-        
-        # Search for matching answer
-        answer = find_best_match(user_input, threshold=0.5)
-        
-        if answer:
-            logger.info(f"Found matching answer in FAQ")
-            return answer
-        else:
-            logger.info(f"No matching answer found, using default response")
-            # Try a lower threshold for partial matches
-            answer = find_best_match(user_input, threshold=0.3)
-            if answer:
-                return answer
-            
-            # Default response if no match found
-            return "I'm here to help with Barangay Legal Aid questions. I couldn't find a specific answer to your question. Please try rephrasing your question, or contact the barangay office directly for assistance. You can also browse the categories to find relevant questions."
-    
-    except Exception as e:
-        logger.error(f"Error in generate_chat_response: {str(e)}", exc_info=True)
-        return "I apologize, but I encountered an error while processing your request. Please contact the barangay office directly for assistance."
+    hit = _faq_search(message.strip())
+    response_text = hit if hit else (
+        "The AI model is not currently available. "
+        "For barangay legal assistance please visit your barangay hall directly "
+        "or contact the Lupong Tagapamayapa."
+    )
+    return {"response": response_text, "sender": sender}
+
+
+# ── Bootstrap ─────────────────────────────────────────────────────────────────
+load_faq_data()

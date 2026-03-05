@@ -1,12 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
 import '../models/faq_model.dart';
 import '../chat_model.dart';
 import '../chat_provider.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
-import 'package:http/http.dart' as http;
 
 class CategorizedQuestionsScreen extends StatefulWidget {
   final ChatProvider chatProvider;
@@ -19,11 +18,11 @@ class CategorizedQuestionsScreen extends StatefulWidget {
   });
 
   @override
-  _CategorizedQuestionsScreenState createState() =>
-      _CategorizedQuestionsScreenState();
+  CategorizedQuestionsScreenState createState() =>
+      CategorizedQuestionsScreenState();
 }
 
-class _CategorizedQuestionsScreenState
+class CategorizedQuestionsScreenState
     extends State<CategorizedQuestionsScreen> with SingleTickerProviderStateMixin {
   FaqData? _faqData;
   bool _isLoading = true;
@@ -31,6 +30,7 @@ class _CategorizedQuestionsScreenState
   Category? _selectedCategory;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
   bool _isSending = false;
   late AnimationController _animationController;
 
@@ -51,6 +51,7 @@ class _CategorizedQuestionsScreenState
     widget.chatProvider.removeListener(_refresh);
     _searchController.dispose();
     _scrollController.dispose();
+    _messageController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -83,10 +84,10 @@ class _CategorizedQuestionsScreenState
           _faqData = FaqData.fromJson(jsonData);
           _isLoading = false;
         });
-        print('✅ FAQ data loaded from assets');
+        // FAQ loaded from assets
         return;
       } catch (assetError) {
-        print('⚠️ Failed to load from assets: $assetError');
+        // Fallback to API if assets fail
         // Fallback to API
       }
       
@@ -99,20 +100,20 @@ class _CategorizedQuestionsScreenState
             _faqData = FaqData.fromJson(jsonData);
             _isLoading = false;
           });
-          print('✅ FAQ data loaded from API');
+          // FAQ loaded from API
           return;
         }
       } catch (apiError) {
-        print('⚠️ Failed to load from API: $apiError');
+        // API FAQ failed, use assets or empty
       }
       
       // If both fail, show error
       setState(() {
         _isLoading = false;
       });
-      print('❌ Failed to load FAQ data from both assets and API');
+      // FAQ unavailable from both sources
     } catch (e) {
-      print('❌ Error loading FAQ data: $e');
+      // Error loading FAQ: $e
       setState(() {
         _isLoading = false;
       });
@@ -122,75 +123,27 @@ class _CategorizedQuestionsScreenState
   Future<void> _sendMessage(String message) async {
     if (message.isEmpty || _isSending) return;
 
-    widget.chatProvider.addMessage(message, true);
+    setState(() => _isSending = true);
+    await widget.chatProvider.sendMessageToBot(message, widget.currentUser);
+    if (mounted) setState(() => _isSending = false);
+  }
 
-    setState(() {
-      _isSending = true;
-    });
-
-    try {
-      final url = Uri.parse('http://127.0.0.1:8000/chats/ai');
-
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'sender_id': widget.currentUser.id,
-          'receiver_id': 1,
-          'message': message,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        final botReply = data['message'] ?? "Sorry, I couldn't understand that.";
-
-        widget.chatProvider.addMessage(botReply, false);
-      } else {
-        final errorMsg =
-            "I'm having trouble connecting right now. Please try again in a moment.";
-        widget.chatProvider.addMessage(errorMsg, false);
-      }
-    } catch (e) {
-      print('Error: $e');
-      widget.chatProvider
-          .addMessage("I'm having trouble connecting right now. Please check your internet connection and try again.", false);
-    } finally {
-      setState(() {
-        _isSending = false;
-      });
+  void _ensureSession() {
+    if (widget.chatProvider.currentSession == null) {
+      widget.chatProvider.createNewSession();
     }
   }
 
   Future<void> _handleQuestionTap(Question question) async {
-    // Ensure we have a session before sending (reuse existing if available)
-    if (widget.chatProvider.currentSession == null) {
-      widget.chatProvider.createNewSession();
-    }
-    
-    // Send the question - this will add messages to the current session
+    _ensureSession();
     await _sendMessage(question.question);
-    
-    // Clear selection and switch to chat view AFTER message is sent
-    setState(() {
-      _selectedCategory = null;
-      _searchQuery = '';
-      _searchController.clear();
-      _showOptionsView = false; // Show chat view after question is selected
-    });
-  }
-
-  List<Category> get _filteredCategories {
-    if (_faqData == null) return [];
-    if (_searchQuery.isEmpty) return _faqData!.categories;
-
-    final query = _searchQuery.toLowerCase();
-    return _faqData!.categories.where((category) {
-      if (category.name.toLowerCase().contains(query)) return true;
-      return category.questions.any((q) =>
-          q.question.toLowerCase().contains(query) ||
-          q.answer.toLowerCase().contains(query));
-    }).toList();
+    if (mounted) {
+      setState(() {
+        _selectedCategory = null;
+        _searchQuery = '';
+        _searchController.clear();
+      });
+    }
   }
 
   List<Question> get _allQuestions {
@@ -212,11 +165,6 @@ class _CategorizedQuestionsScreenState
     return all;
   }
 
-  void _selectCategory(Category category) {
-    setState(() {
-      _selectedCategory = category;
-    });
-  }
 
   void _clearSelection() {
     setState(() {
@@ -226,23 +174,10 @@ class _CategorizedQuestionsScreenState
     });
   }
 
-  bool _showOptionsView = true; // Track if we should show options view
-
   @override
   Widget build(BuildContext context) {
     final currentSession = widget.chatProvider.currentSession;
-    // Determine what to show:
-    // - If _showOptionsView is explicitly set, respect it
-    // - Otherwise, show options if no session, session is empty, or category is selected
-    // - Otherwise show chat view
-    bool showOptions;
-    if (currentSession != null && currentSession.messages.isNotEmpty) {
-      // If we have messages, respect the _showOptionsView flag
-      showOptions = _showOptionsView || _selectedCategory != null;
-    } else {
-      // If no messages, always show options
-      showOptions = true;
-    }
+    final hasMessages = currentSession != null && currentSession.messages.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
@@ -257,24 +192,21 @@ class _CategorizedQuestionsScreenState
       ),
       child: Column(
         children: [
-          // Enhanced Header
-          _buildHeader(showOptions, currentSession),
-          
-          // Content area
+          _buildHeader(hasMessages, currentSession),
           Expanded(
-            child: showOptions
-                ? _buildOptionsView()
-                : _buildChatView(currentSession),
+            child: hasMessages
+                ? _buildConversationView(currentSession)
+                : _buildWelcomeAndSuggestionsView(),
           ),
-
-          // Chat actions (only show when in chat view)
-          _buildChatActions(),
+          _buildChatInput(),
+          if (hasMessages) _buildSecondaryActions(),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(bool showOptions, ChatSession? currentSession) {
+  Widget _buildHeader(bool hasMessages, ChatSession? currentSession) {
+    final showSearchInHeader = !hasMessages;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -287,7 +219,7 @@ class _CategorizedQuestionsScreenState
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF99272D).withOpacity(0.3),
+            color: Color(0xFF99272D).withValues(alpha:0.3),
             blurRadius: 8,
             offset: Offset(0, 4),
           ),
@@ -304,11 +236,11 @@ class _CategorizedQuestionsScreenState
                   Container(
                     padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.25),
+                      color: Colors.white.withValues(alpha:0.25),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha:0.1),
                           blurRadius: 4,
                           offset: Offset(0, 2),
                         ),
@@ -334,7 +266,7 @@ class _CategorizedQuestionsScreenState
                           currentSession?.title ?? 'Ask me anything',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha:0.9),
                           ),
                         ),
                       ],
@@ -354,7 +286,7 @@ class _CategorizedQuestionsScreenState
                     ),
                 ],
               ),
-              if (showOptions) ...[
+              if (showSearchInHeader) ...[
                 SizedBox(height: 16),
                 Container(
                   decoration: BoxDecoration(
@@ -362,7 +294,7 @@ class _CategorizedQuestionsScreenState
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha:0.1),
                         blurRadius: 4,
                         offset: Offset(0, 2),
                       ),
@@ -409,51 +341,95 @@ class _CategorizedQuestionsScreenState
     );
   }
 
-  Widget _buildChatView(ChatSession? currentSession) {
-    final session = currentSession;
-    // Show empty state only if truly empty (not during message sending)
-    if (session == null || (session.messages.isEmpty && !_isSending)) {
-      return _buildEmptyChatState();
-    }
-    
-    return Stack(
-      children: [
-        ListView.builder(
-          controller: _scrollController,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          itemCount: session.messages.length + (_isSending ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == session.messages.length) {
-              return _buildTypingIndicator();
-            }
+  Widget _buildConversationView(ChatSession? currentSession) {
+    final session = currentSession!;
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final hPad = constraints.maxWidth >= 700 ? 48.0 : 16.0;
+      return ListView.builder(
+        controller: _scrollController,
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
+        itemCount: session.messages.length + (_isSending ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index < session.messages.length) {
             final message = session.messages[index];
             return ChatBubble(message: message);
-          },
-        ),
-      ],
-    );
+          }
+          if (index == session.messages.length && _isSending) {
+            return _buildTypingIndicator();
+          }
+          return SizedBox.shrink();
+        },
+      );
+    });
   }
 
-  Widget _buildEmptyChatState() {
+  Widget _buildWelcomeAndSuggestionsView() {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF99272D)),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Loading questions...',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_faqData == null) return _buildErrorState();
+
+    final searchResults = _searchQuery.isNotEmpty ? _allQuestions : <Question>[];
+    final hasSearchResults = searchResults.isNotEmpty;
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final hPad = constraints.maxWidth >= 700 ? 48.0 : 16.0;
+      return SingleChildScrollView(
+        controller: _scrollController,
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildWelcomeCard(),
+            SizedBox(height: 24),
+            if (_selectedCategory != null)
+              _buildQuestionsListInline(_selectedCategory!.questions, _selectedCategory!.name)
+            else if (_searchQuery.isNotEmpty)
+              hasSearchResults
+                  ? _buildQuestionsListInline(searchResults, 'Search Results')
+                  : _buildEmptySearchState()
+            else
+              _buildBrowseCard(),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildWelcomeCard() {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Color(0xFF99272D).withOpacity(0.1),
+              color: Color(0xFF99272D).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.chat_bubble_outline,
-              size: 64,
-              color: Color(0xFF99272D).withOpacity(0.6),
+              size: 56,
+              color: Color(0xFF99272D).withValues(alpha: 0.6),
             ),
           ),
-          SizedBox(height: 24),
+          SizedBox(height: 20),
           Text(
-            'Start a conversation',
+            'How can I help you today?',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -462,13 +438,251 @@ class _CategorizedQuestionsScreenState
           ),
           SizedBox(height: 8),
           Text(
-            'Select a question above or type your message',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            'Type your question or browse topics',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
+      ),
+    );
+  }
+
+  /// A compact card that opens the browse-questions bottom sheet.
+  /// Replaces the old full inline category list on the welcome screen.
+  Widget _buildBrowseCard() {
+    final categoryCount = _faqData?.categories.length ?? 0;
+    final questionCount =
+        _faqData?.categories.fold<int>(0, (sum, c) => sum + c.questions.length) ?? 0;
+
+    return GestureDetector(
+      onTap: () => _showBrowseSheet(context),
+      child: Container(
+        margin: EdgeInsets.only(top: 8),
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Color(0xFF99272D).withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Color(0xFF99272D).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.library_books_outlined,
+                  color: Color(0xFF99272D), size: 28),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Browse Questions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF36454F),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '$categoryCount categories · $questionCount questions',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Color(0xFF99272D)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestionsListInline(List<Question> questions, String title) {
+    if (questions.isEmpty) return _buildEmptySearchState();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF36454F),
+          ),
+        ),
+        SizedBox(height: 12),
+        ...questions.map((q) => Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: _buildQuestionCard(q),
+        )),
+      ],
+    );
+  }
+
+  Widget _buildChatInput() {
+    final hPad = MediaQuery.of(context).size.width >= 700 ? 48.0 : 16.0;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                decoration: InputDecoration(
+                  hintText: 'Type your message...',
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  filled: true,
+                  fillColor: Color(0xFFF5F5F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                maxLines: null,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _submitChatInput(),
+              ),
+            ),
+            SizedBox(width: 8),
+            CircleAvatar(
+              backgroundColor: Color(0xFF99272D),
+              child: IconButton(
+                icon: Icon(Icons.send, color: Colors.white),
+                onPressed: _submitChatInput,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submitChatInput() {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _isSending) return;
+    _messageController.clear();
+    _ensureSession();
+    _sendMessage(text);
+  }
+
+  Widget _buildSecondaryActions() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: () => _showBrowseSheet(context),
+              icon: Icon(Icons.search, size: 18, color: Color(0xFF99272D)),
+              label: Text('Browse Questions', style: TextStyle(color: Color(0xFF99272D))),
+            ),
+            SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  widget.chatProvider.createNewSession();
+                  _selectedCategory = null;
+                  _searchQuery = '';
+                  _searchController.clear();
+                });
+              },
+              icon: Icon(Icons.refresh, size: 18, color: Color(0xFF99272D)),
+              label: Text('New Chat', style: TextStyle(color: Color(0xFF99272D))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBrowseSheet(BuildContext context) {
+    if (_faqData == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Suggested questions',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF36454F)),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _faqData!.categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _faqData!.categories[index];
+                    return ExpansionTile(
+                      title: Text(category.name, style: TextStyle(fontWeight: FontWeight.w600)),
+                      children: category.questions.map((q) {
+                        return ListTile(
+                          title: Text(q.question, style: TextStyle(fontSize: 14)),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _handleQuestionTap(q);
+                          },
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -510,164 +724,12 @@ class _CategorizedQuestionsScreenState
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.3 + (value * 0.7)),
+            color: Colors.white.withValues(alpha:0.3 + (value * 0.7)),
             shape: BoxShape.circle,
           ),
         );
       },
     );
-  }
-
-  Widget _buildChatActions() {
-    final currentSession = widget.chatProvider.currentSession;
-    final bool showChatActions = currentSession != null &&
-        currentSession.messages.isNotEmpty;
-
-    if (!showChatActions) {
-      return SizedBox.shrink();
-    }
-    
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE0E0E0),
-            width: 1,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Button to go back to questions (doesn't create new chat)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _showOptionsView = true; // Show options to select another question
-                    _selectedCategory = null; // Clear any selected category
-                    _searchQuery = '';
-                    _searchController.clear();
-                  });
-                },
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Color(0xFFE0E0E0),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.search, color: Color(0xFF99272D), size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Browse Questions',
-                        style: TextStyle(
-                          color: Color(0xFF99272D),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 12),
-            // Button to start a new chat
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    widget.chatProvider.createNewSession();
-                    _showOptionsView = true; // Show options for new chat
-                    _selectedCategory = null;
-                    _searchQuery = '';
-                    _searchController.clear();
-                  });
-                },
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF99272D),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.refresh, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'New Chat',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOptionsView() {
-    if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF99272D)),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Loading questions...',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_faqData == null) {
-      return _buildErrorState();
-    }
-
-    if (_selectedCategory != null) {
-      return _buildQuestionsList(_selectedCategory!.questions, _selectedCategory!.name);
-    }
-
-    if (_searchQuery.isNotEmpty) {
-      final questions = _allQuestions;
-      if (questions.isNotEmpty) {
-        return _buildQuestionsList(questions, 'Search Results');
-      }
-      return _buildEmptySearchState();
-    }
-
-    return _buildCategoriesList();
   }
 
   Widget _buildErrorState() {
@@ -726,189 +788,6 @@ class _CategorizedQuestionsScreenState
     );
   }
 
-  Widget _buildCategoriesList() {
-    final categories = _filteredCategories;
-
-    if (categories.isEmpty) {
-      return _buildEmptySearchState();
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.all(16),
-      itemCount: categories.length,
-      itemBuilder: (context, index) {
-        final category = categories[index];
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: Duration(milliseconds: 300 + (index * 50)),
-          builder: (context, value, child) {
-            return Opacity(
-              opacity: value,
-              child: Transform.translate(
-                offset: Offset(0, 20 * (1 - value)),
-                child: child,
-              ),
-            );
-          },
-          child: _buildCategoryCard(category),
-        );
-      },
-    );
-  }
-
-  Widget _buildCategoryCard(Category category) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _selectCategory(category),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF99272D).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.folder_outlined,
-                    color: Color(0xFF99272D),
-                    size: 24,
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        category.name,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF36454F),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.help_outline,
-                            size: 14,
-                            color: Colors.grey[600],
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            '${category.questions.length} question${category.questions.length != 1 ? 's' : ''}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF99272D),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuestionsList(List<Question> questions, String title) {
-    if (questions.isEmpty) {
-      return _buildEmptySearchState();
-    }
-
-    return Column(
-      children: [
-        if (title.isNotEmpty)
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey[200]!,
-                  width: 1,
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.arrow_back, size: 20, color: Color(0xFF99272D)),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF36454F),
-                    ),
-                  ),
-                ),
-                Text(
-                  '${questions.length}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.all(16),
-            itemCount: questions.length,
-            itemBuilder: (context, index) {
-              final question = questions[index];
-              return TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: Duration(milliseconds: 200 + (index * 30)),
-                builder: (context, value, child) {
-                  return Opacity(
-                    opacity: value,
-                    child: Transform.translate(
-                      offset: Offset(0, 15 * (1 - value)),
-                      child: child,
-                    ),
-                  );
-                },
-                child: _buildQuestionCard(question),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildQuestionCard(Question question) {
     return Container(
       margin: EdgeInsets.only(bottom: 12),
@@ -921,7 +800,7 @@ class _CategorizedQuestionsScreenState
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha:0.03),
             blurRadius: 4,
             offset: Offset(0, 2),
           ),
@@ -939,7 +818,7 @@ class _CategorizedQuestionsScreenState
                 Container(
                   padding: EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Color(0xFF99272D).withOpacity(0.1),
+                    color: Color(0xFF99272D).withValues(alpha:0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -964,7 +843,7 @@ class _CategorizedQuestionsScreenState
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Color(0xFF99272D).withOpacity(0.1),
+                    color: Color(0xFF99272D).withValues(alpha:0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -1007,7 +886,7 @@ class ChatBubble extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFF99272D).withOpacity(0.3),
+                    color: Color(0xFF99272D).withValues(alpha:0.3),
                     blurRadius: 4,
                     offset: Offset(0, 2),
                   ),
@@ -1018,35 +897,38 @@ class ChatBubble extends StatelessWidget {
             SizedBox(width: 12),
           ],
           Flexible(
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: message.isUser
-                    ? LinearGradient(
-                        colors: [Color(0xFF99272D), Color(0xFFB83A42)],
-                      )
-                    : null,
-                color: message.isUser ? null : Color(0xFF36454F),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                  bottomLeft: Radius.circular(message.isUser ? 20 : 4),
-                  bottomRight: Radius.circular(message.isUser ? 4 : 20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: message.isUser
+                      ? LinearGradient(
+                          colors: [Color(0xFF99272D), Color(0xFFB83A42)],
+                        )
+                      : null,
+                  color: message.isUser ? null : Color(0xFF36454F),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(message.isUser ? 20 : 4),
+                    bottomRight: Radius.circular(message.isUser ? 4 : 20),
                   ),
-                ],
-              ),
-              child: Text(
-                message.content,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  height: 1.5,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  message.content,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -1063,7 +945,7 @@ class ChatBubble extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFF99272D).withOpacity(0.3),
+                    color: Color(0xFF99272D).withValues(alpha:0.3),
                     blurRadius: 4,
                     offset: Offset(0, 2),
                   ),
