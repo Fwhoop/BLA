@@ -12,7 +12,7 @@ from app.db import Base, engine
 from app import models
 from app.routers.auth import get_current_user
 from app.models import User
-from app.routers import auth, barangays, cases, chat, users, requests, notifications
+from app.routers import auth, barangays, cases, chat, users, requests, notifications, mediations, analytics
 from app.schemas import UserRead
 
 
@@ -59,14 +59,42 @@ def _run_migrations():
                     ))
                     logger.info("Migration: added 'updated_at' column to cases")
 
+            # --- Cases table (new columns) ---
+            if "cases" in inspector.get_table_names():
+                existing_cases2 = {c["name"] for c in inspector.get_columns("cases")}
+                for col, ddl in [
+                    ("category",              "ALTER TABLE cases ADD COLUMN category VARCHAR(50) NULL"),
+                    ("urgency",               "ALTER TABLE cases ADD COLUMN urgency VARCHAR(20) DEFAULT 'medium'"),
+                    ("is_cross_barangay",     "ALTER TABLE cases ADD COLUMN is_cross_barangay BOOLEAN DEFAULT FALSE"),
+                    ("complaint_barangay_id", "ALTER TABLE cases ADD COLUMN complaint_barangay_id INT NULL"),
+                ]:
+                    if col not in existing_cases2:
+                        conn.execute(text(ddl))
+                        logger.info(f"Migration: added '{col}' column to cases")
+
             # --- Users table ---
             if "users" in inspector.get_table_names():
                 existing_users = {c["name"] for c in inspector.get_columns("users")}
-                if "id_photo_url" not in existing_users:
-                    conn.execute(text(
-                        "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"
-                    ))
-                    logger.info("Migration: added 'id_photo_url' column to users")
+                for col, ddl in [
+                    ("id_photo_url",         "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"),
+                    ("verification_status",  "ALTER TABLE users ADD COLUMN verification_status VARCHAR(30) DEFAULT 'pending_verification'"),
+                    ("verification_method",  "ALTER TABLE users ADD COLUMN verification_method VARCHAR(10) DEFAULT 'email'"),
+                    ("selfie_with_id_url",   "ALTER TABLE users ADD COLUMN selfie_with_id_url VARCHAR(500) NULL"),
+                    ("profile_photo_url",    "ALTER TABLE users ADD COLUMN profile_photo_url VARCHAR(500) NULL"),
+                    ("sms_otp_hash",         "ALTER TABLE users ADD COLUMN sms_otp_hash VARCHAR(64) NULL"),
+                    ("sms_otp_expires_at",   "ALTER TABLE users ADD COLUMN sms_otp_expires_at DATETIME NULL"),
+                    ("house_no",             "ALTER TABLE users ADD COLUMN house_no VARCHAR(20) NULL"),
+                    ("street_name",          "ALTER TABLE users ADD COLUMN street_name VARCHAR(100) NULL"),
+                    ("purok_sitio",          "ALTER TABLE users ADD COLUMN purok_sitio VARCHAR(100) NULL"),
+                    ("city_municipality",    "ALTER TABLE users ADD COLUMN city_municipality VARCHAR(100) NULL"),
+                    ("province",             "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
+                    ("zip_code",             "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
+                    ("approved_by",          "ALTER TABLE users ADD COLUMN approved_by INT NULL"),
+                    ("approved_at",          "ALTER TABLE users ADD COLUMN approved_at DATETIME NULL"),
+                ]:
+                    if col not in existing_users:
+                        conn.execute(text(ddl))
+                        logger.info(f"Migration: added '{col}' column to users")
 
     except Exception as e:
         logger.warning(f"Migration step skipped: {e}")
@@ -103,7 +131,10 @@ app.include_router(cases.router)
 app.include_router(chat.router)
 app.include_router(requests.router)
 app.include_router(notifications.router)
+app.include_router(mediations.router)
+app.include_router(analytics.router)
 
 # ----------------- Static Files -----------------
-os.makedirs("uploads/id_photos", exist_ok=True)
+for _dir in ["uploads/id_photos", "uploads/selfie_photos", "uploads/profile_photos"]:
+    os.makedirs(_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
