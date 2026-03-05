@@ -103,8 +103,16 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     """
     AI chatbot endpoint powered by the locally-loaded BLA model.
 
-    Accepts: { "sender": int, "message": str }  (via AiChatCreate.sender_id / .message)
-    Returns: { "response": str, "enriched": str, "sender": int }
+    Accepts:
+        {
+          "sender_id": int,
+          "receiver_id": int,
+          "message": str,
+          "history": [{"role": "user"|"bot", "content": str}, ...]  // optional
+        }
+
+    Returns:
+        { "response": str, "enriched": str, "sender": int }
 
     The model is loaded once at startup from the local bla_model directory.
     No Hugging Face online calls are made.
@@ -112,10 +120,21 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     import logging
     logger = logging.getLogger(__name__)
 
-    logger.info(f"[AI_ENDPOINT] sender={chat.sender_id} message={chat.message!r}")
+    logger.info(
+        f"[AI_ENDPOINT] sender={chat.sender_id} "
+        f"history_len={len(chat.history or [])} "
+        f"message={chat.message!r}"
+    )
 
     try:
-        return _local_chat_response(sender=chat.sender_id, message=chat.message)
+        # Convert Pydantic HistoryEntry objects → plain dicts the chatbot expects.
+        history = [h.model_dump() for h in (chat.history or [])]
+
+        return _local_chat_response(
+            sender=chat.sender_id,
+            message=chat.message,
+            history=history,
+        )
     except Exception as e:
         logger.error(f"Unexpected error in chat_with_ai: {e}", exc_info=True)
         return {"error": "Internal server error"}
