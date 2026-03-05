@@ -126,9 +126,18 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     )
 
     try:
-        # Convert Pydantic HistoryEntry objects → plain dicts the chatbot expects.
-        history = [h.model_dump() for h in (chat.history or [])]
+        # Try HuggingFace Inference API first when a token is configured.
+        if _HF_API_TOKEN:
+            hf_result = _call_hf_model(chat.message, logger)
+            if hf_result:
+                return {
+                    "response": hf_result,
+                    "enriched": chat.message,
+                    "sender": chat.sender_id,
+                }
 
+        # Fall back to local model / FAQ fallback.
+        history = [h.model_dump() for h in (chat.history or [])]
         return _local_chat_response(
             sender=chat.sender_id,
             message=chat.message,

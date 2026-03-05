@@ -8,12 +8,6 @@ pydantic-settings
 pymysql
 passlib[bcrypt]
 python-jose[cryptography]
-torch
-transformers>=4.49.0
-peft
-accelerate
-bitsandbytes
-sentencepiece
 langdetect
 email-validator
 requests

@@ -97,8 +97,6 @@ def _load_model() -> None:
         logger.info("[STARTUP] LOAD_MODEL=false — skipping model load (FAQ-only mode).")
         return
 
-    # Check for model files BEFORE importing torch (torch import holds the GIL
-    # for 10-30 s and blocks uvicorn's event loop if done eagerly).
     _full_dir    = os.path.join(MODEL_DIR, "Gemma3_BLA_full")
     _adapter_cfg = os.path.join(MODEL_DIR, "adapter_config.json")
     if not (os.path.isdir(_full_dir) or os.path.exists(_adapter_cfg)):
