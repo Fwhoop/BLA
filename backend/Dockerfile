@@ -11,4 +11,6 @@ COPY ./app ./app
 COPY barangay_law_flutter.json .
 COPY run.py .
 
+EXPOSE 8000
+
 CMD ["python", "run.py"]
