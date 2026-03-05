@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()  # Must run before any app imports that read env vars
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,7 +27,6 @@ logging.getLogger('python_multipart').setLevel(logging.WARNING)
 
 # ----------------- App -----------------
 app = FastAPI(title="Barangay Legal Aid API", version="0.1.0")
-load_dotenv()
 
 ALLOWED_ORIGINS = [
     "https://barangaylegalaid.up.railway.app",
@@ -50,12 +50,9 @@ app.add_middleware(
 
 # ----------------- Migrations -----------------
 def _run_migrations():
-    """
-    Add missing columns if they don’t exist (safe to run on every startup).
-    """
     try:
         inspector = inspect(engine)
-        with engine.begin() as conn:  # BEGIN ensures auto-commit on DDL
+        with engine.begin() as conn:
             # --- Cases table ---
             if "cases" in inspector.get_table_names():
                 existing_cases = {c["name"] for c in inspector.get_columns("cases")}
@@ -71,7 +68,6 @@ def _run_migrations():
                     ))
                     logger.info("Migration: added 'updated_at' column to cases")
 
-            # --- Cases table (new columns) ---
             if "cases" in inspector.get_table_names():
                 existing_cases2 = {c["name"] for c in inspector.get_columns("cases")}
                 for col, ddl in [
@@ -113,20 +109,25 @@ def _run_migrations():
 
 # ----------------- Startup Event -----------------
 @app.on_event("startup")
-async def create_tables():
-    """
-    Ensure all tables exist and run migrations.
-    This runs every time the app starts (Railway or local).
-    """
+async def startup():
+    logger.info("=== BLA BACKEND STARTING ===")
     try:
-        # This will create all tables that don’t exist yet
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created/verified successfully")
+        logger.info("Database tables OK")
         _run_migrations()
-        logger.info("Migrations complete")
+        logger.info("Migrations OK")
     except Exception as e:
-        logger.warning(f"Could not create database tables: {e}")
-        logger.warning("Server will continue, but database operations may fail until connection is fixed")
+        logger.warning(f"DB init skipped: {e}")
+    logger.info("=== BLA BACKEND READY ===")
+
+# ----------------- Health Check -----------------
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "BLA Backend"}
+
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "Barangay Legal Aid API"}
 
 # ----------------- Auth Route -----------------
 @app.get("/auth/me", response_model=UserRead)
@@ -147,6 +148,9 @@ app.include_router(mediations.router)
 app.include_router(analytics.router)
 
 # ----------------- Static Files -----------------
-for _dir in ["uploads/id_photos", "uploads/selfie_photos", "uploads/profile_photos"]:
-    os.makedirs(_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+try:
+    for _dir in ["uploads/id_photos", "uploads/selfie_photos", "uploads/profile_photos"]:
+        os.makedirs(_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+except Exception as e:
+    logger.warning(f"Static files not mounted: {e}")
