@@ -4,5 +4,7 @@ dockerfilePath = "backend/Dockerfile"
 buildContext = "backend"
 
 [deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

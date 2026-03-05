@@ -1,21 +1,21 @@
 from dotenv import load_dotenv
-load_dotenv()  # Must run before any app imports that read env vars
+load_dotenv()
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-import os
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
+import os
 import logging
 
-from app.db import Base, engine
+from app.db import Base, engine, get_db
 from app import models
 from app.routers.auth import get_current_user
 from app.models import User
 from app.routers import auth, barangays, cases, chat, users, requests, notifications, mediations, analytics
-from app.schemas import UserRead
-
+from app.schemas import UserRead, UserUpdate
+from sqlalchemy.orm import Session
 
 # ----------------- Logging -----------------
 logging.basicConfig(
@@ -44,70 +44,83 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin",
+                   "X-Requested-With", "Access-Control-Request-Method",
+                   "Access-Control-Request-Headers"],
+    expose_headers=["Content-Type", "Authorization"],
+    max_age=86400,
 )
+
+# ----------------- Explicit OPTIONS preflight catch-all -----------------
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str, request: Request):
+    """
+    Catch-all OPTIONS handler so preflight requests never hit
+    auth-protected route handlers.
+    """
+    origin = request.headers.get("origin", "")
+    if origin not in ALLOWED_ORIGINS:
+        return Response(status_code=403)
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": (
+                "Content-Type, Authorization, Accept, Origin, "
+                "X-Requested-With, Access-Control-Request-Method, "
+                "Access-Control-Request-Headers"
+            ),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "86400",
+        },
+    )
 
 # ----------------- Migrations -----------------
 def _run_migrations():
     try:
         inspector = inspect(engine)
         with engine.begin() as conn:
-            # --- Cases table ---
             if "cases" in inspector.get_table_names():
-                existing_cases = {c["name"] for c in inspector.get_columns("cases")}
-                if "status" not in existing_cases:
-                    conn.execute(text(
-                        "ALTER TABLE cases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"
-                    ))
-                    logger.info("Migration: added 'status' column to cases")
-                if "updated_at" not in existing_cases:
-                    conn.execute(text(
-                        "ALTER TABLE cases ADD COLUMN updated_at DATETIME "
-                        "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                    ))
-                    logger.info("Migration: added 'updated_at' column to cases")
-
-            if "cases" in inspector.get_table_names():
-                existing_cases2 = {c["name"] for c in inspector.get_columns("cases")}
+                existing = {c["name"] for c in inspector.get_columns("cases")}
+                if "status" not in existing:
+                    conn.execute(text("ALTER TABLE cases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"))
+                if "updated_at" not in existing:
+                    conn.execute(text("ALTER TABLE cases ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"))
                 for col, ddl in [
                     ("category",              "ALTER TABLE cases ADD COLUMN category VARCHAR(50) NULL"),
                     ("urgency",               "ALTER TABLE cases ADD COLUMN urgency VARCHAR(20) DEFAULT 'medium'"),
                     ("is_cross_barangay",     "ALTER TABLE cases ADD COLUMN is_cross_barangay BOOLEAN DEFAULT FALSE"),
                     ("complaint_barangay_id", "ALTER TABLE cases ADD COLUMN complaint_barangay_id INT NULL"),
                 ]:
-                    if col not in existing_cases2:
+                    if col not in existing:
                         conn.execute(text(ddl))
-                        logger.info(f"Migration: added '{col}' column to cases")
 
-            # --- Users table ---
             if "users" in inspector.get_table_names():
-                existing_users = {c["name"] for c in inspector.get_columns("users")}
+                existing = {c["name"] for c in inspector.get_columns("users")}
                 for col, ddl in [
-                    ("id_photo_url",         "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"),
-                    ("verification_status",  "ALTER TABLE users ADD COLUMN verification_status VARCHAR(30) DEFAULT 'pending_verification'"),
-                    ("verification_method",  "ALTER TABLE users ADD COLUMN verification_method VARCHAR(10) DEFAULT 'email'"),
-                    ("selfie_with_id_url",   "ALTER TABLE users ADD COLUMN selfie_with_id_url VARCHAR(500) NULL"),
-                    ("profile_photo_url",    "ALTER TABLE users ADD COLUMN profile_photo_url VARCHAR(500) NULL"),
-                    ("sms_otp_hash",         "ALTER TABLE users ADD COLUMN sms_otp_hash VARCHAR(64) NULL"),
-                    ("sms_otp_expires_at",   "ALTER TABLE users ADD COLUMN sms_otp_expires_at DATETIME NULL"),
-                    ("house_no",             "ALTER TABLE users ADD COLUMN house_no VARCHAR(20) NULL"),
-                    ("street_name",          "ALTER TABLE users ADD COLUMN street_name VARCHAR(100) NULL"),
-                    ("purok_sitio",          "ALTER TABLE users ADD COLUMN purok_sitio VARCHAR(100) NULL"),
-                    ("city_municipality",    "ALTER TABLE users ADD COLUMN city_municipality VARCHAR(100) NULL"),
-                    ("province",             "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
-                    ("zip_code",             "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
-                    ("approved_by",          "ALTER TABLE users ADD COLUMN approved_by INT NULL"),
-                    ("approved_at",          "ALTER TABLE users ADD COLUMN approved_at DATETIME NULL"),
+                    ("id_photo_url",        "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"),
+                    ("verification_status", "ALTER TABLE users ADD COLUMN verification_status VARCHAR(30) DEFAULT 'pending_verification'"),
+                    ("verification_method", "ALTER TABLE users ADD COLUMN verification_method VARCHAR(10) DEFAULT 'email'"),
+                    ("selfie_with_id_url",  "ALTER TABLE users ADD COLUMN selfie_with_id_url VARCHAR(500) NULL"),
+                    ("profile_photo_url",   "ALTER TABLE users ADD COLUMN profile_photo_url VARCHAR(500) NULL"),
+                    ("sms_otp_hash",        "ALTER TABLE users ADD COLUMN sms_otp_hash VARCHAR(64) NULL"),
+                    ("sms_otp_expires_at",  "ALTER TABLE users ADD COLUMN sms_otp_expires_at DATETIME NULL"),
+                    ("house_no",            "ALTER TABLE users ADD COLUMN house_no VARCHAR(20) NULL"),
+                    ("street_name",         "ALTER TABLE users ADD COLUMN street_name VARCHAR(100) NULL"),
+                    ("purok_sitio",         "ALTER TABLE users ADD COLUMN purok_sitio VARCHAR(100) NULL"),
+                    ("city_municipality",   "ALTER TABLE users ADD COLUMN city_municipality VARCHAR(100) NULL"),
+                    ("province",            "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
+                    ("zip_code",            "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
+                    ("approved_by",         "ALTER TABLE users ADD COLUMN approved_by INT NULL"),
+                    ("approved_at",         "ALTER TABLE users ADD COLUMN approved_at DATETIME NULL"),
                 ]:
-                    if col not in existing_users:
+                    if col not in existing:
                         conn.execute(text(ddl))
-                        logger.info(f"Migration: added '{col}' column to users")
-
     except Exception as e:
         logger.warning(f"Migration step skipped: {e}")
 
-# ----------------- Startup Event -----------------
+# ----------------- Startup -----------------
 @app.on_event("startup")
 async def startup():
     logger.info("=== BLA BACKEND STARTING ===")
@@ -120,7 +133,7 @@ async def startup():
         logger.warning(f"DB init skipped: {e}")
     logger.info("=== BLA BACKEND READY ===")
 
-# ----------------- Health Check -----------------
+# ----------------- Health / Root -----------------
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "BLA Backend"}
@@ -129,11 +142,24 @@ async def health():
 async def root():
     return {"status": "ok", "service": "Barangay Legal Aid API"}
 
-# ----------------- Auth Route -----------------
+# ----------------- Auth Routes -----------------
 @app.get("/auth/me", response_model=UserRead)
 async def me(current: User = Depends(get_current_user)):
     if current.is_active is None:
         current.is_active = True
+    return current
+
+@app.put("/auth/me", response_model=UserRead)
+async def update_me(
+    payload: UserUpdate,
+    current: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(current, field, value)
+    db.commit()
+    db.refresh(current)
     return current
 
 # ----------------- Routers -----------------
