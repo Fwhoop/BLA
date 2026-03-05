@@ -335,5 +335,9 @@ def generate_chat_response(
 
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
-_load_model()
+# Load FAQ data synchronously (fast). Load the heavy ML model in a background
+# thread so uvicorn starts accepting requests immediately instead of blocking
+# for several minutes while the model loads into memory on CPU.
+import threading as _threading
 load_faq_data()
+_threading.Thread(target=_load_model, daemon=True, name="bla_model_loader").start()
