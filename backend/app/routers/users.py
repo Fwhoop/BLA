@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 from .. import models, schemas
 from ..db import get_db
 from ..routers.auth import get_current_user
 import bcrypt
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -122,76 +121,22 @@ def create_staff_member(
     return new_user
 
 
-@router.get("/search", response_model=List[schemas.UserRead])
-def search_users(
-    name: Optional[str] = Query(None),
-    barangay_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """Search users by name for respondent lookup in complaint form."""
-    q = db.query(models.User).filter(models.User.role == "user")
-    if name:
-        term = f"%{name}%"
-        q = q.filter(
-            or_(
-                models.User.first_name.ilike(term),
-                models.User.last_name.ilike(term),
-            )
-        )
-    if barangay_id:
-        q = q.filter(models.User.barangay_id == barangay_id)
-    return q.limit(20).all()
-
-
 @router.get("/", response_model=List[schemas.UserRead])
 def read_users(
-    status: Optional[str] = Query(None),          # all|pending_verification|approved|rejected|active|inactive
-    search: Optional[str] = Query(None),           # name, email, phone
-    barangay_id: Optional[int] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_user)
 ):
-    """Get users with optional filter and search — default returns all visible users."""
-    q = db.query(models.User)
-
-    # Role-scoped base filter
-    if current_user.role == "admin":
+    """Get all users - filtered by role"""
+    if current_user.role == "superadmin":
+        return db.query(models.User).all()
+    elif current_user.role == "admin":
         if not current_user.barangay_id:
             return []
-        q = q.filter(models.User.barangay_id == current_user.barangay_id)
-    elif current_user.role not in ("superadmin",):
+        return db.query(models.User).filter(
+            models.User.barangay_id == current_user.barangay_id
+        ).all()
+    else:
         return [current_user]
-
-    # Optional barangay filter (superadmin only)
-    if barangay_id and current_user.role == "superadmin":
-        q = q.filter(models.User.barangay_id == barangay_id)
-
-    # Status filter
-    if status and status != "all":
-        if status == "active":
-            q = q.filter(models.User.is_active == True)
-        elif status == "inactive":
-            q = q.filter(models.User.is_active == False)
-        else:
-            # pending_verification | approved | rejected
-            q = q.filter(models.User.verification_status == status)
-
-    # Search filter
-    if search:
-        term = f"%{search}%"
-        q = q.filter(
-            or_(
-                models.User.first_name.ilike(term),
-                models.User.last_name.ilike(term),
-                models.User.email.ilike(term),
-                models.User.phone.ilike(term),
-            )
-        )
-
-    return q.order_by(models.User.created_at.desc()).offset(skip).limit(limit).all()
 
 
 @router.get("/{user_id}", response_model=schemas.UserRead)
