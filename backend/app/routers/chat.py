@@ -7,6 +7,7 @@ from ..db import get_db
 from ..chatbot import generate_chat_response, load_faq_data, chat_response as _local_chat_response
 
 import os
+import logging
 import requests
 from requests import RequestException
 
@@ -58,7 +59,6 @@ def get_faq_data():
             )
         return faq_data
     except Exception as e:
-        import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error loading FAQ data: {e}")
         raise HTTPException(
@@ -117,7 +117,6 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     The model is loaded once at startup from the local bla_model directory.
     No Hugging Face online calls are made.
     """
-    import logging
     logger = logging.getLogger(__name__)
 
     logger.info(
