@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
@@ -28,53 +28,13 @@ logging.getLogger('python_multipart').setLevel(logging.WARNING)
 # ----------------- App -----------------
 app = FastAPI(title="Barangay Legal Aid API", version="0.1.0")
 
-ALLOWED_ORIGINS = [
-    "https://barangaylegalaid.up.railway.app",
-    "http://localhost",
-    "http://localhost:3000",
-    "http://localhost:8080",
-    "http://localhost:5000",
-    "http://127.0.0.1",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8080",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["Content-Type", "Authorization", "Accept", "Origin",
-                   "X-Requested-With", "Access-Control-Request-Method",
-                   "Access-Control-Request-Headers"],
-    expose_headers=["Content-Type", "Authorization"],
-    max_age=86400,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
-# ----------------- Explicit OPTIONS preflight catch-all -----------------
-@app.options("/{rest_of_path:path}")
-async def preflight_handler(rest_of_path: str, request: Request):
-    """
-    Catch-all OPTIONS handler so preflight requests never hit
-    auth-protected route handlers.
-    """
-    origin = request.headers.get("origin", "")
-    if origin not in ALLOWED_ORIGINS:
-        return Response(status_code=403)
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": (
-                "Content-Type, Authorization, Accept, Origin, "
-                "X-Requested-With, Access-Control-Request-Method, "
-                "Access-Control-Request-Headers"
-            ),
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Max-Age": "86400",
-        },
-    )
 
 # ----------------- Migrations -----------------
 def _run_migrations():
