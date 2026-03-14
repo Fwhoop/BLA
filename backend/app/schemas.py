@@ -398,7 +398,7 @@ class AuditLogRead(BaseModel):
     action_type: str
     performed_by: Optional[int] = None
     target_user_id: Optional[int] = None
-    metadata: Optional[str] = None
+    log_metadata: Optional[str] = None
     created_at: datetime
 
     class Config:

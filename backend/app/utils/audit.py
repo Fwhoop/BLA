@@ -26,7 +26,7 @@ def log_action(
             action_type=action_type,
             performed_by=performed_by_id,
             target_user_id=target_user_id,
-            metadata=json.dumps(metadata) if metadata else None,
+            log_metadata=json.dumps(metadata) if metadata else None,
             created_at=datetime.now(timezone.utc),
         )
         db.add(entry)

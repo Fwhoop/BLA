@@ -181,5 +181,5 @@ class AuditLog(Base):
     action_type    = Column(String(50), nullable=False, index=True)   # e.g. "admin_approved"
     performed_by   = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     target_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    metadata       = Column(Text, nullable=True)   # JSON string
+    log_metadata   = Column(Text, nullable=True)   # JSON string — 'metadata' is reserved in SQLAlchemy Declarative
     created_at     = Column(DateTime(timezone=True), server_default=func.now())

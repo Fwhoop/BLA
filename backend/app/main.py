@@ -103,7 +103,7 @@ def _run_migrations():
                     action_type    VARCHAR(50) NOT NULL,
                     performed_by   INT NULL,
                     target_user_id INT NULL,
-                    metadata       TEXT NULL,
+                    log_metadata   TEXT NULL,
                     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_audit_action (action_type),
                     INDEX idx_audit_performer (performed_by),
