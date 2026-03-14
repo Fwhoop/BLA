@@ -6,6 +6,7 @@ sqlalchemy
 pydantic
 pydantic-settings
 pymysql
+bcrypt
 passlib[bcrypt]
 python-jose[cryptography]
 email-validator
