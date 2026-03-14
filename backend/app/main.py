@@ -98,13 +98,17 @@ def _run_migrations():
 @app.on_event("startup")
 async def startup():
     logger.info("=== BLA BACKEND STARTING ===")
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables OK")
-        _run_migrations()
-        logger.info("Migrations OK")
-    except Exception as e:
-        logger.warning(f"DB init skipped: {e}")
+    import asyncio
+    loop = asyncio.get_event_loop()
+    def _init_db():
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables OK")
+            _run_migrations()
+            logger.info("Migrations OK")
+        except Exception as e:
+            logger.warning(f"DB init skipped: {e}")
+    await loop.run_in_executor(None, _init_db)
     logger.info("=== BLA BACKEND READY ===")
 
 
