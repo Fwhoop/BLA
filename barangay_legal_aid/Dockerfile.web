@@ -20,20 +20,11 @@ RUN flutter build web --release \
 # ── Stage 2: Serve with nginx ─────────────────────────────────────────────────
 FROM nginx:alpine
 
-# gettext provides envsubst — required for the official nginx template mechanism
-RUN apk add --no-cache gettext
-
-# Remove the default site config so only our template config is used
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Copy Flutter build output
 COPY --from=builder /app/build/web /usr/share/nginx/html
 
-# nginx:alpine entrypoint runs /docker-entrypoint.d/20-envsubst-on-templates.sh
-# which processes *.template files in /etc/nginx/templates/ using envsubst,
-# writing the result to /etc/nginx/conf.d/.
-# Only environment variables that exist at runtime are substituted —
-# nginx variables like $uri are not env vars so they pass through unchanged.
-COPY nginx.conf /etc/nginx/templates/default.conf.template
+# Copy config with RAILWAY_PORT as a plain text placeholder
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-CMD ["nginx", "-g", "daemon off;"]
+# At startup: replace RAILWAY_PORT with the actual $PORT injected by Railway,
+# then start nginx. No envsubst, no template mechanism — just sed.
+CMD ["/bin/sh", "-c", "sed -i \"s/RAILWAY_PORT/$PORT/g\" /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
