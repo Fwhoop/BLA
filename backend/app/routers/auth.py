@@ -108,6 +108,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
+def _save_upload(upload: UploadFile, subfolder: str = "id_photos") -> Optional[str]:
+    """Save an UploadFile to disk and return its relative URL path. Returns None on failure."""
+    if not upload or not upload.filename:
+        return None
+    try:
+        upload_dir = os.path.join("uploads", subfolder)
+        os.makedirs(upload_dir, exist_ok=True)
+        ext = upload.filename.rsplit('.', 1)[-1].lower() if '.' in upload.filename else 'jpg'
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        contents = upload.file.read()
+        with open(os.path.join(upload_dir, filename), "wb") as f:
+            f.write(contents)
+        return f"/uploads/{subfolder}/{filename}"
+    except Exception:
+        return None
+
+
 @router.post("/register", response_model=schemas.UserRead)
 def register(
     first_name: str = Form(...),
@@ -115,17 +132,26 @@ def register(
     email: str = Form(...),
     password: str = Form(...),
     phone: Optional[str] = Form(None),
+    # Legacy single address
     address: Optional[str] = Form(None),
+    # Philippine address components
+    house_number: Optional[str] = Form(None),
+    street_name:  Optional[str] = Form(None),
+    purok:        Optional[str] = Form(None),
+    city:         Optional[str] = Form(None),
+    province:     Optional[str] = Form(None),
+    zip_code:     Optional[str] = Form(None),
     barangay: Optional[str] = Form(None),
-    id_photo: Optional[UploadFile] = File(None),
+    # Photo uploads
+    id_photo:        Optional[UploadFile] = File(None),
+    selfie_with_id:  Optional[UploadFile] = File(None),
+    profile_photo:   Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     """Public signup endpoint for residents."""
-    # Duplicate checks
     if db.query(models.User).filter(models.User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Auto-generate username from email, ensure uniqueness
     base_username = re.sub(r'[^a-z0-9]', '', email.split('@')[0].lower()) or "user"
     username = base_username
     counter = 1
@@ -133,30 +159,11 @@ def register(
         username = f"{base_username}{counter}"
         counter += 1
 
-    # Resolve barangay name → id
     barangay_id = None
     if barangay:
-        brgy = db.query(models.Barangay).filter(
-            models.Barangay.name == barangay
-        ).first()
+        brgy = db.query(models.Barangay).filter(models.Barangay.name == barangay).first()
         if brgy:
             barangay_id = brgy.id
-
-    # Handle ID photo upload
-    id_photo_url = None
-    if id_photo and id_photo.filename:
-        try:
-            upload_dir = os.path.join("uploads", "id_photos")
-            os.makedirs(upload_dir, exist_ok=True)
-            ext = id_photo.filename.rsplit('.', 1)[-1].lower() if '.' in id_photo.filename else 'jpg'
-            filename = f"{uuid.uuid4().hex}.{ext}"
-            file_path = os.path.join(upload_dir, filename)
-            contents = id_photo.file.read()
-            with open(file_path, "wb") as f:
-                f.write(contents)
-            id_photo_url = f"/uploads/id_photos/{filename}"
-        except Exception:
-            id_photo_url = None  # Don't block registration if photo save fails
 
     new_user = models.User(
         email=email,
@@ -166,10 +173,19 @@ def register(
         last_name=last_name,
         phone=phone or "",
         address=address or "",
+        house_number=house_number,
+        street_name=street_name,
+        purok=purok,
+        city=city,
+        province=province,
+        zip_code=zip_code,
         role="user",
         barangay_id=barangay_id,
-        is_active=False,  # pending admin approval
-        id_photo_url=id_photo_url,
+        is_active=False,
+        verification_status="pending",
+        id_photo_url=_save_upload(id_photo),
+        selfie_with_id_path=_save_upload(selfie_with_id),
+        profile_photo_path=_save_upload(profile_photo),
         created_at=datetime.utcnow(),
     )
 
@@ -181,7 +197,6 @@ def register(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
-    # Notify admins of the new user's barangay
     if barangay_id:
         try:
             admins = db.query(models.User).filter(
@@ -200,6 +215,6 @@ def register(
             if admins:
                 db.commit()
         except Exception:
-            pass  # Notification failure must not block registration
+            pass
 
     return new_user

@@ -9,12 +9,15 @@ router = APIRouter(prefix="/cases", tags=["cases"])
 
 
 def _enrich(case: models.Case) -> dict:
-    """Add reporter_name and reporter_email to a case dict."""
+    """Add reporter_name, reporter_email, category, urgency, is_cross_barangay to a case dict."""
     d = {
         "id": case.id,
         "title": case.title,
         "description": case.description,
+        "category": getattr(case, "category", None),
+        "urgency": getattr(case, "urgency", "medium"),
         "status": case.status if case.status else "pending",
+        "is_cross_barangay": bool(getattr(case, "is_cross_barangay", False)),
         "reporter_id": case.reporter_id,
         "created_at": case.created_at,
         "updated_at": case.updated_at,
@@ -36,8 +39,10 @@ def create_case(
     new_case = models.Case(
         title=case.title,
         description=case.description,
+        category=case.category,
+        urgency=case.urgency or "medium",
         status="pending",
-        reporter_id=current_user.id
+        reporter_id=current_user.id,
     )
     db.add(new_case)
     db.commit()
@@ -142,7 +147,20 @@ def update_case(
                                 detail="Not authorized to update cases from other barangays")
 
     old_status = case.status
-    for key, value in updated_case.model_dump(exclude_unset=True).items():
+    updates = updated_case.model_dump(exclude_unset=True)
+
+    # Enforce: cannot mark Resolved without at least one mediation record
+    if updates.get("status") == "resolved":
+        mediation_count = db.query(models.Mediation).filter(
+            models.Mediation.complaint_id == case_id
+        ).count()
+        if mediation_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot mark complaint as resolved without a mediation record. Please add a mediation session first.",
+            )
+
+    for key, value in updates.items():
         if value is not None:
             setattr(case, key, value)
 

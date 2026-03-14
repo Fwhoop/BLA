@@ -43,64 +43,70 @@ class ApiService {
     }
   }
 
-  /// Register (signup). ID photo sent as multipart; backend stores URL/hash only.
+  /// Register (signup). Photos sent as multipart; backend stores paths only.
   Future<void> register({
     required String firstName,
     required String lastName,
     required String email,
     required String password,
     required String phone,
-    required String address,
+    String address = '',
+    String? houseNumber,
+    String? streetName,
+    String? purok,
+    String? city,
+    String? province,
+    String? zipCode,
     required String barangay,
-    required String idPhotoPath,
+    String idPhotoPath = '',
     dynamic idPhotoBytes,
+    String selfieWithIdPath = '',
+    dynamic selfieWithIdBytes,
+    String profilePhotoPath = '',
+    dynamic profilePhotoBytes,
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register');
     final request = http.MultipartRequest('POST', uri);
     request.fields['first_name'] = firstName;
-    request.fields['last_name'] = lastName;
-    request.fields['email'] = email;
-    request.fields['password'] = password;
-    request.fields['phone'] = phone;
-    request.fields['address'] = address;
-    request.fields['barangay'] = barangay;
+    request.fields['last_name']  = lastName;
+    request.fields['email']      = email;
+    request.fields['password']   = password;
+    request.fields['phone']      = phone;
+    request.fields['barangay']   = barangay;
+    if (address.isNotEmpty)     request.fields['address']      = address;
+    if (houseNumber?.isNotEmpty == true) request.fields['house_number'] = houseNumber!;
+    if (streetName?.isNotEmpty  == true) request.fields['street_name']  = streetName!;
+    if (purok?.isNotEmpty       == true) request.fields['purok']         = purok!;
+    if (city?.isNotEmpty        == true) request.fields['city']          = city!;
+    if (province?.isNotEmpty    == true) request.fields['province']      = province!;
+    if (zipCode?.isNotEmpty     == true) request.fields['zip_code']      = zipCode!;
 
-    List<int>? photoBytes;
-    if (idPhotoBytes is Uint8List) {
-      photoBytes = idPhotoBytes;
-    } else if (idPhotoBytes is List<int>) {
-      photoBytes = idPhotoBytes;
-    }
-    if (photoBytes != null && photoBytes.isNotEmpty) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'id_photo',
-          photoBytes,
-          filename: 'id_photo.jpg',
-        ),
-      );
-    } else if (idPhotoPath.isNotEmpty && !idPhotoPath.startsWith('web_')) {
-      final file = File(idPhotoPath);
-      if (await file.exists()) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'id_photo',
-            idPhotoPath,
-            filename: idPhotoPath.split(RegExp(r'[/\\]')).last,
-          ),
-        );
+    Future<void> attach(String field, dynamic bytes, String path, String fname) async {
+      List<int>? b;
+      if (bytes is Uint8List) { b = bytes; }
+      else if (bytes is List<int>) { b = bytes; }
+      if (b != null && b.isNotEmpty) {
+        request.files.add(http.MultipartFile.fromBytes(field, b, filename: fname));
+      } else if (path.isNotEmpty && !path.startsWith('web_')) {
+        final f = File(path);
+        if (await f.exists()) {
+          request.files.add(await http.MultipartFile.fromPath(
+            field, path, filename: path.split(RegExp(r'[/\\]')).last));
+        }
       }
     }
 
-    final streamed = await request.send().timeout(_timeout);
-    final response = await http.Response.fromStream(streamed);
+    await attach('id_photo',       idPhotoBytes,      idPhotoPath,      'id_photo.jpg');
+    await attach('selfie_with_id', selfieWithIdBytes, selfieWithIdPath, 'selfie_with_id.jpg');
+    await attach('profile_photo',  profilePhotoBytes, profilePhotoPath, 'profile_photo.jpg');
+
+    final streamed  = await request.send().timeout(_timeout);
+    final response  = await http.Response.fromStream(streamed);
     if (response.statusCode != 200 && response.statusCode != 201) {
       final body = response.body;
       try {
         final d = json.decode(body) as Map<String, dynamic>;
-        throw Exception(
-          d['detail'] ?? 'Registration failed: ${response.statusCode}',
-        );
+        throw Exception(d['detail'] ?? 'Registration failed: ${response.statusCode}');
       } catch (e) {
         if (e is Exception) rethrow;
         throw Exception('Registration failed: ${response.statusCode} - $body');
@@ -210,18 +216,40 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getUsers() async {
+  Future<List<Map<String, dynamic>>> getUsers({
+    String? search,
+    String? status,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final headers = await _getHeaders();
+    final params = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+    };
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    if (status != null && status != 'all') params['status'] = status;
+    final uri = Uri.parse('$_baseUrl/users/').replace(queryParameters: params);
+    final r = await http.get(uri, headers: headers).timeout(_timeout);
+    if (r.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    }
+    if (r.statusCode == 401) {
+      throw Exception('Authentication required. Please login again.');
+    }
+    if (r.statusCode == 403) {
+      throw Exception('You do not have permission to access users.');
+    }
+    throw Exception('Failed to load users: ${r.statusCode} - ${r.body}');
+  }
+
+  Future<Map<String, dynamic>> getUserSummary() async {
     final headers = await _getHeaders();
     final r = await http
-        .get(Uri.parse('$_baseUrl/users/'), headers: headers)
+        .get(Uri.parse('$_baseUrl/users/summary'), headers: headers)
         .timeout(_timeout);
-    if (r.statusCode == 200)
-      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
-    if (r.statusCode == 401)
-      throw Exception('Authentication required. Please login again.');
-    if (r.statusCode == 403)
-      throw Exception('You do not have permission to access users.');
-    throw Exception('Failed to load users: ${r.statusCode} - ${r.body}');
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to load user summary: ${r.body}');
   }
 
   Future<List<Map<String, dynamic>>> getAdmins() async {
@@ -446,17 +474,51 @@ class ApiService {
   Future<Map<String, dynamic>> createCase({
     required String title,
     required String description,
+    String? category,
+    String? urgency,
   }) async {
     final headers = await _getHeaders();
+    final body = <String, dynamic>{
+      'title': title,
+      'description': description,
+      if (category != null) 'category': category,
+      if (urgency != null) 'urgency': urgency,
+    };
     final r = await http
         .post(
           Uri.parse('$_baseUrl/cases/'),
           headers: headers,
-          body: jsonEncode({'title': title, 'description': description}),
+          body: jsonEncode(body),
         )
         .timeout(_timeout);
     if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
     throw Exception('Failed to create case: ${r.body}');
+  }
+
+  Future<void> addRespondent(int caseId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/cases/$caseId/respondents'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 201) {
+      throw Exception('Failed to add respondent: ${r.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$_baseUrl/users/').replace(
+      queryParameters: {'search': query, 'limit': '20'},
+    );
+    final r = await http.get(uri, headers: headers).timeout(_timeout);
+    if (r.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    }
+    return [];
   }
 
   Future<Map<String, dynamic>> updateCase(

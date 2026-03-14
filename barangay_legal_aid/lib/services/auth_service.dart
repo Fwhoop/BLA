@@ -36,10 +36,22 @@ class AuthService {
     required String email,
     required String password,
     required String phone,
-    required String address,
+    String address = '',
     required String barangay,
-    required String idPhotoPath,
+    // Philippine address
+    String? houseNumber,
+    String? streetName,
+    String? purok,
+    String? city,
+    String? province,
+    String? zipCode,
+    // Photos
+    String idPhotoPath = '',
     dynamic idPhotoBytes,
+    String selfieWithIdPath = '',
+    dynamic selfieWithIdBytes,
+    String profilePhotoPath = '',
+    dynamic profilePhotoBytes,
   }) async {
     await _api.register(
       firstName: firstName,
@@ -49,8 +61,18 @@ class AuthService {
       phone: phone,
       address: address,
       barangay: barangay,
+      houseNumber: houseNumber,
+      streetName: streetName,
+      purok: purok,
+      city: city,
+      province: province,
+      zipCode: zipCode,
       idPhotoPath: idPhotoPath,
       idPhotoBytes: idPhotoBytes,
+      selfieWithIdPath: selfieWithIdPath,
+      selfieWithIdBytes: selfieWithIdBytes,
+      profilePhotoPath: profilePhotoPath,
+      profilePhotoBytes: profilePhotoBytes,
     );
     return true;
   }
