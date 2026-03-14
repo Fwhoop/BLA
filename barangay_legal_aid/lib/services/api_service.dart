@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ add this
 import 'package:http/http.dart' as http;
@@ -81,24 +80,18 @@ class ApiService {
     if (province?.isNotEmpty    == true) request.fields['province']      = province!;
     if (zipCode?.isNotEmpty     == true) request.fields['zip_code']      = zipCode!;
 
-    Future<void> attach(String field, dynamic bytes, String path, String fname) async {
+    void attach(String field, dynamic bytes, String fname) {
       List<int>? b;
       if (bytes is Uint8List) { b = bytes; }
       else if (bytes is List<int>) { b = bytes; }
       if (b != null && b.isNotEmpty) {
         request.files.add(http.MultipartFile.fromBytes(field, b, filename: fname));
-      } else if (path.isNotEmpty && !path.startsWith('web_')) {
-        final f = File(path);
-        if (await f.exists()) {
-          request.files.add(await http.MultipartFile.fromPath(
-            field, path, filename: path.split(RegExp(r'[/\\]')).last));
-        }
       }
     }
 
-    await attach('id_photo',       idPhotoBytes,      idPhotoPath,      'id_photo.jpg');
-    await attach('selfie_with_id', selfieWithIdBytes, selfieWithIdPath, 'selfie_with_id.jpg');
-    await attach('profile_photo',  profilePhotoBytes, profilePhotoPath, 'profile_photo.jpg');
+    attach('id_photo',       idPhotoBytes,      'id_photo.jpg');
+    attach('selfie_with_id', selfieWithIdBytes, 'selfie_with_id.jpg');
+    attach('profile_photo',  profilePhotoBytes, 'profile_photo.jpg');
 
     final streamed  = await request.send().timeout(_timeout);
     final response  = await http.Response.fromStream(streamed);

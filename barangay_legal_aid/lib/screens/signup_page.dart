@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/services/auth_service.dart';
@@ -40,12 +39,9 @@ class SignupPageState extends State<SignupPage> {
   bool _obscurePassword      = true;
   bool _obscureConfirmPass   = true;
 
-  // Photos
-  File?      _profilePhotoFile;
+  // Photos (bytes only — works on web and mobile)
   Uint8List? _profilePhotoBytes;
-  File?      _idPhotoFile;
   Uint8List? _idPhotoBytes;
-  File?      _selfieWithIdFile;
   Uint8List? _selfieWithIdBytes;
 
   List<Map<String, dynamic>> _barangayItems = [];
@@ -90,7 +86,7 @@ class SignupPageState extends State<SignupPage> {
 
   Future<void> _pickPhoto({
     required String label,
-    required void Function(File? file, Uint8List? bytes) onPicked,
+    required void Function(Uint8List bytes) onPicked,
   }) async {
     try {
       ImageSource? source;
@@ -126,12 +122,8 @@ class SignupPageState extends State<SignupPage> {
       );
       if (picked == null) return;
 
-      if (kIsWeb) {
-        final bytes = await picked.readAsBytes();
-        onPicked(null, bytes);
-      } else {
-        onPicked(File(picked.path), null);
-      }
+      final bytes = await picked.readAsBytes();
+      onPicked(bytes);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('$label selected'),
@@ -162,11 +154,11 @@ class SignupPageState extends State<SignupPage> {
       _showError('Please select your barangay');
       return;
     }
-    if (_idPhotoFile == null && _idPhotoBytes == null) {
+    if (_idPhotoBytes == null) {
       _showError('Please upload a photo of your valid government ID');
       return;
     }
-    if (_selfieWithIdFile == null && _selfieWithIdBytes == null) {
+    if (_selfieWithIdBytes == null) {
       _showError('Please upload a selfie holding your ID');
       return;
     }
@@ -187,14 +179,11 @@ class SignupPageState extends State<SignupPage> {
         city:        _cityCtrl.text.trim().isEmpty         ? null : _cityCtrl.text.trim(),
         province:    _provinceCtrl.text.trim().isEmpty     ? null : _provinceCtrl.text.trim(),
         zipCode:     _zipCodeCtrl.text.trim().isEmpty      ? null : _zipCodeCtrl.text.trim(),
-        // ID photo
-        idPhotoPath:  kIsWeb ? 'web_id.jpg'      : (_idPhotoFile?.path ?? ''),
+        idPhotoPath:  _idPhotoBytes != null ? 'id_photo.jpg' : '',
         idPhotoBytes: _idPhotoBytes,
-        // Selfie with ID
-        selfieWithIdPath:  kIsWeb ? 'web_selfie.jpg'  : (_selfieWithIdFile?.path ?? ''),
+        selfieWithIdPath:  _selfieWithIdBytes != null ? 'selfie_with_id.jpg' : '',
         selfieWithIdBytes: _selfieWithIdBytes,
-        // Profile photo (optional)
-        profilePhotoPath:  kIsWeb ? 'web_profile.jpg' : (_profilePhotoFile?.path ?? ''),
+        profilePhotoPath:  _profilePhotoBytes != null ? 'profile_photo.jpg' : '',
         profilePhotoBytes: _profilePhotoBytes,
       );
 
@@ -284,13 +273,12 @@ class SignupPageState extends State<SignupPage> {
                       sublabel: 'Optional — shown on your account',
                       icon: Icons.account_circle_outlined,
                       required: false,
-                      file: _profilePhotoFile,
                       bytes: _profilePhotoBytes,
                       onTap: () => _pickPhoto(
                         label: 'Profile Photo',
-                        onPicked: (f, b) => setState(() { _profilePhotoFile = f; _profilePhotoBytes = b; }),
+                        onPicked: (b) => setState(() => _profilePhotoBytes = b),
                       ),
-                      onClear: () => setState(() { _profilePhotoFile = null; _profilePhotoBytes = null; }),
+                      onClear: () => setState(() => _profilePhotoBytes = null),
                     ),
                     const SizedBox(height: 12),
                     _buildPhotoCard(
@@ -298,13 +286,12 @@ class SignupPageState extends State<SignupPage> {
                       sublabel: 'Required — front of any valid government-issued ID',
                       icon: Icons.badge_outlined,
                       required: true,
-                      file: _idPhotoFile,
                       bytes: _idPhotoBytes,
                       onTap: () => _pickPhoto(
                         label: 'Government ID',
-                        onPicked: (f, b) => setState(() { _idPhotoFile = f; _idPhotoBytes = b; }),
+                        onPicked: (b) => setState(() => _idPhotoBytes = b),
                       ),
-                      onClear: () => setState(() { _idPhotoFile = null; _idPhotoBytes = null; }),
+                      onClear: () => setState(() => _idPhotoBytes = null),
                     ),
                     const SizedBox(height: 12),
                     _buildPhotoCard(
@@ -312,13 +299,12 @@ class SignupPageState extends State<SignupPage> {
                       sublabel: 'Required — a clear selfie with your ID visible',
                       icon: Icons.camera_front_outlined,
                       required: true,
-                      file: _selfieWithIdFile,
                       bytes: _selfieWithIdBytes,
                       onTap: () => _pickPhoto(
                         label: 'Selfie with ID',
-                        onPicked: (f, b) => setState(() { _selfieWithIdFile = f; _selfieWithIdBytes = b; }),
+                        onPicked: (b) => setState(() => _selfieWithIdBytes = b),
                       ),
-                      onClear: () => setState(() { _selfieWithIdFile = null; _selfieWithIdBytes = null; }),
+                      onClear: () => setState(() => _selfieWithIdBytes = null),
                     ),
 
                     const SizedBox(height: 32),
@@ -569,12 +555,11 @@ class SignupPageState extends State<SignupPage> {
     required String sublabel,
     required IconData icon,
     required bool required,
-    required File? file,
     required Uint8List? bytes,
     required VoidCallback onTap,
     required VoidCallback onClear,
   }) {
-    final hasPhoto = file != null || bytes != null;
+    final hasPhoto = bytes != null;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -622,11 +607,7 @@ class SignupPageState extends State<SignupPage> {
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: kIsWeb && bytes != null
-                  ? Image.memory(bytes, height: 140, width: double.infinity, fit: BoxFit.cover)
-                  : file != null
-                      ? Image.file(file, height: 140, width: double.infinity, fit: BoxFit.cover)
-                      : const SizedBox.shrink(),
+              child: Image.memory(bytes, height: 140, width: double.infinity, fit: BoxFit.cover),
             ),
           ],
           const SizedBox(height: 10),
