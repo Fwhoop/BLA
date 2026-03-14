@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,6 +35,9 @@ class SignupPageState extends State<SignupPage> {
   bool _obscureConfirmPassword = true;
   File? _idPhotoFile;
   Uint8List? _idPhotoBytes; // For web platform
+
+  String _role = 'user';               // 'user' or 'admin'
+  String _verificationMethod = 'email'; // 'email' or 'phone'
 
   List<Map<String, dynamic>> _barangayItems = [];
   bool _barangaysLoading = true;
@@ -189,82 +194,128 @@ class SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _submitForm() async {
-    if (_formKey.currentState!.validate()) {
-      if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Passwords do not match'),
-            backgroundColor: Color(0xFF99272D),
-          ),
-        );
-        return;
-      }
+    if (!_formKey.currentState!.validate()) return;
 
-      if (_selectedBarangay == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Please select your barangay'),
-            backgroundColor: Color(0xFF99272D),
-          ),
-        );
-        return;
-      }
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showError('Passwords do not match');
+      return;
+    }
+    if (_selectedBarangay == null) {
+      _showError('Please select your barangay');
+      return;
+    }
+    if (_idPhotoFile == null && _idPhotoBytes == null) {
+      _showError('Please upload a valid ID photo');
+      return;
+    }
 
-      if (_idPhotoFile == null && _idPhotoBytes == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Please upload a valid ID photo'),
-            backgroundColor: Color(0xFF99272D),
-          ),
-        );
-        return;
-      }
+    setState(() => _isLoading = true);
 
-      setState(() => _isLoading = true);
+    try {
+      final idPhotoPath = kIsWeb
+          ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+          : (_idPhotoFile?.path ?? '');
 
-      try {
-        final idPhotoPath = kIsWeb
-            ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
-            : (_idPhotoFile?.path ?? '');
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = Provider.of<ApiService>(context, listen: false);
 
-        final auth = Provider.of<AuthService>(context, listen: false);
-        await auth.signUp(
-          firstName: _firstNameController.text,
-          lastName: _lastNameController.text,
-          email: _emailController.text,
-          password: _passwordController.text,
-          phone: _phoneController.text,
-          address: _addressController.text,
-          barangay: _selectedBarangay!,
-          idPhotoPath: idPhotoPath,
-          idPhotoBytes: _idPhotoBytes,
-        );
+      await auth.signUp(
+        firstName: _firstNameController.text,
+        lastName: _lastNameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+        phone: _phoneController.text,
+        address: _addressController.text,
+        barangay: _selectedBarangay!,
+        idPhotoPath: idPhotoPath,
+        idPhotoBytes: _idPhotoBytes,
+        role: _role,
+      );
 
+      if (!mounted) return;
+
+      if (_verificationMethod == 'email') {
+        // Send OTP then navigate to OTP screen
+        final res = await api.sendEmailOtp(_emailController.text.trim());
+        final userId = res['user_id'] as int?;
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Application submitted! An admin will review your ID for approval.'),
-            backgroundColor: Color(0xFF36454F),
-            duration: Duration(seconds: 3),
-          ),
-        );
-        await Future.delayed(Duration(seconds: 2));
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/login');
-      } catch (e) {
-        if (mounted) {
-          final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Signup failed. Please try again.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(msg),
-              backgroundColor: Color(0xFF99272D),
+        if (userId != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OtpVerificationScreen(
+                userId: userId,
+                email: _emailController.text.trim(),
+              ),
             ),
           );
+          return;
         }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+      } else {
+        // Firebase phone OTP
+        final phone = _phoneController.text.trim();
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: phone,
+          verificationCompleted: (PhoneAuthCredential cred) async {
+            final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
+            final idToken = await userCred.user!.getIdToken();
+            // Get userId from backend
+            final res = await api.sendEmailOtp(_emailController.text.trim()).catchError((_) => <String, dynamic>{});
+            final uid = res['user_id'] as int?;
+            if (uid != null && idToken != null) {
+              await api.verifyFirebasePhone(uid, idToken);
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Phone verified! Awaiting admin approval.'), backgroundColor: Color(0xFF36454F)),
+              );
+              Navigator.pushReplacementNamed(context, '/login');
+            }
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            if (mounted) _showError(e.message ?? 'Phone verification failed');
+          },
+          codeSent: (String verificationId, int? _) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('SMS code sent! Check your messages.\nApplication submitted — await admin approval.'),
+                  backgroundColor: Color(0xFF36454F),
+                  duration: Duration(seconds: 5),
+                ),
+              );
+              Navigator.pushReplacementNamed(context, '/login');
+            }
+          },
+          codeAutoRetrievalTimeout: (_) {},
+        );
+        return;
       }
+
+      // Fallback — no OTP flow needed
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Application submitted! An admin will review your ID for approval.'),
+          backgroundColor: Color(0xFF36454F),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      if (mounted) {
+        _showError(e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Signup failed. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: const Color(0xFF99272D)),
+    );
   }
 
   @override
@@ -308,6 +359,10 @@ class SignupPageState extends State<SignupPage> {
                     _buildIdPhotoUploader(),
                     SizedBox(height: 16),
                     _buildBarangayDropdown(),
+                    SizedBox(height: 16),
+                    _buildRoleSelector(),
+                    SizedBox(height: 16),
+                    _buildVerificationMethodSelector(),
                     SizedBox(height: 24),
                     _buildSignupButton(),
                     SizedBox(height: 16),
@@ -660,6 +715,74 @@ class SignupPageState extends State<SignupPage> {
         }
         return null;
       },
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Register as',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF36454F)),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Resident'),
+                value: 'user',
+                groupValue: _role,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _role = v!),
+              ),
+            ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Barangay Admin'),
+                value: 'admin',
+                groupValue: _role,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _role = v!),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVerificationMethodSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Verify identity with',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF36454F)),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Email OTP'),
+                value: 'email',
+                groupValue: _verificationMethod,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _verificationMethod = v!),
+              ),
+            ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Phone SMS'),
+                value: 'phone',
+                groupValue: _verificationMethod,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _verificationMethod = v!),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

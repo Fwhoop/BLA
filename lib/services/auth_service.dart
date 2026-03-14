@@ -40,6 +40,7 @@ class AuthService {
     required String barangay,
     required String idPhotoPath,
     dynamic idPhotoBytes,
+    String role = 'user',
   }) async {
     await _api.register(
       firstName: firstName,
@@ -51,6 +52,7 @@ class AuthService {
       barangay: barangay,
       idPhotoPath: idPhotoPath,
       idPhotoBytes: idPhotoBytes,
+      role: role,
     );
     return true;
   }

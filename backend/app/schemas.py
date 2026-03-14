@@ -66,6 +66,9 @@ class UserRead(UserBase):
     mobile_verified: Optional[bool] = False
     approved_by: Optional[int] = None
     approved_at: Optional[datetime] = None
+    rejected_by: Optional[int] = None
+    rejected_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
     created_at: datetime
 
     @field_validator('is_active', mode='before')
@@ -326,3 +329,77 @@ class AnalyticsSummary(BaseModel):
     complaints_by_type: List[ComplaintTypeStat]
     top_respondents: List[RespondentStat]
     complaints_by_barangay: List[BarangayStat]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OTP + VERIFICATION SCHEMAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SendEmailOTPRequest(BaseModel):
+    email: str
+
+
+class VerifyEmailOTPRequest(BaseModel):
+    user_id: int
+    otp: str
+
+
+class VerifyFirebasePhoneRequest(BaseModel):
+    user_id: int
+    firebase_id_token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    identifier: str          # email or phone
+    method: str              # "email" or "phone"
+
+
+class ResetPasswordRequest(BaseModel):
+    user_id: int
+    otp: str
+    new_password: str
+
+
+class ResetPasswordFirebaseRequest(BaseModel):
+    user_id: int
+    firebase_id_token: str
+    new_password: str
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN APPROVAL SCHEMAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AdminApprovalAction(BaseModel):
+    reason: Optional[str] = None
+
+
+class PendingAdminRead(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+    phone: Optional[str] = None
+    barangay_id: Optional[int] = None
+    barangay_name: Optional[str] = None
+    verification_status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AUDIT LOG SCHEMAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AuditLogRead(BaseModel):
+    id: int
+    action_type: str
+    performed_by: Optional[int] = None
+    target_user_id: Optional[int] = None
+    metadata: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

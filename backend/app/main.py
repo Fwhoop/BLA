@@ -79,6 +79,12 @@ def _run_migrations():
                     ("city",                "ALTER TABLE users ADD COLUMN city VARCHAR(100) NULL"),
                     ("province",            "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
                     ("zip_code",            "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
+                    ("rejected_by",         "ALTER TABLE users ADD COLUMN rejected_by INT NULL"),
+                    ("rejected_at",         "ALTER TABLE users ADD COLUMN rejected_at DATETIME NULL"),
+                    ("rejection_reason",    "ALTER TABLE users ADD COLUMN rejection_reason VARCHAR(500) NULL"),
+                    ("otp_code",            "ALTER TABLE users ADD COLUMN otp_code VARCHAR(255) NULL"),
+                    ("otp_expiry",          "ALTER TABLE users ADD COLUMN otp_expiry DATETIME NULL"),
+                    ("otp_attempts",        "ALTER TABLE users ADD COLUMN otp_attempts INT DEFAULT 0"),
                 ]:
                     if col not in existing:
                         conn.execute(text(ddl))
@@ -89,6 +95,22 @@ def _run_migrations():
                     "UPDATE users SET verification_status='approved' "
                     "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
                 ))
+
+            # ── audit_logs table ─────────────────────────────────────────────
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id             INT AUTO_INCREMENT PRIMARY KEY,
+                    action_type    VARCHAR(50) NOT NULL,
+                    performed_by   INT NULL,
+                    target_user_id INT NULL,
+                    metadata       TEXT NULL,
+                    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_audit_action (action_type),
+                    INDEX idx_audit_performer (performed_by),
+                    INDEX idx_audit_target (target_user_id)
+                )
+            """))
+            logger.info("Migration: audit_logs table ensured")
 
     except Exception as e:
         logger.warning(f"Migration step skipped: {e}")
@@ -164,39 +186,3 @@ try:
 except Exception as e:
     logger.warning(f"Static files not mounted: {e}")
 
-
-# ── ONE-TIME RESET — DELETE AFTER USE ────────────────────────────────────────
-from fastapi import HTTPException as _HTTPException
-@app.get("/reset-bla-xk9q2")
-def reset_all_users():
-    import bcrypt
-    from datetime import datetime, timezone
-    from app.db import SessionLocal
-    from app.models import User, Notification, Chat, Case, Request
-    db = SessionLocal()
-    try:
-        db.query(Notification).delete()
-        db.query(Chat).delete()
-        db.query(Case).delete()
-        db.query(Request).delete()
-        db.query(User).delete()
-        pw = bcrypt.hashpw(b"SuperAdmin@2024", bcrypt.gensalt()).decode("utf-8")
-        db.add(User(
-            email="superadmin@bla.com",
-            username="superadmin",
-            hashed_password=pw,
-            first_name="Super",
-            last_name="Admin",
-            role="superadmin",
-            barangay_id=None,
-            is_active=True,
-            verification_status="approved",
-            created_at=datetime.now(timezone.utc),
-        ))
-        db.commit()
-        return {"status": "done", "email": "superadmin@bla.com", "password": "SuperAdmin@2024"}
-    except Exception as e:
-        db.rollback()
-        raise _HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()

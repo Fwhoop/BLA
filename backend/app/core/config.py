@@ -13,6 +13,9 @@ class Settings(BaseSettings):
 
     hf_token: str | None = None
 
+    # Firebase Admin SDK (JSON string of service account credentials)
+    firebase_credentials_json: str | None = None
+
     # SMTP / email settings (optional — used for forgot-password OTP emails)
     smtp_host: str | None = None
     smtp_port: int = 587

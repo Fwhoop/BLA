@@ -48,6 +48,10 @@ dependencies:
   # Keep for now so app_database compiles; migrate to remove sensitive tables (see docs/ARCHITECTURE_SECURITY.md)
   sqflite: ^2.3.3+1
 
+  # Firebase — phone OTP verification and auth
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.2
+
   # The following adds the Cupertino Icons font to your application.
   cupertino_icons: ^1.0.8
 
