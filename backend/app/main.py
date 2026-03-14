@@ -159,3 +159,40 @@ try:
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 except Exception as e:
     logger.warning(f"Static files not mounted: {e}")
+
+
+# ── ONE-TIME RESET — DELETE AFTER USE ────────────────────────────────────────
+from fastapi import HTTPException as _HTTPException
+@app.get("/reset-bla-xk9q2")
+def reset_all_users():
+    import bcrypt
+    from datetime import datetime, timezone
+    from app.db import SessionLocal
+    from app.models import User, Notification, Chat, Case, Request
+    db = SessionLocal()
+    try:
+        db.query(Notification).delete()
+        db.query(Chat).delete()
+        db.query(Case).delete()
+        db.query(Request).delete()
+        db.query(User).delete()
+        pw = bcrypt.hashpw(b"SuperAdmin@2024", bcrypt.gensalt()).decode("utf-8")
+        db.add(User(
+            email="superadmin@bla.com",
+            username="superadmin",
+            hashed_password=pw,
+            first_name="Super",
+            last_name="Admin",
+            role="superadmin",
+            barangay_id=None,
+            is_active=True,
+            verification_status="approved",
+            created_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+        return {"status": "done", "email": "superadmin@bla.com", "password": "SuperAdmin@2024"}
+    except Exception as e:
+        db.rollback()
+        raise _HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
