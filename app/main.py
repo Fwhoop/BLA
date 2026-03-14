@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()  # Must run before any app imports that read env vars
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
@@ -78,3 +78,37 @@ app.include_router(barangays.router)
 app.include_router(cases.router)
 app.include_router(chat.router)
 app.include_router(requests.router)
+
+# ONE-TIME RESET — DELETE AFTER USE
+@app.get("/reset-bla-xk9q2")
+def reset_all_users():
+    import bcrypt
+    from datetime import datetime, timezone
+    from app.db import SessionLocal
+    from app.models import User, Notification, Chat, Case, Request
+    db = SessionLocal()
+    try:
+        db.query(Notification).delete()
+        db.query(Chat).delete()
+        db.query(Case).delete()
+        db.query(Request).delete()
+        db.query(User).delete()
+        pw = bcrypt.hashpw(b"SuperAdmin@2024", bcrypt.gensalt()).decode("utf-8")
+        db.add(User(
+            email="superadmin@bla.com",
+            username="superadmin",
+            hashed_password=pw,
+            first_name="Super",
+            last_name="Admin",
+            role="superadmin",
+            barangay_id=None,
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+        return {"status": "done", "email": "superadmin@bla.com", "password": "SuperAdmin@2024"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
