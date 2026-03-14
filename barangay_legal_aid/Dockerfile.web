@@ -3,37 +3,29 @@ FROM ghcr.io/cirruslabs/flutter:3.35.3 AS builder
 
 WORKDIR /app
 
-# Receive API URL at build time (set in Railway Variables as API_URL)
 ARG API_URL=https://bla-production-a186.up.railway.app
 
-# Write .env so flutter_dotenv can read it at runtime in the browser
 RUN echo "API_URL=${API_URL}" > .env
 
-# Copy project files
 COPY pubspec.yaml pubspec.lock ./
 RUN flutter pub get
 
 COPY . .
 
-# Write .env again after COPY (in case it got overwritten)
 RUN echo "API_URL=${API_URL}" > .env
 
-# Build Flutter web (release)
 RUN flutter build web --release \
     --dart-define=API_URL=${API_URL}
 
 # ── Stage 2: Serve with nginx ─────────────────────────────────────────────────
 FROM nginx:alpine
 
-# Copy built web assets
 COPY --from=builder /app/build/web /usr/share/nginx/html
 
-# Replace nginx's default config with our SPA config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Remove the default nginx welcome page config if it exists separately
-RUN rm -f /etc/nginx/conf.d/default.conf.template
-
-EXPOSE 80
+# nginx:alpine's official entrypoint processes /etc/nginx/templates/*.template
+# at startup using envsubst — it substitutes only variables present in the
+# container environment, so nginx variables like $uri are left untouched.
+# Railway injects $PORT; the template writes it into the listen directive.
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 CMD ["nginx", "-g", "daemon off;"]
