@@ -52,6 +52,7 @@ class AuthService {
     dynamic selfieWithIdBytes,
     String profilePhotoPath = '',
     dynamic profilePhotoBytes,
+    String role = 'user',
   }) async {
     await _api.register(
       firstName: firstName,
@@ -73,6 +74,7 @@ class AuthService {
       selfieWithIdBytes: selfieWithIdBytes,
       profilePhotoPath: profilePhotoPath,
       profilePhotoBytes: profilePhotoBytes,
+      role: role,
     );
     return true;
   }

@@ -63,6 +63,7 @@ class ApiService {
     dynamic selfieWithIdBytes,
     String profilePhotoPath = '',
     dynamic profilePhotoBytes,
+    String role = 'user',
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register');
     final request = http.MultipartRequest('POST', uri);
@@ -72,6 +73,7 @@ class ApiService {
     request.fields['password']   = password;
     request.fields['phone']      = phone;
     request.fields['barangay']   = barangay;
+    request.fields['role']       = role;
     if (address.isNotEmpty)     request.fields['address']      = address;
     if (houseNumber?.isNotEmpty == true) request.fields['house_number'] = houseNumber!;
     if (streetName?.isNotEmpty  == true) request.fields['street_name']  = streetName!;

@@ -35,6 +35,7 @@ class SignupPageState extends State<SignupPage> {
   final _zipCodeCtrl      = TextEditingController();
 
   String? _selectedBarangay;
+  String _role               = 'user'; // 'user' or 'admin'
   bool _isLoading            = false;
   bool _obscurePassword      = true;
   bool _obscureConfirmPass   = true;
@@ -185,6 +186,7 @@ class SignupPageState extends State<SignupPage> {
         selfieWithIdBytes: _selfieWithIdBytes,
         profilePhotoPath:  _profilePhotoBytes != null ? 'profile_photo.jpg' : '',
         profilePhotoBytes: _profilePhotoBytes,
+        role: _role,
       );
 
       if (!mounted) return;
@@ -259,6 +261,11 @@ class SignupPageState extends State<SignupPage> {
                     _sectionLabel('Barangay', Icons.location_on_outlined),
                     const SizedBox(height: 12),
                     _buildBarangayDropdown(),
+
+                    const SizedBox(height: 28),
+                    _sectionLabel('Register As', Icons.manage_accounts_outlined),
+                    const SizedBox(height: 8),
+                    _buildRoleSelector(),
 
                     const SizedBox(height: 28),
                     _sectionLabel('Photo Verification', Icons.verified_user_outlined),
@@ -621,6 +628,39 @@ class SignupPageState extends State<SignupPage> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+        color: Colors.white,
+      ),
+      child: Column(
+        children: [
+          RadioListTile<String>(
+            value: 'user',
+            groupValue: _role,
+            onChanged: (v) => setState(() => _role = v!),
+            activeColor: const Color(0xFF99272D),
+            title: const Text('Resident',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('I am a barangay resident seeking legal assistance'),
+          ),
+          const Divider(height: 1),
+          RadioListTile<String>(
+            value: 'admin',
+            groupValue: _role,
+            onChanged: (v) => setState(() => _role = v!),
+            activeColor: const Color(0xFF99272D),
+            title: const Text('Barangay Admin',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('I am a barangay official managing this system'),
           ),
         ],
       ),
