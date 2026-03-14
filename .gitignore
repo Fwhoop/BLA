@@ -47,5 +47,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Local env overrides (optional; repo includes .env with safe default API_URL)
-# .env
+# Environment files — never commit secrets
+.env
+**/.env
+*.env
