@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -399,7 +400,7 @@ class RequestFormState extends State<RequestForm> {
     }
   }
 
-  Future<List<int>> _buildReceiptPdf(Map<String, dynamic> req) async {
+  Future<Uint8List> _buildReceiptPdf(Map<String, dynamic> req) async {
     final doc = pw.Document();
     final docType = req['document_type'] as String? ?? '—';
     final purpose = req['purpose'] as String? ?? '—';
@@ -495,7 +496,7 @@ class RequestFormState extends State<RequestForm> {
       ),
     );
 
-    return doc.save();
+    return Uint8List.fromList(await doc.save());
   }
 
   pw.Widget _pdfRow(String label, String value) {
