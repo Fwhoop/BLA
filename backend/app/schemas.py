@@ -136,6 +136,7 @@ class CaseRead(CaseBase):
     updated_at: Optional[datetime] = None
     reporter_name: Optional[str] = None
     reporter_email: Optional[str] = None
+    reporter_barangay: Optional[str] = None
 
     class Config:
         from_attributes = True

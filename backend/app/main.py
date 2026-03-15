@@ -110,8 +110,12 @@ def _run_migrations():
             if "mediations" in table_names:
                 existing = {c["name"] for c in inspector.get_columns("mediations")}
                 for col, ddl in [
-                    ("mediator_name",         "ALTER TABLE mediations ADD COLUMN mediator_name VARCHAR(200) NULL"),
-                    ("resolution_photo_path", "ALTER TABLE mediations ADD COLUMN resolution_photo_path VARCHAR(500) NULL"),
+                    ("mediator_name",              "ALTER TABLE mediations ADD COLUMN mediator_name VARCHAR(200) NULL"),
+                    ("resolution_photo_path",      "ALTER TABLE mediations ADD COLUMN resolution_photo_path VARCHAR(500) NULL"),
+                    ("next_hearing_date",           "ALTER TABLE mediations ADD COLUMN next_hearing_date DATE NULL"),
+                    ("agreement_document_path",    "ALTER TABLE mediations ADD COLUMN agreement_document_path VARCHAR(500) NULL"),
+                    ("updated_at",                 "ALTER TABLE mediations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+                    ("mediated_by",                "ALTER TABLE mediations ADD COLUMN mediated_by INT NULL"),
                 ]:
                     if col not in existing:
                         conn.execute(text(ddl))

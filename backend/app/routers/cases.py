@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from .. import models, schemas
 from ..db import get_db
@@ -23,10 +23,13 @@ def _enrich(case: models.Case) -> dict:
         "updated_at": case.updated_at,
         "reporter_name": None,
         "reporter_email": None,
+        "reporter_barangay": None,
     }
     if case.reporter:
         d["reporter_name"] = f"{case.reporter.first_name} {case.reporter.last_name}".strip()
         d["reporter_email"] = case.reporter.email
+        if case.reporter.barangay:
+            d["reporter_barangay"] = case.reporter.barangay.name
     return d
 
 
@@ -77,13 +80,15 @@ def get_cases(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    _eager = joinedload(models.Case.reporter).joinedload(models.User.barangay)
     if current_user.role == "superadmin":
-        cases = db.query(models.Case).order_by(models.Case.created_at.desc()).all()
+        cases = db.query(models.Case).options(_eager).order_by(models.Case.created_at.desc()).all()
     elif current_user.role in ("admin", "staff"):
         if not current_user.barangay_id:
             return []
         cases = (
             db.query(models.Case)
+            .options(_eager)
             .join(models.User, models.Case.reporter_id == models.User.id)
             .filter(models.User.barangay_id == current_user.barangay_id)
             .order_by(models.Case.created_at.desc())
@@ -92,6 +97,7 @@ def get_cases(
     else:
         cases = (
             db.query(models.Case)
+            .options(_eager)
             .filter(models.Case.reporter_id == current_user.id)
             .order_by(models.Case.created_at.desc())
             .all()
@@ -105,7 +111,8 @@ def get_case(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    case = db.query(models.Case).filter(models.Case.id == case_id).first()
+    _eager = joinedload(models.Case.reporter).joinedload(models.User.barangay)
+    case = db.query(models.Case).options(_eager).filter(models.Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -129,7 +136,8 @@ def update_case(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    case = db.query(models.Case).filter(models.Case.id == case_id).first()
+    _eager = joinedload(models.Case.reporter).joinedload(models.User.barangay)
+    case = db.query(models.Case).options(_eager).filter(models.Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
