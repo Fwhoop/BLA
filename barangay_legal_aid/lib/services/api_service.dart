@@ -677,6 +677,87 @@ class ApiService {
     }
   }
 
+  // ── Mediation ────────────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getMediations(int caseId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/cases/$caseId/mediations'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    throw Exception('Failed to load mediations: ${r.body}');
+  }
+
+  Future<Map<String, dynamic>> createMediation(int caseId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(Uri.parse('$_baseUrl/cases/$caseId/mediations'),
+            headers: headers, body: jsonEncode(data))
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
+    try {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Failed to create mediation');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to create mediation: ${r.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateMediation(int mediationId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .put(Uri.parse('$_baseUrl/mediations/$mediationId'),
+            headers: headers, body: jsonEncode(data))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to update mediation: ${r.body}');
+  }
+
+  Future<void> deleteMediation(int mediationId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .delete(Uri.parse('$_baseUrl/mediations/$mediationId'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 204) {
+      throw Exception('Failed to delete mediation: ${r.body}');
+    }
+  }
+
+  // ── OTP ──────────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> sendEmailOTP(String email) async {
+    final r = await http
+        .post(Uri.parse('$_baseUrl/auth/send-email-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email}))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Failed to send OTP');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to send OTP: ${r.body}');
+    }
+  }
+
+  Future<void> verifyEmailOTP(String email, String otp) async {
+    final r = await http
+        .post(Uri.parse('$_baseUrl/auth/verify-email-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'otp': otp}))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Invalid OTP');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Verification failed: ${r.body}');
+    }
+  }
+
   /// Send message to AI chatbot with conversation history for context.
   /// Returns { 'message': String, 'ui_action': String? }.
   Future<Map<String, dynamic>> sendChatMessage(

@@ -4,6 +4,7 @@ import 'package:barangay_legal_aid/screens/request_form.dart';
 import 'package:barangay_legal_aid/screens/complaint_form_screen.dart';
 import 'package:barangay_legal_aid/screens/suggestion_box_screen.dart';
 import 'package:barangay_legal_aid/screens/my_requests_screen.dart';
+import 'package:barangay_legal_aid/screens/my_cases_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
@@ -185,7 +186,18 @@ class FormsHubPageState extends State<FormsHubPage> {
               ),
             ),
             SizedBox(width: 12),
-            Expanded(child: SizedBox()),
+            Expanded(
+              child: _buildQuickActionCard(
+                title: 'My Complaints',
+                subtitle: 'Track Status',
+                icon: Icons.fact_check_outlined,
+                color: Color(0xFF6366F1),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyCasesScreen()),
+                ),
+              ),
+            ),
             SizedBox(width: 12),
             Expanded(child: SizedBox()),
           ],

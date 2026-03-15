@@ -16,6 +16,7 @@ import 'package:barangay_legal_aid/screens/superadmin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/forms_hub_page.dart';
 import 'package:barangay_legal_aid/screens/forgot_password_page.dart';
+import 'package:barangay_legal_aid/screens/my_cases_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,6 +108,7 @@ class MyApp extends StatelessWidget {
           '/profile': (context) => UserProfilePage(),
           '/forms': (context) => FormsHubPage(),
           '/forgot-password': (context) => const ForgotPasswordPage(),
+          '/my-cases': (context) => const MyCasesScreen(),
         },
       ),
     );

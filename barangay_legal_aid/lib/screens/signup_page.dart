@@ -164,6 +164,44 @@ class SignupPageState extends State<SignupPage> {
       return;
     }
 
+    // If email provided, send OTP and verify before creating account
+    final email = _emailCtrl.text.trim();
+    if (email.isNotEmpty) {
+      await _sendOtpAndVerify(email);
+    } else {
+      await _createAccount();
+    }
+  }
+
+  Future<void> _sendOtpAndVerify(String email) async {
+    setState(() => _isLoading = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.sendEmailOTP(email);
+    } catch (e) {
+      if (mounted) {
+        _showError(e is Exception
+            ? e.toString().replaceFirst('Exception: ', '')
+            : 'Failed to send verification code.');
+      }
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+    if (mounted) setState(() => _isLoading = false);
+
+    // Show OTP dialog
+    if (!mounted) return;
+    final verified = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _OtpDialog(email: email),
+    );
+    if (verified == true) {
+      await _createAccount();
+    }
+  }
+
+  Future<void> _createAccount() async {
     setState(() => _isLoading = true);
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
@@ -393,12 +431,13 @@ class SignupPageState extends State<SignupPage> {
       controller: _emailCtrl,
       keyboardType: TextInputType.emailAddress,
       decoration: const InputDecoration(
-        labelText: 'Email address',
+        labelText: 'Email address (optional)',
         hintText: 'you@example.com',
         prefixIcon: Icon(Icons.email_outlined),
+        helperText: 'OTP verification required if email is provided',
       ),
       validator: (v) {
-        if (v == null || v.isEmpty) return 'Required';
+        if (v == null || v.isEmpty) return null; // optional
         if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) {
           return 'Enter a valid email';
         }
@@ -691,6 +730,136 @@ class SignupPageState extends State<SignupPage> {
         TextButton(
           onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
           child: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── OTP Verification Dialog ─────────────────────────────────────────────────
+
+class _OtpDialog extends StatefulWidget {
+  final String email;
+  const _OtpDialog({required this.email});
+
+  @override
+  State<_OtpDialog> createState() => _OtpDialogState();
+}
+
+class _OtpDialogState extends State<_OtpDialog> {
+  final _otpCtrl = TextEditingController();
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _otpCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verify() async {
+    final otp = _otpCtrl.text.trim();
+    if (otp.length != 6) {
+      setState(() => _error = 'Enter the 6-digit code');
+      return;
+    }
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.verifyEmailOTP(widget.email, otp);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e is Exception
+              ? e.toString().replaceFirst('Exception: ', '')
+              : 'Invalid or expired code.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _resend() async {
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.sendEmailOTP(widget.email);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('New code sent to your email'),
+          duration: Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'Failed to resend code.'; _isLoading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(
+        children: [
+          Icon(Icons.mark_email_read_outlined, color: Color(0xFF99272D)),
+          SizedBox(width: 10),
+          Text('Verify Email', style: TextStyle(fontSize: 18)),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'A 6-digit code was sent to\n${widget.email}',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF36454F)),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _otpCtrl,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              hintText: '------',
+              counterText: '',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFF99272D), width: 2),
+              ),
+              errorText: _error,
+            ),
+            onSubmitted: (_) => _verify(),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _isLoading ? null : _resend,
+              child: const Text('Resend code', style: TextStyle(color: Color(0xFF99272D))),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel', style: TextStyle(color: Color(0xFF36454F))),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _verify,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF99272D),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: _isLoading
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Text('Verify'),
         ),
       ],
     );

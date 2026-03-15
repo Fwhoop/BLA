@@ -79,9 +79,9 @@ class AuthService {
     return true;
   }
 
-  /// Login: backend only. Tokens stored in secure storage.
+  /// Login: backend only. [identifier] may be email or phone number.
   Future<User?> login({
-    required String email,
+    required String identifier,
     required String password,
     required bool rememberMe,
   }) async {
@@ -91,7 +91,7 @@ class AuthService {
           loginUrl,
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
           body:
-              'username=${Uri.encodeComponent(email)}&password=${Uri.encodeComponent(password)}',
+              'username=${Uri.encodeComponent(identifier)}&password=${Uri.encodeComponent(password)}',
         )
         .timeout(const Duration(seconds: 15));
 
