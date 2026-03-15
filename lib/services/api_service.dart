@@ -57,6 +57,7 @@ class ApiService {
     required String barangay,
     required String idPhotoPath,
     dynamic idPhotoBytes,
+    String role = 'user',
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register');
     final request = http.MultipartRequest('POST', uri);
@@ -67,6 +68,7 @@ class ApiService {
     request.fields['phone'] = phone;
     request.fields['address'] = address;
     request.fields['barangay'] = barangay;
+    request.fields['role'] = role;
 
     List<int>? photoBytes;
     if (idPhotoBytes is Uint8List) {
@@ -539,6 +541,127 @@ class ApiService {
     }
     final body = jsonDecode(r.body);
     throw Exception(body['detail'] ?? 'Failed to create staff member');
+  }
+
+  // ── OTP / Verification ────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> sendEmailOtp(String email) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/send-email-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    final d = jsonDecode(r.body);
+    throw Exception(d['detail'] ?? 'Failed to send OTP');
+  }
+
+  Future<void> verifyEmailOtp(int userId, String otp) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/verify-email-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'user_id': userId, 'otp': otp}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'OTP verification failed');
+    }
+  }
+
+  Future<void> verifyFirebasePhone(int userId, String firebaseIdToken) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/verify-firebase-phone'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'user_id': userId, 'firebase_id_token': firebaseIdToken}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Phone verification failed');
+    }
+  }
+
+  Future<Map<String, dynamic>> forgotPassword(String identifier, String method) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/forgot-password'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'identifier': identifier, 'method': method}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    final d = jsonDecode(r.body);
+    throw Exception(d['detail'] ?? 'Request failed');
+  }
+
+  Future<void> resetPassword(int userId, String otp, String newPassword) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/reset-password'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'user_id': userId, 'otp': otp, 'new_password': newPassword}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Password reset failed');
+    }
+  }
+
+  Future<void> resetPasswordPhone(int userId, String firebaseIdToken, String newPassword) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/reset-password-phone'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'user_id': userId, 'firebase_id_token': firebaseIdToken, 'new_password': newPassword}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Password reset failed');
+    }
+  }
+
+  // ── Admin Approval ────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getPendingAdmins() async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/users/pending-admins'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    throw Exception('Failed to load pending admins: ${r.statusCode}');
+  }
+
+  Future<void> approveAdmin(int userId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(Uri.parse('$_baseUrl/users/$userId/approve-admin'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Approval failed');
+    }
+  }
+
+  Future<void> rejectAdmin(int userId, {String? reason}) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/users/$userId/reject-admin'),
+          headers: headers,
+          body: jsonEncode({'reason': reason}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Rejection failed');
+    }
   }
 
   /// Send message to AI chatbot with conversation history for context.

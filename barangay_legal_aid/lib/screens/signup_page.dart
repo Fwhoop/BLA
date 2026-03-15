@@ -209,6 +209,44 @@ class SignupPageState extends State<SignupPage> {
       return;
     }
 
+    // If email provided, send OTP and verify before creating account
+    final email = _emailCtrl.text.trim();
+    if (email.isNotEmpty) {
+      await _sendOtpAndVerify(email);
+    } else {
+      await _createAccount();
+    }
+  }
+
+  Future<void> _sendOtpAndVerify(String email) async {
+    setState(() => _isLoading = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.sendEmailOTP(email);
+    } catch (e) {
+      if (mounted) {
+        _showError(e is Exception
+            ? e.toString().replaceFirst('Exception: ', '')
+            : 'Failed to send verification code.');
+      }
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+    if (mounted) setState(() => _isLoading = false);
+
+    // Show OTP dialog
+    if (!mounted) return;
+    final verified = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _OtpDialog(email: email),
+    );
+    if (verified == true) {
+      await _createAccount();
+    }
+  }
+
+  Future<void> _createAccount() async {
     setState(() => _isLoading = true);
 
     try {
@@ -474,6 +512,7 @@ class SignupPageState extends State<SignupPage> {
         labelText: 'Email address',
         hintText: 'you@example.com',
         prefixIcon: Icon(Icons.email_outlined),
+        helperText: 'OTP verification required if email is provided',
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {

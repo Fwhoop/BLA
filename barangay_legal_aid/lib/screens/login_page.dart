@@ -13,16 +13,17 @@ class LoginPage extends StatefulWidget {
 class LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _usePhone = true; // true = phone number, false = email
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -34,7 +35,7 @@ class LoginPageState extends State<LoginPage> {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final User? user = await auth.login(
-        email: _emailController.text.trim(),
+        identifier: _identifierController.text.trim(),
         password: _passwordController.text.trim(),
         rememberMe: _rememberMe,
       );
@@ -51,7 +52,7 @@ class LoginPageState extends State<LoginPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Invalid email or password. Please try again.'),
+            content: Text('Invalid credentials. Please try again.'),
             backgroundColor: Color(0xFF99272D),
             duration: Duration(seconds: 3),
           ),
@@ -71,14 +72,6 @@ class LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _navigateToSignup() {
-    Navigator.pushReplacementNamed(context, '/signup');
-  }
-
-  void _navigateToForgotPassword() {
-    Navigator.pushNamed(context, '/forgot-password');
   }
 
   @override
@@ -196,8 +189,10 @@ class LoginPageState extends State<LoginPage> {
                 color: const Color(0xFF36454F).withValues(alpha: 0.6),
               ),
             ),
-            const SizedBox(height: 24),
-            _buildEmailField(),
+            const SizedBox(height: 20),
+            _buildLoginToggle(),
+            const SizedBox(height: 16),
+            _buildIdentifierField(),
             const SizedBox(height: 16),
             _buildPasswordField(),
             const SizedBox(height: 8),
@@ -210,10 +205,65 @@ class LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildEmailField() {
+  Widget _buildLoginToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          Expanded(child: _toggleBtn('Phone Number', Icons.phone_outlined, _usePhone, () {
+            setState(() {
+              _usePhone = true;
+              _identifierController.clear();
+            });
+          })),
+          Expanded(child: _toggleBtn('Email', Icons.email_outlined, !_usePhone, () {
+            setState(() {
+              _usePhone = false;
+              _identifierController.clear();
+            });
+          })),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleBtn(String label, IconData icon, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF99272D) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: active ? Colors.white : const Color(0xFF36454F)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : const Color(0xFF36454F),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIdentifierField() {
     return TextFormField(
-      controller: _emailController,
-      keyboardType: TextInputType.emailAddress,
+      controller: _identifierController,
+      keyboardType: _usePhone ? TextInputType.phone : TextInputType.emailAddress,
       textInputAction: TextInputAction.next,
       decoration: const InputDecoration(
         labelText: 'Email or Phone Number',
@@ -248,12 +298,8 @@ class LoginPageState extends State<LoginPage> {
         ),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter your password';
-        }
-        if (value.length < 6) {
-          return 'Password must be at least 6 characters';
-        }
+        if (value == null || value.isEmpty) return 'Please enter your password';
+        if (value.length < 6) return 'Password must be at least 6 characters';
         return null;
       },
     );
@@ -264,9 +310,7 @@ class LoginPageState extends State<LoginPage> {
       children: [
         Checkbox(
           value: _rememberMe,
-          onChanged: (value) {
-            setState(() => _rememberMe = value ?? false);
-          },
+          onChanged: (value) => setState(() => _rememberMe = value ?? false),
           activeColor: const Color(0xFF99272D),
         ),
         const Text('Remember me', style: TextStyle(color: Color(0xFF36454F))),
@@ -289,18 +333,11 @@ class LoginPageState extends State<LoginPage> {
           ? const SizedBox(
               height: 20,
               width: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
             )
           : const Text(
               'Login',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
             ),
     );
   }
@@ -308,16 +345,13 @@ class LoginPageState extends State<LoginPage> {
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(
-            child: Divider(color: const Color(0xFF99272D).withValues(alpha: 0.3))),
+        Expanded(child: Divider(color: const Color(0xFF99272D).withValues(alpha: 0.3))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text('OR',
-              style: TextStyle(
-                  color: const Color(0xFF99272D).withValues(alpha: 0.7))),
+              style: TextStyle(color: const Color(0xFF99272D).withValues(alpha: 0.7))),
         ),
-        Expanded(
-            child: Divider(color: const Color(0xFF99272D).withValues(alpha: 0.3))),
+        Expanded(child: Divider(color: const Color(0xFF99272D).withValues(alpha: 0.3))),
       ],
     );
   }
@@ -327,18 +361,12 @@ class LoginPageState extends State<LoginPage> {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Text("Don't have an account?",
-            style: TextStyle(color: Color(0xFF36454F))),
+        const Text("Don't have an account?", style: TextStyle(color: Color(0xFF36454F))),
         const SizedBox(width: 5),
         TextButton(
-          onPressed: _navigateToSignup,
-          child: const Text(
-            'Sign Up',
-            style: TextStyle(
-              color: Color(0xFF99272D),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/signup'),
+          child: const Text('Sign Up',
+              style: TextStyle(color: Color(0xFF99272D), fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -346,13 +374,8 @@ class LoginPageState extends State<LoginPage> {
 
   Widget _buildForgotPasswordLink() {
     return TextButton(
-      onPressed: _navigateToForgotPassword,
-      child: const Text(
-        'Forgot Password?',
-        style: TextStyle(
-          color: Color(0xFF99272D),
-        ),
-      ),
+      onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+      child: const Text('Forgot Password?', style: TextStyle(color: Color(0xFF99272D))),
     );
   }
 }

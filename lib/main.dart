@@ -1,6 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+
+import 'firebase_options.dart';
 
 import 'package:barangay_legal_aid/screens/signup_page.dart';
 import 'package:barangay_legal_aid/screens/login_page.dart';
@@ -15,11 +18,14 @@ import 'package:barangay_legal_aid/screens/admin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/superadmin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/forms_hub_page.dart';
+import 'package:barangay_legal_aid/screens/forgot_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: '.env');
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final secure = SecureStorageService();
   final authService = AuthService(secureStorage: secure, apiService: ApiService(secure));
@@ -102,6 +108,7 @@ class MyApp extends StatelessWidget {
           '/superadmin': (context) => SuperAdminDashboard(),
           '/profile': (context) => UserProfilePage(),
           '/forms': (context) => FormsHubPage(),
+          '/forgot-password': (context) => ForgotPasswordScreen(),
         },
       ),
     );

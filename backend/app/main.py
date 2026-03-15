@@ -79,6 +79,12 @@ def _run_migrations():
                     ("city",                "ALTER TABLE users ADD COLUMN city VARCHAR(100) NULL"),
                     ("province",            "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
                     ("zip_code",            "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
+                    ("rejected_by",         "ALTER TABLE users ADD COLUMN rejected_by INT NULL"),
+                    ("rejected_at",         "ALTER TABLE users ADD COLUMN rejected_at DATETIME NULL"),
+                    ("rejection_reason",    "ALTER TABLE users ADD COLUMN rejection_reason VARCHAR(500) NULL"),
+                    ("otp_code",            "ALTER TABLE users ADD COLUMN otp_code VARCHAR(255) NULL"),
+                    ("otp_expiry",          "ALTER TABLE users ADD COLUMN otp_expiry DATETIME NULL"),
+                    ("otp_attempts",        "ALTER TABLE users ADD COLUMN otp_attempts INT DEFAULT 0"),
                 ]:
                     if col not in existing:
                         conn.execute(text(ddl))
@@ -119,13 +125,17 @@ def _run_migrations():
 @app.on_event("startup")
 async def startup():
     logger.info("=== BLA BACKEND STARTING ===")
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables OK")
-        _run_migrations()
-        logger.info("Migrations OK")
-    except Exception as e:
-        logger.warning(f"DB init skipped: {e}")
+    import asyncio
+    loop = asyncio.get_event_loop()
+    def _init_db():
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables OK")
+            _run_migrations()
+            logger.info("Migrations OK")
+        except Exception as e:
+            logger.warning(f"DB init skipped: {e}")
+    await loop.run_in_executor(None, _init_db)
     logger.info("=== BLA BACKEND READY ===")
 
 
@@ -180,3 +190,4 @@ try:
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 except Exception as e:
     logger.warning(f"Static files not mounted: {e}")
+

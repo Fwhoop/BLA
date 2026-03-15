@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from typing import Optional
 import bcrypt
@@ -12,6 +12,10 @@ import uuid
 from .. import models, schemas
 from ..db import get_db
 from ..core.config import settings
+from ..utils.otp import generate_otp, hash_otp, verify_otp
+from ..utils.email import send_otp_email, send_password_reset_email
+from ..utils.firebase_init import verify_firebase_token
+from ..utils.audit import log_action
 
 
 SECRET_KEY = settings.jwt_secret
@@ -38,8 +42,12 @@ def get_password_hash(password):
     hashed = bcrypt.hashpw(password_bytes, salt)
     return hashed.decode('utf-8')
 
-def authenticate_user(db: Session, email: str, password: str):
-    user = db.query(models.User).filter(models.User.email == email).first()
+def authenticate_user(db: Session, identifier: str, password: str):
+    """Authenticate by email OR phone number."""
+    if "@" in identifier:
+        user = db.query(models.User).filter(models.User.email == identifier).first()
+    else:
+        user = db.query(models.User).filter(models.User.phone == identifier).first()
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -78,6 +86,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         )
     access_token = create_access_token(data={"sub": user.email},
                                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    log_action(db, "login_success", user.id, user.id)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -132,6 +141,7 @@ def register(
     email: str = Form(...),
     password: str = Form(...),
     phone: Optional[str] = Form(None),
+    role: Optional[str] = Form("user"),
     # Legacy single address
     address: Optional[str] = Form(None),
     # Philippine address components
@@ -148,9 +158,12 @@ def register(
     profile_photo:   Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
-    """Public signup endpoint for residents."""
+    """Public signup endpoint for residents and barangay admin self-registration."""
     if db.query(models.User).filter(models.User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Sanitize role — only "user" and "admin" are allowed via self-registration
+    safe_role = "admin" if role == "admin" else "user"
 
     base_username = re.sub(r'[^a-z0-9]', '', email.split('@')[0].lower()) or "user"
     username = base_username
@@ -164,6 +177,21 @@ def register(
         brgy = db.query(models.Barangay).filter(models.Barangay.name == barangay).first()
         if brgy:
             barangay_id = brgy.id
+
+    # ── Anti-spam: block duplicate pending admin per barangay ─────────────────
+    if safe_role == "admin" and barangay_id:
+        existing_pending = db.query(models.User).filter(
+            models.User.barangay_id == barangay_id,
+            models.User.role == "admin",
+            models.User.is_active == False,
+            models.User.verification_status == "pending",
+        ).first()
+        if existing_pending:
+            raise HTTPException(
+                status_code=400,
+                detail="A pending admin registration already exists for this barangay. "
+                       "Please wait for the superadmin to review it before submitting again.",
+            )
 
     new_user = models.User(
         email=email,
@@ -179,7 +207,7 @@ def register(
         city=city,
         province=province,
         zip_code=zip_code,
-        role="user",
+        role=safe_role,
         barangay_id=barangay_id,
         is_active=False,
         verification_status="pending",
@@ -197,24 +225,182 @@ def register(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
-    if barangay_id:
-        try:
-            admins = db.query(models.User).filter(
+    # ── Notify appropriate admins ─────────────────────────────────────────────
+    try:
+        if safe_role == "admin":
+            # Notify all superadmins
+            notify_users = db.query(models.User).filter(
+                models.User.role == "superadmin",
+                models.User.is_active == True,
+            ).all()
+            notif_title = "New Admin Registration Request"
+            notif_msg = f"{first_name} {last_name} has applied to be a barangay admin and is awaiting your approval."
+            log_action(db, "admin_self_registered", new_user.id, new_user.id, {"barangay_id": barangay_id})
+        else:
+            # Notify barangay admins
+            notify_users = db.query(models.User).filter(
                 models.User.barangay_id == barangay_id,
                 models.User.role.in_(["admin", "superadmin"]),
                 models.User.is_active == True,
-            ).all()
-            for admin in admins:
-                db.add(models.Notification(
-                    user_id=admin.id,
-                    title="New Resident Registration",
-                    message=f"{first_name} {last_name} has registered and is awaiting your approval.",
-                    notif_type="new_user",
-                    reference_id=new_user.id,
-                ))
-            if admins:
-                db.commit()
-        except Exception:
-            pass
+            ).all() if barangay_id else []
+            notif_title = "New Resident Registration"
+            notif_msg = f"{first_name} {last_name} has registered and is awaiting your approval."
+
+        for u in notify_users:
+            db.add(models.Notification(
+                user_id=u.id,
+                title=notif_title,
+                message=notif_msg,
+                notif_type="new_user",
+                reference_id=new_user.id,
+            ))
+        if notify_users:
+            db.commit()
+    except Exception:
+        pass
 
     return new_user
+
+
+# ── OTP ENDPOINTS ─────────────────────────────────────────────────────────────
+
+@router.post("/send-email-otp")
+def send_email_otp(payload: schemas.SendEmailOTPRequest, db: Session = Depends(get_db)):
+    """Generate and email a 6-digit OTP for signup verification."""
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    otp = generate_otp()
+    user.otp_code = hash_otp(otp)
+    user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    user.otp_attempts = 0
+    db.commit()
+
+    send_otp_email(user.email, otp)
+    return {"message": "OTP sent to your email", "user_id": user.id}
+
+
+@router.post("/verify-email-otp")
+def verify_email_otp(payload: schemas.VerifyEmailOTPRequest, db: Session = Depends(get_db)):
+    """Verify the email OTP — sets email_verified=True on success."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.otp_code or not user.otp_expiry:
+        raise HTTPException(status_code=400, detail="No OTP requested. Please request a new one.")
+    if (user.otp_attempts or 0) >= 5:
+        raise HTTPException(status_code=400, detail="Too many failed attempts. Please request a new OTP.")
+    if datetime.now(timezone.utc) > user.otp_expiry.replace(tzinfo=timezone.utc) if user.otp_expiry.tzinfo is None else user.otp_expiry:
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+    if not verify_otp(payload.otp, user.otp_code):
+        user.otp_attempts = (user.otp_attempts or 0) + 1
+        db.commit()
+        remaining = 5 - user.otp_attempts
+        raise HTTPException(status_code=400, detail=f"Invalid OTP. {remaining} attempt(s) remaining.")
+
+    user.email_verified = True
+    user.verification_method = "email"
+    user.otp_code = None
+    user.otp_expiry = None
+    user.otp_attempts = 0
+    db.commit()
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/verify-firebase-phone")
+def verify_firebase_phone(payload: schemas.VerifyFirebasePhoneRequest, db: Session = Depends(get_db)):
+    """Verify a Firebase phone auth ID token — sets mobile_verified=True."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        claims = verify_firebase_token(payload.firebase_id_token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    phone_number = claims.get("phone_number", "")
+    user.mobile_verified = True
+    user.verification_method = "phone"
+    if phone_number:
+        user.phone = phone_number
+    db.commit()
+    return {"message": "Phone verified successfully"}
+
+
+# ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
+
+@router.post("/forgot-password")
+def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Initiate password reset via email OTP or Firebase phone OTP."""
+    if payload.method == "email":
+        user = db.query(models.User).filter(models.User.email == payload.identifier).first()
+    else:
+        user = db.query(models.User).filter(models.User.phone == payload.identifier).first()
+
+    if not user:
+        # Return success to prevent user enumeration
+        return {"message": "If the account exists, a reset code has been sent.", "user_id": None}
+
+    if payload.method == "email":
+        otp = generate_otp()
+        user.otp_code = hash_otp(otp)
+        user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+        user.otp_attempts = 0
+        db.commit()
+        send_password_reset_email(user.email, otp)
+
+    # For phone method: client will trigger Firebase OTP directly.
+    # We just return the user_id so the client can call reset-password-phone after Firebase verifies.
+    return {"message": "If the account exists, a reset code has been sent.", "user_id": user.id}
+
+
+@router.post("/reset-password")
+def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password using email OTP."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.otp_code or not user.otp_expiry:
+        raise HTTPException(status_code=400, detail="No reset code found. Please restart the process.")
+    if (user.otp_attempts or 0) >= 5:
+        raise HTTPException(status_code=400, detail="Too many failed attempts. Please restart.")
+    if datetime.now(timezone.utc) > user.otp_expiry.replace(tzinfo=timezone.utc) if user.otp_expiry.tzinfo is None else user.otp_expiry:
+        raise HTTPException(status_code=400, detail="Reset code has expired.")
+    if not verify_otp(payload.otp, user.otp_code):
+        user.otp_attempts = (user.otp_attempts or 0) + 1
+        db.commit()
+        raise HTTPException(status_code=400, detail="Invalid reset code.")
+
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    user.otp_code = None
+    user.otp_expiry = None
+    user.otp_attempts = 0
+    db.commit()
+    log_action(db, "password_reset", user.id, user.id, {"method": "email"})
+    return {"message": "Password reset successfully"}
+
+
+@router.post("/reset-password-phone")
+def reset_password_phone(payload: schemas.ResetPasswordFirebaseRequest, db: Session = Depends(get_db)):
+    """Reset password after Firebase phone OTP verification."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        verify_firebase_token(payload.firebase_id_token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    db.commit()
+    log_action(db, "password_reset", user.id, user.id, {"method": "phone"})
+    return {"message": "Password reset successfully"}

@@ -4,8 +4,10 @@ from sqlalchemy import or_
 from .. import models, schemas
 from ..db import get_db
 from ..routers.auth import get_current_user
+from ..utils.audit import log_action
+from ..utils.email import send_admin_approved_email, send_admin_rejected_email
 import bcrypt
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -278,3 +280,149 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"detail": "User deleted successfully"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN APPROVAL WORKFLOW
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/pending-admins", response_model=List[schemas.PendingAdminRead])
+def get_pending_admins(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin: list all pending admin self-registrations."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    pending = db.query(models.User).filter(
+        models.User.role == "admin",
+        models.User.verification_status == "pending",
+        models.User.is_active == False,
+    ).order_by(models.User.created_at.desc()).all()
+
+    result = []
+    for u in pending:
+        barangay_name = u.barangay.name if u.barangay else None
+        result.append(schemas.PendingAdminRead(
+            id=u.id,
+            first_name=u.first_name,
+            last_name=u.last_name,
+            email=u.email,
+            phone=u.phone,
+            barangay_id=u.barangay_id,
+            barangay_name=barangay_name,
+            verification_status=u.verification_status,
+            created_at=u.created_at,
+        ))
+    return result
+
+
+@router.post("/{user_id}/approve-admin", response_model=schemas.UserRead)
+def approve_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin: approve a pending barangay admin registration."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role != "admin":
+        raise HTTPException(status_code=400, detail="Target user is not a barangay admin")
+
+    user.is_active = True
+    user.verification_status = "approved"
+    user.approved_by = current_user.id
+    user.approved_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user)
+
+    # Notify the approved admin
+    try:
+        db.add(models.Notification(
+            user_id=user.id,
+            title="Admin Account Approved",
+            message=f"Your barangay admin account has been approved by {current_user.first_name} {current_user.last_name}. You can now log in.",
+            notif_type="account_approved",
+            reference_id=user.id,
+        ))
+        db.commit()
+    except Exception:
+        pass
+
+    send_admin_approved_email(user.email, f"{user.first_name} {user.last_name}")
+    log_action(db, "admin_approved", current_user.id, user.id,
+               {"approved_by_name": f"{current_user.first_name} {current_user.last_name}"})
+    return user
+
+
+@router.post("/{user_id}/reject-admin", response_model=schemas.UserRead)
+def reject_admin(
+    user_id: int,
+    payload: schemas.AdminApprovalAction,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin: reject a pending barangay admin registration."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.verification_status = "rejected"
+    user.rejected_by = current_user.id
+    user.rejected_at = datetime.now(timezone.utc)
+    user.rejection_reason = payload.reason
+    db.commit()
+    db.refresh(user)
+
+    # Notify the rejected admin
+    try:
+        msg = "Your barangay admin registration has been rejected."
+        if payload.reason:
+            msg += f" Reason: {payload.reason}"
+        db.add(models.Notification(
+            user_id=user.id,
+            title="Admin Registration Update",
+            message=msg,
+            notif_type="account_rejected",
+            reference_id=user.id,
+        ))
+        db.commit()
+    except Exception:
+        pass
+
+    send_admin_rejected_email(user.email, f"{user.first_name} {user.last_name}", payload.reason or "")
+    log_action(db, "admin_rejected", current_user.id, user.id,
+               {"reason": payload.reason, "rejected_by_name": f"{current_user.first_name} {current_user.last_name}"})
+    return user
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AUDIT LOGS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/audit-logs", response_model=List[schemas.AuditLogRead])
+def get_audit_logs(
+    action_type: Optional[str] = Query(None),
+    target_user_id: Optional[int] = Query(None),
+    limit: int = Query(50, le=200),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin: retrieve audit log entries."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    query = db.query(models.AuditLog)
+    if action_type:
+        query = query.filter(models.AuditLog.action_type == action_type)
+    if target_user_id:
+        query = query.filter(models.AuditLog.target_user_id == target_user_id)
+    return query.order_by(models.AuditLog.created_at.desc()).limit(limit).all()

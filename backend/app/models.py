@@ -54,6 +54,16 @@ class User(Base):
     approved_by  = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at  = Column(DateTime(timezone=True), nullable=True)
 
+    # ── Rejection tracking ───────────────────────────────────────────────────
+    rejected_by     = Column(Integer, ForeignKey("users.id"), nullable=True)
+    rejected_at     = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(String(500), nullable=True)
+
+    # ── OTP (email verification + password reset) ────────────────────────────
+    otp_code     = Column(String(255), nullable=True)   # bcrypt-hashed
+    otp_expiry   = Column(DateTime(timezone=True), nullable=True)
+    otp_attempts = Column(Integer, default=0)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     barangay = relationship("Barangay", back_populates="users")
@@ -165,3 +175,14 @@ class Notification(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="notifications")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    action_type    = Column(String(50), nullable=False, index=True)   # e.g. "admin_approved"
+    performed_by   = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    target_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    log_metadata   = Column(Text, nullable=True)   # JSON string — 'metadata' is reserved in SQLAlchemy Declarative
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())

@@ -4,7 +4,6 @@ dockerfilePath = "backend/Dockerfile"
 buildContext = "backend"
 
 [deploy]
-startCommand = "python run.py"
 healthcheckPath = "/health"
 healthcheckTimeout = 60
 restartPolicyType = "on_failure"

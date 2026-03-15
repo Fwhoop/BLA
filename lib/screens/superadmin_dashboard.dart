@@ -31,10 +31,11 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
   late final Animation<double>    _chartAnim;
 
   // ── raw data ────────────────────────────────────────────────────────────────
-  List<Map<String, dynamic>> _cases     = [];
-  List<Map<String, dynamic>> _requests  = [];
-  List<Map<String, dynamic>> _users     = [];
-  List<Map<String, dynamic>> _barangays = [];
+  List<Map<String, dynamic>> _cases          = [];
+  List<Map<String, dynamic>> _requests       = [];
+  List<Map<String, dynamic>> _users          = [];
+  List<Map<String, dynamic>> _barangays      = [];
+  List<Map<String, dynamic>> _pendingAdmins  = [];
 
   bool  _isLoading  = true;
   int   _unreadCount = 0;
@@ -99,18 +100,82 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         api.getUsers().catchError((_) => <Map<String, dynamic>>[]),
         api.getRequests().catchError((_) => <Map<String, dynamic>>[]),
         api.getCases().catchError((_) => <Map<String, dynamic>>[]),
+        api.getPendingAdmins().catchError((_) => <Map<String, dynamic>>[]),
       ]);
       if (!mounted) return;
       setState(() {
-        _barangays = List<Map<String, dynamic>>.from(results[0] as List);
-        _users     = List<Map<String, dynamic>>.from(results[1] as List);
-        _requests  = List<Map<String, dynamic>>.from(results[2] as List);
-        _cases     = List<Map<String, dynamic>>.from(results[3] as List);
+        _barangays     = List<Map<String, dynamic>>.from(results[0] as List);
+        _users         = List<Map<String, dynamic>>.from(results[1] as List);
+        _requests      = List<Map<String, dynamic>>.from(results[2] as List);
+        _cases         = List<Map<String, dynamic>>.from(results[3] as List);
+        _pendingAdmins = List<Map<String, dynamic>>.from(results[4] as List);
         _isLoading = false;
       });
       _chartCtrl.forward();
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _approveAdmin(int userId) async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.approveAdmin(userId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Admin approved successfully.'), backgroundColor: Color(0xFF36454F)),
+        );
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')), backgroundColor: _kPrimary),
+        );
+      }
+    }
+  }
+
+  Future<void> _rejectAdmin(int userId) async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    final reasonCtrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Admin Request'),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Reason (optional)',
+            hintText: 'Enter reason for rejection',
+          ),
+          maxLines: 2,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kPrimary),
+            onPressed: () => Navigator.pop(ctx, reasonCtrl.text.trim()),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (reason == null) return;
+    try {
+      await api.rejectAdmin(userId, reason: reason.isNotEmpty ? reason : null);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Admin request rejected.'), backgroundColor: Color(0xFF36454F)),
+        );
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')), backgroundColor: _kPrimary),
+        );
+      }
     }
   }
 
@@ -178,6 +243,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                         const SizedBox(height: 20),
                         _buildKpiRow(),
                         const SizedBox(height: 20),
+                        _buildPendingAdminsSection(),
+                        const SizedBox(height: 20),
                         _buildAnalyticsSection(),
                         const SizedBox(height: 20),
                         _buildQuickAccessSection(),
@@ -188,6 +255,80 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                 ),
               ),
             ),
+    );
+  }
+
+  // ── Pending Admin Requests ───────────────────────────────────────────────────
+  Widget _buildPendingAdminsSection() {
+    if (_pendingAdmins.isEmpty) return const SizedBox.shrink();
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.pending_actions, color: _kPrimary),
+                const SizedBox(width: 10),
+                Text(
+                  'Pending Admin Requests (${_pendingAdmins.length})',
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _kCharcoal),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(_kPrimary.withValues(alpha: 0.08)),
+                columns: const [
+                  DataColumn(label: Text('Name',     style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Email',    style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Phone',    style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Barangay', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Requested',style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Actions',  style: TextStyle(fontWeight: FontWeight.bold))),
+                ],
+                rows: _pendingAdmins.map((admin) {
+                  final name = '${admin['first_name'] ?? ''} ${admin['last_name'] ?? ''}'.trim();
+                  final email = admin['email'] ?? '';
+                  final phone = admin['phone'] ?? '—';
+                  final barangay = admin['barangay_name'] ?? '—';
+                  final createdAt = admin['created_at'] != null
+                      ? DateFormat('MMM d, y').format(DateTime.tryParse(admin['created_at']) ?? DateTime.now())
+                      : '—';
+                  final id = admin['id'] as int;
+                  return DataRow(cells: [
+                    DataCell(Text(name)),
+                    DataCell(Text(email)),
+                    DataCell(Text(phone)),
+                    DataCell(Text(barangay)),
+                    DataCell(Text(createdAt)),
+                    DataCell(Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                          tooltip: 'Approve',
+                          onPressed: () => _approveAdmin(id),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.cancel, color: _kPrimary),
+                          tooltip: 'Reject',
+                          onPressed: () => _rejectAdmin(id),
+                        ),
+                      ],
+                    )),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

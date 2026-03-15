@@ -68,7 +68,7 @@ def list_mediations(
         raise HTTPException(status_code=403, detail="Not authorized")
     return db.query(models.Mediation).filter(
         models.Mediation.complaint_id == case_id
-    ).order_by(models.Mediation.created_at.desc()).all()
+    ).order_by(models.Mediation.mediation_date.asc()).all()
 
 
 @router.put("/mediations/{mediation_id}", response_model=schemas.MediationRead)
