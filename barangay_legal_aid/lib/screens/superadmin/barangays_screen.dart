@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 class BarangaysScreen extends StatefulWidget {
   const BarangaysScreen({super.key});
@@ -10,6 +11,7 @@ class BarangaysScreen extends StatefulWidget {
 
 class BarangaysScreenState extends State<BarangaysScreen> {
   final ApiService _apiService = ApiService();
+  Map<String, dynamic> _userMap = {};
   List<Map<String, dynamic>> _barangays = [];
   bool _isLoading = true;
   String? _error;
@@ -18,6 +20,7 @@ class BarangaysScreenState extends State<BarangaysScreen> {
   void initState() {
     super.initState();
     _loadBarangays();
+    loadUserFromPrefs().then((m) { if (mounted) setState(() => _userMap = m); });
   }
 
   Future<void> _loadBarangays() async {
@@ -169,13 +172,12 @@ class BarangaysScreenState extends State<BarangaysScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Barangays Management'),
-        backgroundColor: Color(0xFF99272D),
-        foregroundColor: Colors.white,
-        actions: [
+      appBar: BlaAppBar(
+        title: 'Barangays Management',
+        user: _userMap,
+        extraActions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh),
             onPressed: _loadBarangays,
             tooltip: 'Refresh',
           ),

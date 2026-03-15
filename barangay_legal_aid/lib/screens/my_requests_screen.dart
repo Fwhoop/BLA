@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 /// Displays all document requests submitted by the current user and
 /// allows them to download or print a request receipt as a PDF.
@@ -291,11 +292,16 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Document Requests'),
-        backgroundColor: const Color(0xFF99272D),
-        foregroundColor: Colors.white,
-        actions: [
+      appBar: BlaAppBar(
+        title: 'My Document Requests',
+        user: {
+          'first_name': widget.currentUser.firstName,
+          'last_name': widget.currentUser.lastName,
+          'role': widget.currentUser.role.toString().split('.').last,
+          'email': widget.currentUser.email,
+          'profile_photo_path': '',
+        },
+        extraActions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',

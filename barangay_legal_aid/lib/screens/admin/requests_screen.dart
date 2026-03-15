@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/top_snack.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 const _kPrimary = Color(0xFF99272D);
 const _kCharcoal = Color(0xFF36454F);
@@ -19,6 +20,7 @@ class AdminRequestsScreen extends StatefulWidget {
 }
 
 class AdminRequestsScreenState extends State<AdminRequestsScreen> {
+  Map<String, dynamic> _userMap = {};
   List<Map<String, dynamic>> _requests = [];
   bool _isLoading = true;
   String? _error;
@@ -28,6 +30,7 @@ class AdminRequestsScreenState extends State<AdminRequestsScreen> {
   void initState() {
     super.initState();
     _loadRequests();
+    loadUserFromPrefs().then((m) { if (mounted) setState(() => _userMap = m); });
   }
 
   Future<void> _loadRequests() async {
@@ -153,12 +156,10 @@ class AdminRequestsScreenState extends State<AdminRequestsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text('Document Requests'),
-        backgroundColor: _kPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
+      appBar: BlaAppBar(
+        title: 'Document Requests',
+        user: _userMap,
+        extraActions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',

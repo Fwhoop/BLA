@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 import 'package:barangay_legal_aid/screens/superadmin/barangays_screen.dart';
 import 'package:barangay_legal_aid/screens/superadmin/admins_screen.dart';
 import 'package:barangay_legal_aid/screens/superadmin/system_screen.dart';
@@ -31,6 +31,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
   late final Animation<double>    _chartAnim;
 
   // ── raw data ────────────────────────────────────────────────────────────────
+  Map<String, dynamic> _currentUserMap = {};
   List<Map<String, dynamic>> _cases          = [];
   List<Map<String, dynamic>> _requests       = [];
   List<Map<String, dynamic>> _users          = [];
@@ -95,6 +96,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
     _chartCtrl.reset();
     try {
       final api = Provider.of<ApiService>(context, listen: false);
+      final userMap = await loadUserFromPrefs();
       final results = await Future.wait([
         api.getBarangays().catchError((_) => <Map<String, dynamic>>[]),
         api.getUsers().catchError((_) => <Map<String, dynamic>>[]),
@@ -104,6 +106,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
       ]);
       if (!mounted) return;
       setState(() {
+        _currentUserMap = userMap;
         _barangays     = List<Map<String, dynamic>>.from(results[0] as List);
         _users         = List<Map<String, dynamic>>.from(results[1] as List);
         _requests      = List<Map<String, dynamic>>.from(results[2] as List);
@@ -214,37 +217,26 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('SuperAdmin Dashboard'),
-        backgroundColor: _kPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          NotificationBell(
-            count: _unreadCount,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const NotificationScreen(userRole: 'superadmin'),
-              ),
-            ).then((_) => _pollUnreadCount()),
-          ),
+      appBar: BlaAppBar(
+        title: blaGreeting(
+          _currentUserMap['first_name'] as String? ?? '',
+          role: _currentUserMap['role'] as String? ?? 'superadmin',
+        ),
+        user: _currentUserMap,
+        notificationBell: NotificationBell(
+          count: _unreadCount,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const NotificationScreen(userRole: 'superadmin'),
+            ),
+          ).then((_) => _pollUnreadCount()),
+        ),
+        extraActions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: _loadData,
-          ),
-          TextButton(
-            onPressed: () async {
-              final nav = Navigator.of(context);
-              await AuthService().logout();
-              nav.pushNamedAndRemoveUntil('/login', (_) => false);
-            },
-            child: const Text(
-              'LOGOUT',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
           ),
         ],
       ),
@@ -392,7 +384,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_greeting()}, Super Admin!',
+                  '${_greeting()}, ${_currentUserMap['first_name']?.toString().isNotEmpty == true ? _currentUserMap['first_name'] : 'Super Admin'}!',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,

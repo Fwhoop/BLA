@@ -40,6 +40,8 @@ class AuthService {
     required String barangay,
     required String idPhotoPath,
     dynamic idPhotoBytes,
+    dynamic selfiePhotoBytes,
+    dynamic selfieWithIdBytes,
     String role = 'user',
   }) async {
     await _api.register(
@@ -52,6 +54,8 @@ class AuthService {
       barangay: barangay,
       idPhotoPath: idPhotoPath,
       idPhotoBytes: idPhotoBytes,
+      profilePhotoBytes: selfiePhotoBytes,
+      selfieWithIdBytes: selfieWithIdBytes,
       role: role,
     );
     return true;
@@ -105,6 +109,8 @@ class AuthService {
       await prefs.setString('currentUserEmail', user.email);
       await prefs.setString('currentUserRole', user.role.toString().split('.').last);
       await prefs.setString('currentUserId', user.id);
+      await prefs.setString('firstName', user.firstName);
+      await prefs.setString('lastName', user.lastName);
     }
     return user;
   }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/config/env_config.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 const _kPrimary  = Color(0xFF99272D);
 const _kCharcoal = Color(0xFF36454F);
@@ -22,6 +23,7 @@ class AdminUsersScreen extends StatefulWidget {
 class _AdminUsersScreenState extends State<AdminUsersScreen>
     with SingleTickerProviderStateMixin {
   // Data
+  Map<String, dynamic> _userMap = {};
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -59,6 +61,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       _filterStatus = 'pending';
       _loadUsers(reset: true);
     });
+    loadUserFromPrefs().then((m) { if (mounted) setState(() => _userMap = m); });
   }
 
   @override
@@ -262,12 +265,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: AppBar(
-        title: const Text('Users Management'),
-        backgroundColor: _kPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
+      appBar: BlaAppBar(
+        title: 'Users Management',
+        user: _userMap,
+        extraActions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',

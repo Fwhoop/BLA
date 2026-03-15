@@ -31,6 +31,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   /// If the backend returns a dev OTP (SMTP not configured), we show it.
   String? _devOtp;
+  int? _userId;
 
   @override
   void dispose() {
@@ -49,12 +50,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     try {
       final result = await _apiService.forgotPassword(
         _emailController.text.trim(),
+        'email',
       );
       final devOtp = result['dev_otp'] as String?;
+      final userId = result['user_id'] as int?;
       if (!mounted) return;
       setState(() {
         _otpSent = true;
         _devOtp = devOtp;
+        _userId = userId;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -86,8 +90,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
     try {
       await _apiService.resetPassword(
-        token: _otpController.text.trim(),
-        newPassword: _newPasswordController.text.trim(),
+        _userId ?? 0,
+        _otpController.text.trim(),
+        _newPasswordController.text.trim(),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

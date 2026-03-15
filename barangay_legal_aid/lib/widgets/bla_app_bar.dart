@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/config/env_config.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _kPrimary = Color(0xFF99272D);
 
@@ -16,6 +17,7 @@ class BlaAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Map<String, dynamic>? user;
   final Widget? notificationBell;
   final List<Widget>? extraActions;
+  final PreferredSizeWidget? bottom;
 
   const BlaAppBar({
     super.key,
@@ -23,10 +25,13 @@ class BlaAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.user,
     this.notificationBell,
     this.extraActions,
+    this.bottom,
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(
+        kToolbarHeight + (bottom?.preferredSize.height ?? 0),
+      );
 
   String _initials() {
     final f = (user?['first_name'] ?? '') as String;
@@ -62,6 +67,7 @@ class BlaAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       title: Text(title,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+      bottom: bottom,
       actions: [
         if (notificationBell != null) notificationBell!,
         ...?extraActions,
@@ -228,9 +234,25 @@ class _ProfileSheet extends StatelessWidget {
   }
 }
 
-/// Helper: greeting based on time of day
-String blaGreeting(String firstName) {
+/// Helper: greeting with role — e.g. "Good Morning, Admin Juan"
+String blaGreeting(String firstName, {String role = ''}) {
   final hour = DateTime.now().hour;
   final tod = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-  return '$tod, $firstName!';
+  final roleLabel = role.isNotEmpty
+      ? '${role[0].toUpperCase()}${role.substring(1)} '
+      : '';
+  return '$tod, $roleLabel$firstName';
+}
+
+/// Load lightweight user map from SharedPreferences (no HTTP call).
+/// Stored at login: firstName, lastName, currentUserRole, currentUserEmail.
+Future<Map<String, dynamic>> loadUserFromPrefs() async {
+  final prefs = await SharedPreferences.getInstance();
+  return {
+    'first_name': prefs.getString('firstName') ?? '',
+    'last_name':  prefs.getString('lastName')  ?? '',
+    'role':       prefs.getString('currentUserRole') ?? 'user',
+    'email':      prefs.getString('currentUserEmail') ?? '',
+    'profile_photo_path': prefs.getString('profilePhotoPath') ?? '',
+  };
 }
