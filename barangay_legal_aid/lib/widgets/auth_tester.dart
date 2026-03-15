@@ -38,8 +38,8 @@ class _AuthTesterState extends State<AuthTester> {
   }
 
   Future<void> _simulateLogin() async {
-    final User? user = await _authService.login(  
-      email: 'test@legalaid.com',
+    final User? user = await _authService.login(
+      identifier: 'test@legalaid.com',
       password: 'test123',
       rememberMe: true,
     );
@@ -240,7 +240,7 @@ class _AuthTesterState extends State<AuthTester> {
 
   Future<void> _testLogin(String email, String password) async {
     final User? user = await _authService.login(
-      email: email,
+      identifier: email,
       password: password,
       rememberMe: true,
     );

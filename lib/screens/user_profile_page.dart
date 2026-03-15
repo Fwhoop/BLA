@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
@@ -213,11 +214,7 @@ class UserProfilePageState extends State<UserProfilePage> {
   Widget build(BuildContext context) {
     if (_currentUser == null && !_isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('My Profile'),
-          backgroundColor: Color(0xFF99272D),
-          foregroundColor: Colors.white,
-        ),
+        appBar: BlaAppBar(title: 'My Profile'),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -240,14 +237,19 @@ class UserProfilePageState extends State<UserProfilePage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('My Profile'),
-        backgroundColor: Color(0xFF99272D),
-        foregroundColor: Colors.white,
-        actions: [
+      appBar: BlaAppBar(
+        title: 'My Profile',
+        user: _currentUser == null ? {} : {
+          'first_name': _currentUser!.firstName,
+          'last_name': _currentUser!.lastName,
+          'role': _currentUser!.role.toString().split('.').last,
+          'email': _currentUser!.email,
+          'profile_photo_path': '',
+        },
+        extraActions: [
           if (!_isEditing && !_isChangingPassword)
             IconButton(
-              icon: Icon(Icons.edit),
+              icon: const Icon(Icons.edit),
               onPressed: () => setState(() => _isEditing = true),
               tooltip: 'Edit Profile',
             ),

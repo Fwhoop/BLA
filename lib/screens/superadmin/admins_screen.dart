@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 const _kPrimary  = Color(0xFF99272D);
 const _kCharcoal = Color(0xFF36454F);
@@ -15,6 +16,7 @@ class AdminsScreen extends StatefulWidget {
 }
 
 class _AdminsScreenState extends State<AdminsScreen> {
+  Map<String, dynamic> _userMap = {};
   List<Map<String, dynamic>> _admins    = [];
   List<Map<String, dynamic>> _barangays = [];
   bool   _isLoading = true;
@@ -24,6 +26,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    loadUserFromPrefs().then((m) { if (mounted) setState(() => _userMap = m); });
   }
 
   Future<void> _loadData() async {
@@ -262,12 +265,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: AppBar(
-        title: const Text('Admins Management'),
-        backgroundColor: _kPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
+      appBar: BlaAppBar(
+        title: 'Admins Management',
+        user: _userMap,
+        extraActions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',

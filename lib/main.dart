@@ -19,6 +19,7 @@ import 'package:barangay_legal_aid/screens/superadmin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/forms_hub_page.dart';
 import 'package:barangay_legal_aid/screens/forgot_password_screen.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,15 +29,20 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final secure = SecureStorageService();
-  final authService = AuthService(secureStorage: secure, apiService: ApiService(secure));
+  final authService = AuthService(
+    secureStorage: secure,
+    apiService: ApiService(secure),
+  );
   final isLoggedIn = await authService.isLoggedIn();
 
   final apiService = ApiService(secure);
-  runApp(MyApp(
-    isLoggedIn: isLoggedIn,
-    authService: authService,
-    apiService: apiService,
-  ));
+  runApp(
+    MyApp(
+      isLoggedIn: isLoggedIn,
+      authService: authService,
+      apiService: apiService,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -71,7 +77,9 @@ class MyApp extends StatelessWidget {
             error: Color(0xFFB3261E),
           ),
           inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
               borderSide: BorderSide(color: Color(0xFFCDD5DF)),
@@ -95,7 +103,9 @@ class MyApp extends StatelessWidget {
               foregroundColor: Color(0xFFFFFFFF),
               textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ),
@@ -148,13 +158,6 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _logout() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    await auth.logout();
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/login');
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_guardRedirect && !_isLoading) {
@@ -162,21 +165,15 @@ class HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/login');
       });
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_isLoading) {
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_currentUser == null) {
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_currentUser!.isSuperAdmin) {
@@ -186,37 +183,27 @@ class HomeScreenState extends State<HomeScreen> {
       return AdminDashboard();
     }
 
+    final userMap = {
+      'first_name': _currentUser!.firstName,
+      'last_name': _currentUser!.lastName,
+      'role': _currentUser!.role.toString().split('.').last,
+      'email': _currentUser!.email,
+      'profile_photo_path': '',
+    };
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(_showHistory ? Icons.chevron_left : Icons.chevron_right),
-          tooltip: _showHistory ? 'Hide history' : 'Show history',
-          onPressed: () {
-            setState(() => _showHistory = !_showHistory);
-          },
-        ),
-        title: Text('Barangay Legal Aid Chatbot'),
-        backgroundColor: Color(0xFF99272D),
-        actions: [
+      appBar: BlaAppBar(
+        title: blaGreeting(_currentUser!.firstName, role: 'Resident'),
+        user: userMap,
+        extraActions: [
           IconButton(
-            icon: Icon(Icons.dashboard),
+            icon: Icon(_showHistory ? Icons.chevron_left : Icons.chevron_right),
+            tooltip: _showHistory ? 'Hide history' : 'Show history',
+            onPressed: () => setState(() => _showHistory = !_showHistory),
+          ),
+          IconButton(
+            icon: const Icon(Icons.dashboard),
             tooltip: 'Forms Hub',
             onPressed: () => Navigator.pushNamed(context, '/forms'),
-          ),
-          IconButton(
-            icon: Icon(Icons.person),
-            tooltip: 'My Profile',
-            onPressed: () => Navigator.pushNamed(context, '/profile'),
-          ),
-          TextButton(
-            onPressed: _logout,
-            child: Text(
-              'LOGOUT',
-              style: TextStyle(
-                color: Color(0xFFFFFFFF),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
           ),
         ],
       ),

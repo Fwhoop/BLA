@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/cases_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/chats_screen.dart';
@@ -34,6 +34,7 @@ class AdminDashboardState extends State<AdminDashboard>
   late final AnimationController _chartCtrl;
   late final Animation<double> _chartAnim;
 
+  Map<String, dynamic> _currentUserMap = {};
   List<Map<String, dynamic>> _cases    = [];
   List<Map<String, dynamic>> _requests = [];
   List<Map<String, dynamic>> _users    = [];
@@ -100,6 +101,7 @@ class AdminDashboardState extends State<AdminDashboard>
     setState(() => _isLoading = true);
     _chartCtrl.reset();
     try {
+      final userMap = await loadUserFromPrefs();
       final results = await Future.wait([
         api.getCases(),
         api.getRequests().catchError((_) => <Map<String, dynamic>>[]),
@@ -107,6 +109,7 @@ class AdminDashboardState extends State<AdminDashboard>
       ]);
       if (!mounted) return;
       setState(() {
+        _currentUserMap = userMap;
         _cases    = List<Map<String, dynamic>>.from(results[0] as List);
         _requests = List<Map<String, dynamic>>.from(results[1] as List);
         _users    = List<Map<String, dynamic>>.from(results[2] as List);
@@ -138,44 +141,26 @@ class AdminDashboardState extends State<AdminDashboard>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Admin Dashboard'),
-        backgroundColor: _kPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          NotificationBell(
-            count: _unreadCount,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const NotificationScreen(userRole: 'admin'),
-              ),
-            ).then((_) => _pollUnreadCount()),
-          ),
+      appBar: BlaAppBar(
+        title: blaGreeting(
+          _currentUserMap['first_name'] as String? ?? '',
+          role: _currentUserMap['role'] as String? ?? 'admin',
+        ),
+        user: _currentUserMap,
+        notificationBell: NotificationBell(
+          count: _unreadCount,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const NotificationScreen(userRole: 'admin'),
+            ),
+          ).then((_) => _pollUnreadCount()),
+        ),
+        extraActions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: _loadData,
-          ),
-          TextButton(
-            onPressed: () async {
-              await AuthService().logout();
-              if (!mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (_) => false,
-              );
-            },
-            child: const Text(
-              'LOGOUT',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ),
         ],
       ),
@@ -240,7 +225,7 @@ class AdminDashboardState extends State<AdminDashboard>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_greeting()}, Admin!',
+                  '${_greeting()}, ${_currentUserMap['first_name']?.toString().isNotEmpty == true ? _currentUserMap['first_name'] : 'Admin'}!',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
