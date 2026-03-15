@@ -1,3 +1,8 @@
+import 'dart:typed_data';
+import 'dart:async';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
@@ -617,6 +622,169 @@ class _DetailSheetState extends State<_DetailSheet> {
     }
   }
 
+  /// Show a dialog to confirm resolution — captures mediator name + optional photo.
+  Future<void> _showResolveDialog() async {
+    final mediatorCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    Uint8List? photoBytes;
+    String? photoFilename;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(children: [
+            Icon(Icons.check_circle, color: Color(0xFF10B981)),
+            SizedBox(width: 8),
+            Text('Mark as Resolved', style: TextStyle(fontSize: 16)),
+          ]),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Please confirm mediation details before marking this complaint as resolved.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: mediatorCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Mediator Name *',
+                    prefixIcon: Icon(Icons.person, size: 18),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setS(() {}),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: notesCtrl,
+                  maxLines: 3,
+                  minLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Resolution Notes (optional)',
+                    hintText: 'Describe the resolution or agreement reached…',
+                    prefixIcon: Icon(Icons.notes, size: 18),
+                    isDense: true,
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Resolution Photo (optional)',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ),
+                const SizedBox(height: 8),
+                if (photoFilename != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(children: [
+                      const Icon(Icons.image, size: 16, color: Color(0xFF43A047)),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(photoFilename!, style: const TextStyle(fontSize: 12, color: Color(0xFF43A047)), overflow: TextOverflow.ellipsis)),
+                      GestureDetector(
+                        onTap: () => setS(() { photoBytes = null; photoFilename = null; }),
+                        child: const Icon(Icons.close, size: 16, color: Colors.grey),
+                      ),
+                    ]),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final c = Completer<(Uint8List, String)?>();
+                    final input = html.FileUploadInputElement()
+                      ..accept = 'image/*';
+                    input.click();
+                    input.onChange.listen((_) {
+                      final f = input.files?.first;
+                      if (f == null) { c.complete(null); return; }
+                      final reader = html.FileReader();
+                      reader.readAsArrayBuffer(f);
+                      reader.onLoad.listen((_) {
+                        c.complete((Uint8List.fromList(reader.result as List<int>), f.name));
+                      });
+                      reader.onError.listen((_) => c.complete(null));
+                    });
+                    final result = await c.future;
+                    if (result != null) {
+                      setS(() { photoBytes = result.$1; photoFilename = result.$2; });
+                    }
+                  },
+                  icon: const Icon(Icons.photo_camera, size: 16),
+                  label: Text(photoFilename != null ? 'Change Photo' : 'Attach Photo'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1565C0),
+                    side: const BorderSide(color: Color(0xFF1565C0)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: mediatorCtrl.text.trim().isEmpty ? null : () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+              child: const Text('Mark Resolved'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final mediatorName = mediatorCtrl.text.trim();
+    final notes = notesCtrl.text.trim();
+    if (mediatorName.isEmpty) return;
+
+    setState(() => _addingMediation = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final caseId = widget.caseData['id'] as int;
+
+      int mediationId;
+      if (_mediations.isEmpty) {
+        // Create a new resolved mediation record so backend check passes
+        final med = await api.createMediation(caseId, {
+          'resolution_status': 'resolved',
+          'mediator_name': mediatorName,
+          if (notes.isNotEmpty) 'summary_notes': notes,
+        });
+        mediationId = med['id'] as int;
+        await _loadMediations();
+      } else {
+        // Update the most recent mediation with mediator name
+        mediationId = _mediations.first['id'] as int;
+        await api.updateMediation(mediationId, {
+          'mediator_name': mediatorName,
+          'resolution_status': 'resolved',
+          if (notes.isNotEmpty) 'summary_notes': notes,
+        });
+        await _loadMediations();
+      }
+
+      // Upload resolution photo if provided
+      if (photoBytes != null && photoFilename != null) {
+        await api.uploadResolutionPhoto(mediationId, photoBytes!, photoFilename!);
+      }
+
+      // Now mark the case as resolved
+      widget.onStatusChanged('resolved');
+    } catch (e) {
+      if (mounted) {
+        showTopSnack(context,
+          message: 'Failed: ${e.toString().replaceFirst("Exception: ", "")}',
+          backgroundColor: _kPrimary,
+          icon: Icons.error_outline,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _addingMediation = false);
+    }
+  }
+
   Future<void> _deleteMediationItem(int mediationId) async {
     try {
       final api = Provider.of<ApiService>(context, listen: false);
@@ -761,7 +929,13 @@ class _DetailSheetState extends State<_DetailSheet> {
                       final isActive = e.key == status;
                       final m = e.value;
                       return GestureDetector(
-                        onTap: isActive ? null : () => widget.onStatusChanged(e.key),
+                        onTap: isActive ? null : () {
+                        if (e.key == 'resolved') {
+                          _showResolveDialog();
+                        } else {
+                          widget.onStatusChanged(e.key);
+                        }
+                      },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -836,11 +1010,13 @@ class _MediationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date      = mediation['mediation_date'] as String?;
-    final time      = mediation['mediation_time'] as String?;
-    final location  = mediation['location'] as String?;
-    final notes     = mediation['summary_notes'] as String?;
-    final resStatus = (mediation['resolution_status'] ?? 'scheduled') as String;
+    final date         = mediation['mediation_date'] as String?;
+    final time         = mediation['mediation_time'] as String?;
+    final location     = mediation['location'] as String?;
+    final notes        = mediation['summary_notes'] as String?;
+    final mediatorName = mediation['mediator_name'] as String?;
+    final photoPath    = mediation['resolution_photo_path'] as String?;
+    final resStatus    = (mediation['resolution_status'] ?? 'scheduled') as String;
     final color = _statusColors[resStatus] ?? _statusColors['scheduled']!;
 
     return Container(
@@ -898,11 +1074,33 @@ class _MediationTile extends StatelessWidget {
                       Text(location, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ]),
                   ],
+                  if (mediatorName != null && mediatorName.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      const Icon(Icons.person_pin, size: 13, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text('Mediator: $mediatorName', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ]),
+                  ],
                   if (notes != null && notes.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(notes,
                         style: TextStyle(fontSize: 12, color: _kCharcoal.withValues(alpha: 0.7)),
                         maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                  if (photoPath != null) ...[
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () {
+                        const baseUrl = 'https://bla-production-441d.up.railway.app';
+                        html.window.open('$baseUrl$photoPath', '_blank');
+                      },
+                      child: Row(children: [
+                        const Icon(Icons.photo, size: 13, color: Color(0xFF10B981)),
+                        const SizedBox(width: 4),
+                        const Text('View resolution photo', style: TextStyle(fontSize: 12, color: Color(0xFF10B981), decoration: TextDecoration.underline)),
+                      ]),
+                    ),
                   ],
                 ],
               ),

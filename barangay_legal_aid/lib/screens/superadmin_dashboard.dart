@@ -31,10 +31,11 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
   late final Animation<double>    _chartAnim;
 
   // ── raw data ────────────────────────────────────────────────────────────────
-  List<Map<String, dynamic>> _cases     = [];
-  List<Map<String, dynamic>> _requests  = [];
-  List<Map<String, dynamic>> _users     = [];
-  List<Map<String, dynamic>> _barangays = [];
+  List<Map<String, dynamic>> _cases          = [];
+  List<Map<String, dynamic>> _requests       = [];
+  List<Map<String, dynamic>> _users          = [];
+  List<Map<String, dynamic>> _barangays      = [];
+  List<Map<String, dynamic>> _pendingAdmins  = [];
 
   bool  _isLoading  = true;
   int   _unreadCount = 0;
@@ -99,18 +100,105 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         api.getUsers().catchError((_) => <Map<String, dynamic>>[]),
         api.getRequests().catchError((_) => <Map<String, dynamic>>[]),
         api.getCases().catchError((_) => <Map<String, dynamic>>[]),
+        api.getPendingAdmins().catchError((_) => <Map<String, dynamic>>[]),
       ]);
       if (!mounted) return;
       setState(() {
-        _barangays = List<Map<String, dynamic>>.from(results[0] as List);
-        _users     = List<Map<String, dynamic>>.from(results[1] as List);
-        _requests  = List<Map<String, dynamic>>.from(results[2] as List);
-        _cases     = List<Map<String, dynamic>>.from(results[3] as List);
+        _barangays     = List<Map<String, dynamic>>.from(results[0] as List);
+        _users         = List<Map<String, dynamic>>.from(results[1] as List);
+        _requests      = List<Map<String, dynamic>>.from(results[2] as List);
+        _cases         = List<Map<String, dynamic>>.from(results[3] as List);
+        _pendingAdmins = List<Map<String, dynamic>>.from(results[4] as List);
         _isLoading = false;
       });
       _chartCtrl.forward();
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadPendingAdmins() async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final list = await api.getPendingAdmins();
+      if (mounted) setState(() => _pendingAdmins = list);
+    } catch (_) {}
+  }
+
+  Future<void> _approveAdmin(Map<String, dynamic> admin) async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.approveAdmin(admin['id'] as int);
+      await _loadPendingAdmins();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${admin['first_name']} ${admin['last_name']} approved.'),
+          backgroundColor: const Color(0xFF10B981),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: _kPrimary,
+        ));
+      }
+    }
+  }
+
+  Future<void> _rejectAdmin(Map<String, dynamic> admin) async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Admin Request'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Reject ${admin['first_name']} ${admin['last_name']}?',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Reason (optional)',
+                hintText: 'Explain why this request is being rejected…',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: _kPrimary, foregroundColor: Colors.white),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.rejectAdmin(admin['id'] as int, reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim());
+      await _loadPendingAdmins();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${admin['first_name']} ${admin['last_name']} rejected.'),
+          backgroundColor: _kCharcoal,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: _kPrimary,
+        ));
+      }
     }
   }
 
@@ -178,6 +266,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                         const SizedBox(height: 20),
                         _buildKpiRow(),
                         const SizedBox(height: 20),
+                        _buildPendingAdminsSection(),
+                        const SizedBox(height: 20),
                         _buildAnalyticsSection(),
                         const SizedBox(height: 20),
                         _buildQuickAccessSection(),
@@ -188,6 +278,89 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                 ),
               ),
             ),
+    );
+  }
+
+  // ── Pending Admin Requests ───────────────────────────────────────────────────
+  Widget _buildPendingAdminsSection() {
+    if (_pendingAdmins.isEmpty) return const SizedBox.shrink();
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.pending_actions, color: _kPrimary, size: 20),
+                const SizedBox(width: 8),
+                const Text('Pending Admin Requests',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _kCharcoal)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _kPrimary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text('${_pendingAdmins.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(_kBg),
+                columnSpacing: 24,
+                columns: const [
+                  DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Barangay', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Phone', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Requested', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: _pendingAdmins.map((admin) {
+                  final name = '${admin['first_name'] ?? ''} ${admin['last_name'] ?? ''}'.trim();
+                  final barangay = admin['barangay_name'] ?? admin['barangay_id']?.toString() ?? '—';
+                  final email = admin['email'] ?? '—';
+                  final phone = admin['phone'] ?? '—';
+                  final createdRaw = admin['created_at'] as String?;
+                  final created = createdRaw != null
+                      ? DateFormat('MMM d, y').format(DateTime.tryParse(createdRaw) ?? DateTime.now())
+                      : '—';
+                  return DataRow(cells: [
+                    DataCell(Text(name, style: const TextStyle(fontWeight: FontWeight.w500))),
+                    DataCell(Text(barangay)),
+                    DataCell(Text(email)),
+                    DataCell(Text(phone)),
+                    DataCell(Text(created, style: const TextStyle(color: Colors.grey))),
+                    DataCell(Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check_circle, color: Color(0xFF10B981)),
+                          tooltip: 'Approve',
+                          onPressed: () => _approveAdmin(admin),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.cancel, color: _kPrimary),
+                          tooltip: 'Reject',
+                          onPressed: () => _rejectAdmin(admin),
+                        ),
+                      ],
+                    )),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

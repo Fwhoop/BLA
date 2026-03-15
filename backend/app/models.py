@@ -122,6 +122,8 @@ class Mediation(Base):
     resolution_status   = Column(String(30), default="scheduled")  # scheduled|ongoing|resolved|failed
     next_hearing_date   = Column(Date, nullable=True)
     agreement_document_path = Column(String(500), nullable=True)
+    mediator_name           = Column(String(200), nullable=True)   # Name of mediator present
+    resolution_photo_path   = Column(String(500), nullable=True)   # Photo proof of resolution
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -152,6 +154,7 @@ class Request(Base):
     document_type = Column(String(100), nullable=False)
     purpose  = Column(Text, nullable=False)
     status   = Column(String(20), default="pending")
+    file_url = Column(String(500), nullable=True)   # Admin-attached document URL
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

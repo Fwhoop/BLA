@@ -265,21 +265,14 @@ class LoginPageState extends State<LoginPage> {
       controller: _identifierController,
       keyboardType: _usePhone ? TextInputType.phone : TextInputType.emailAddress,
       textInputAction: TextInputAction.next,
-      decoration: InputDecoration(
-        labelText: _usePhone ? 'Mobile number' : 'Email address',
-        hintText: _usePhone ? '09XXXXXXXXX' : 'you@example.com',
-        prefixIcon: Icon(_usePhone ? Icons.phone_outlined : Icons.email_outlined),
+      decoration: const InputDecoration(
+        labelText: 'Email or Phone Number',
+        hintText: 'you@example.com or 09XXXXXXXXX',
+        prefixIcon: Icon(Icons.person_outline),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return _usePhone ? 'Please enter your phone number' : 'Please enter your email';
-        }
-        if (!_usePhone) {
-          if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(value)) {
-            return 'Please enter a valid email address';
-          }
-        } else {
-          if (value.length < 10) return 'Enter a valid phone number';
+        if (value == null || value.trim().isEmpty) {
+          return 'Please enter your email or phone number';
         }
         return null;
       },

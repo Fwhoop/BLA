@@ -1,6 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+
+import 'firebase_options.dart';
 
 import 'package:barangay_legal_aid/screens/signup_page.dart';
 import 'package:barangay_legal_aid/screens/login_page.dart';
@@ -15,13 +18,14 @@ import 'package:barangay_legal_aid/screens/admin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/superadmin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/forms_hub_page.dart';
-import 'package:barangay_legal_aid/screens/forgot_password_page.dart';
-import 'package:barangay_legal_aid/screens/my_cases_screen.dart';
+import 'package:barangay_legal_aid/screens/forgot_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env'); // load the backend URL
+  await dotenv.load(fileName: '.env');
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final secure = SecureStorageService();
   final authService = AuthService(
@@ -30,12 +34,14 @@ void main() async {
   );
   final isLoggedIn = await authService.isLoggedIn();
 
-  final apiService = ApiService(secure); // this reads API_URL from .env
-  runApp(MyApp(
-    isLoggedIn: isLoggedIn,
-    authService: authService,
-    apiService: apiService,
-  ));
+  final apiService = ApiService(secure);
+  runApp(
+    MyApp(
+      isLoggedIn: isLoggedIn,
+      authService: authService,
+      apiService: apiService,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -70,7 +76,9 @@ class MyApp extends StatelessWidget {
             error: Color(0xFFB3261E),
           ),
           inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
               borderSide: BorderSide(color: Color(0xFFCDD5DF)),
@@ -94,7 +102,9 @@ class MyApp extends StatelessWidget {
               foregroundColor: Color(0xFFFFFFFF),
               textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ),
@@ -107,8 +117,7 @@ class MyApp extends StatelessWidget {
           '/superadmin': (context) => SuperAdminDashboard(),
           '/profile': (context) => UserProfilePage(),
           '/forms': (context) => FormsHubPage(),
-          '/forgot-password': (context) => const ForgotPasswordPage(),
-          '/my-cases': (context) => const MyCasesScreen(),
+          '/forgot-password': (context) => ForgotPasswordScreen(),
         },
       ),
     );
@@ -138,23 +147,14 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadCurrentUser() async {
-    try {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final user = await auth.getCurrentUser();
-      if (!mounted) return;
-      setState(() {
-        _currentUser = user;
-        _isLoading = false;
-        _guardRedirect = user == null;
-      });
-    } catch (_) {
-      // Network/CORS error — treat as logged-out and go to login
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _guardRedirect = true;
-      });
-    }
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final user = await auth.getCurrentUser();
+    if (!mounted) return;
+    setState(() {
+      _currentUser = user;
+      _isLoading = false;
+      _guardRedirect = user == null;
+    });
   }
 
   Future<void> _logout() async {
@@ -171,21 +171,15 @@ class HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/login');
       });
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_isLoading) {
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_currentUser == null) {
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_currentUser!.isSuperAdmin) {

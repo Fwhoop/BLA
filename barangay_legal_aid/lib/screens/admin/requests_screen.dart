@@ -1,3 +1,8 @@
+import 'dart:typed_data';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
@@ -130,6 +135,10 @@ class AdminRequestsScreenState extends State<AdminRequestsScreen> {
         onDelete: () {
           Navigator.pop(context);
           _deleteRequest(req);
+        },
+        onUploaded: () {
+          Navigator.pop(context);
+          _loadRequests();
         },
       ),
     );
@@ -325,6 +334,7 @@ class _RequestCard extends StatelessWidget {
     final status = request['status'] as String? ?? 'pending';
     final isPending = status == 'pending';
     final requesterName = request['requester_name'] as String?;
+    final hasDocument = (request['file_url'] as String?) != null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -338,7 +348,6 @@ class _RequestCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header row ────────────────────────────────────────────────
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -374,27 +383,49 @@ class _RequestCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Status badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _statusColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _statusColor.withValues(alpha: 0.4)),
-                    ),
-                    child: Text(
-                      _statusLabel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _statusColor,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _statusColor.withValues(alpha: 0.4)),
+                        ),
+                        child: Text(
+                          _statusLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _statusColor,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (hasDocument)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF43A047).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.attach_file, size: 10, color: Color(0xFF43A047)),
+                                SizedBox(width: 2),
+                                Text('Doc attached', style: TextStyle(fontSize: 10, color: Color(0xFF43A047))),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
 
-              // ── Meta row ──────────────────────────────────────────────────
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -421,7 +452,6 @@ class _RequestCard extends StatelessWidget {
                 ],
               ),
 
-              // ── Action buttons (pending only) ─────────────────────────────
               if (isPending) ...[
                 const SizedBox(height: 14),
                 const Divider(height: 1),
@@ -437,8 +467,7 @@ class _RequestCard extends StatelessWidget {
                           foregroundColor: _kPrimary,
                           side: const BorderSide(color: _kPrimary),
                           padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                     ),
@@ -453,8 +482,7 @@ class _RequestCard extends StatelessWidget {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                     ),
@@ -463,14 +491,11 @@ class _RequestCard extends StatelessWidget {
                       icon: const Icon(Icons.delete_outline, color: Colors.grey),
                       tooltip: 'Delete',
                       onPressed: onDelete,
-                      style: IconButton.styleFrom(
-                        padding: const EdgeInsets.all(8),
-                      ),
+                      style: IconButton.styleFrom(padding: const EdgeInsets.all(8)),
                     ),
                   ],
                 ),
               ] else ...[
-                // Non-pending: only show delete in corner
                 const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,
@@ -494,18 +519,27 @@ class _RequestCard extends StatelessWidget {
 
 // ─── Detail Bottom Sheet ──────────────────────────────────────────────────────
 
-class _RequestDetailSheet extends StatelessWidget {
+class _RequestDetailSheet extends StatefulWidget {
   final Map<String, dynamic> request;
   final VoidCallback onApprove;
   final VoidCallback onReject;
   final VoidCallback onDelete;
+  final VoidCallback onUploaded;
 
   const _RequestDetailSheet({
     required this.request,
     required this.onApprove,
     required this.onReject,
     required this.onDelete,
+    required this.onUploaded,
   });
+
+  @override
+  State<_RequestDetailSheet> createState() => _RequestDetailSheetState();
+}
+
+class _RequestDetailSheetState extends State<_RequestDetailSheet> {
+  bool _uploading = false;
 
   String _formatDate(String? raw) {
     if (raw == null) return 'N/A';
@@ -519,7 +553,7 @@ class _RequestDetailSheet extends StatelessWidget {
   }
 
   Color get _statusColor {
-    switch (request['status']) {
+    switch (widget.request['status']) {
       case 'approved': return const Color(0xFF43A047);
       case 'rejected': return _kPrimary;
       case 'pending':  return const Color(0xFFF59E0B);
@@ -527,15 +561,61 @@ class _RequestDetailSheet extends StatelessWidget {
     }
   }
 
+  Future<void> _pickAndUpload() async {
+    final completer = Completer<(Uint8List, String)?>();
+    final input = html.FileUploadInputElement()
+      ..accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+    input.click();
+    input.onChange.listen((_) {
+      final file = input.files?.first;
+      if (file == null) {
+        completer.complete(null);
+        return;
+      }
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      reader.onLoad.listen((_) {
+        final bytes = Uint8List.fromList(reader.result as List<int>);
+        completer.complete((bytes, file.name));
+      });
+      reader.onError.listen((_) => completer.complete(null));
+    });
+
+    final result = await completer.future;
+    if (result == null || !mounted) return;
+    final (bytes, filename) = result;
+
+    setState(() => _uploading = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.uploadRequestDocument(widget.request['id'] as int, bytes, filename);
+      if (!mounted) return;
+      showTopSnack(context,
+          message: 'Document uploaded — request marked approved',
+          backgroundColor: const Color(0xFF43A047),
+          icon: Icons.check_circle);
+      widget.onUploaded();
+    } catch (e) {
+      if (!mounted) return;
+      showTopSnack(context,
+          message: 'Upload failed: ${e.toString().replaceAll('Exception: ', '')}',
+          backgroundColor: _kPrimary,
+          icon: Icons.error_outline);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final status = request['status'] as String? ?? 'pending';
+    final status = widget.request['status'] as String? ?? 'pending';
     final isPending = status == 'pending';
-    final requesterName = request['requester_name'] as String?;
-    final requesterEmail = request['requester_email'] as String?;
+    final requesterName = widget.request['requester_name'] as String?;
+    final requesterEmail = widget.request['requester_email'] as String?;
+    final fileUrl = widget.request['file_url'] as String?;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.6,
+      initialChildSize: 0.65,
       minChildSize: 0.4,
       maxChildSize: 0.92,
       builder: (_, controller) => Container(
@@ -565,7 +645,7 @@ class _RequestDetailSheet extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          request['document_type'] as String? ?? 'Document Request',
+                          widget.request['document_type'] as String? ?? 'Document Request',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -618,7 +698,7 @@ class _RequestDetailSheet extends StatelessWidget {
                       border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: Text(
-                      request['purpose'] as String? ?? 'No purpose provided.',
+                      widget.request['purpose'] as String? ?? 'No purpose provided.',
                       style: TextStyle(fontSize: 14, color: _kCharcoal.withValues(alpha: 0.9), height: 1.5),
                     ),
                   ),
@@ -628,13 +708,83 @@ class _RequestDetailSheet extends StatelessWidget {
                     Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
                     const SizedBox(width: 6),
                     Text(
-                      'Submitted ${_formatDate(request['created_at'] as String?)}',
+                      'Submitted ${_formatDate(widget.request['created_at'] as String?)}',
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                     ),
                   ]),
 
+                  const SizedBox(height: 20),
+
+                  // ── Attached document section ────────────────────────────
+                  const Text('Document Attachment',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
+                  const SizedBox(height: 10),
+                  if (fileUrl != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF43A047).withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.insert_drive_file, color: Color(0xFF43A047), size: 20),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Document attached',
+                              style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final baseUrl = 'https://bla-production-441d.up.railway.app';
+                              html.window.open('$baseUrl$fileUrl', '_blank');
+                            },
+                            child: const Text('View / Download'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: const Row(children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text('No document attached yet.', style: TextStyle(color: Colors.grey)),
+                      ]),
+                    ),
+
+                  const SizedBox(height: 10),
+                  // Upload button
+                  _uploading
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 2),
+                          ),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: _pickAndUpload,
+                          icon: const Icon(Icons.upload_file),
+                          label: Text(fileUrl != null ? 'Replace Document' : 'Attach & Send Document'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1565C0),
+                            side: const BorderSide(color: Color(0xFF1565C0)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+
                   if (isPending) ...[
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
                     const Text('Actions',
                         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
                     const SizedBox(height: 12),
@@ -642,7 +792,7 @@ class _RequestDetailSheet extends StatelessWidget {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: onReject,
+                            onPressed: widget.onReject,
                             icon: const Icon(Icons.close, size: 18),
                             label: const Text('Reject'),
                             style: OutlinedButton.styleFrom(
@@ -656,7 +806,7 @@ class _RequestDetailSheet extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: onApprove,
+                            onPressed: widget.onApprove,
                             icon: const Icon(Icons.check, size: 18),
                             label: const Text('Approve'),
                             style: ElevatedButton.styleFrom(
@@ -674,7 +824,7 @@ class _RequestDetailSheet extends StatelessWidget {
 
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
-                    onPressed: onDelete,
+                    onPressed: widget.onDelete,
                     icon: const Icon(Icons.delete_outline),
                     label: const Text('Delete Request'),
                     style: OutlinedButton.styleFrom(

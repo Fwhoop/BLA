@@ -96,21 +96,26 @@ def _run_migrations():
                     "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
                 ))
 
-            # ── audit_logs table ─────────────────────────────────────────────
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS audit_logs (
-                    id             INT AUTO_INCREMENT PRIMARY KEY,
-                    action_type    VARCHAR(50) NOT NULL,
-                    performed_by   INT NULL,
-                    target_user_id INT NULL,
-                    log_metadata   TEXT NULL,
-                    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_audit_action (action_type),
-                    INDEX idx_audit_performer (performed_by),
-                    INDEX idx_audit_target (target_user_id)
-                )
-            """))
-            logger.info("Migration: audit_logs table ensured")
+            # ── requests table ───────────────────────────────────────────────
+            if "requests" in table_names:
+                existing = {c["name"] for c in inspector.get_columns("requests")}
+                for col, ddl in [
+                    ("file_url", "ALTER TABLE requests ADD COLUMN file_url VARCHAR(500) NULL"),
+                ]:
+                    if col not in existing:
+                        conn.execute(text(ddl))
+                        logger.info(f"Migration: added '{col}' to requests")
+
+            # ── mediations table ─────────────────────────────────────────────
+            if "mediations" in table_names:
+                existing = {c["name"] for c in inspector.get_columns("mediations")}
+                for col, ddl in [
+                    ("mediator_name",         "ALTER TABLE mediations ADD COLUMN mediator_name VARCHAR(200) NULL"),
+                    ("resolution_photo_path", "ALTER TABLE mediations ADD COLUMN resolution_photo_path VARCHAR(500) NULL"),
+                ]:
+                    if col not in existing:
+                        conn.execute(text(ddl))
+                        logger.info(f"Migration: added '{col}' to mediations")
 
     except Exception as e:
         logger.warning(f"Migration step skipped: {e}")
@@ -180,7 +185,7 @@ app.include_router(analytics.router)
 
 # ── Static Files (ID photos, selfies, profile photos) ────────────────────────
 try:
-    for _dir in ["uploads/id_photos"]:
+    for _dir in ["uploads/id_photos", "uploads/documents", "uploads/resolution_photos"]:
         os.makedirs(_dir, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 except Exception as e:
