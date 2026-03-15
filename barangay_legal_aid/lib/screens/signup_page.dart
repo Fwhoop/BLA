@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
@@ -33,8 +32,7 @@ class SignupPageState extends State<SignupPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  File? _idPhotoFile;
-  Uint8List? _idPhotoBytes; // For web platform
+  Uint8List? _idPhotoBytes;
 
   String _role = 'user';               // 'user' or 'admin'
   String _verificationMethod = 'email'; // 'email' or 'phone'
@@ -72,88 +70,18 @@ class SignupPageState extends State<SignupPage> {
 
   Future<void> _pickIdPhoto() async {
     try {
-      // On web, camera is not supported - use gallery directly
-      if (kIsWeb) {
-        final pickedFile = await _imagePicker.pickImage(
-          source: ImageSource.gallery,
-          maxWidth: 1600,
-          maxHeight: 1600,
-          imageQuality: 85,
-        );
-
-        if (pickedFile != null) {
-          final bytes = await pickedFile.readAsBytes();
-          setState(() {
-            _idPhotoBytes = bytes;
-            _idPhotoFile = null;
-          });
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('ID photo selected successfully'),
-                backgroundColor: Color(0xFF36454F),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        }
-        return;
-      }
-
-      // For mobile/desktop, show dialog to choose between camera and gallery
-      final ImageSource? source = await showDialog<ImageSource>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Select Photo Source'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(Icons.camera_alt, color: Color(0xFF99272D)),
-                title: Text('Take Photo'),
-                onTap: () => Navigator.pop(context, ImageSource.camera),
-              ),
-              ListTile(
-                leading: Icon(Icons.photo_library, color: Color(0xFF99272D)),
-                title: Text('Choose from Gallery'),
-                onTap: () => Navigator.pop(context, ImageSource.gallery),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      if (source == null) return; // User cancelled
-
-      final actualSource = source;
-
       final pickedFile = await _imagePicker.pickImage(
-        source: actualSource,
+        source: ImageSource.gallery,
         maxWidth: 1600,
         maxHeight: 1600,
         imageQuality: 85,
       );
-
       if (pickedFile != null) {
-        if (kIsWeb) {
-          // For web, read as bytes directly (XFile.readAsBytes works on web)
-          final bytes = await pickedFile.readAsBytes();
-          setState(() {
-            _idPhotoBytes = bytes;
-            // On web, we don't create a File object, just store the path string
-            _idPhotoFile = null; // Will be null on web, we use bytes instead
-          });
-        } else {
-          // For mobile/desktop, use File object
-          setState(() {
-            _idPhotoFile = File(pickedFile.path);
-          });
-        }
-        
+        final bytes = await pickedFile.readAsBytes();
+        setState(() => _idPhotoBytes = bytes);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('ID photo selected successfully'),
               backgroundColor: Color(0xFF36454F),
               duration: Duration(seconds: 2),
@@ -161,32 +89,13 @@ class SignupPageState extends State<SignupPage> {
           );
         }
       }
-    } on Exception catch (e) {
-      String errorMessage = 'Unable to pick ID photo';
-      if (e.toString().contains('camera')) {
-        errorMessage = 'Camera permission denied. Please enable camera access in settings.';
-      } else if (e.toString().contains('photo')) {
-        errorMessage = 'Photo permission denied. Please enable photo access in settings.';
-      } else {
-        errorMessage = 'Unable to pick ID photo: ${e.toString()}';
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Color(0xFF99272D),
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('An unexpected error occurred: $e'),
-            backgroundColor: Color(0xFF99272D),
-            duration: Duration(seconds: 4),
+            content: Text('Unable to pick ID photo: $e'),
+            backgroundColor: const Color(0xFF99272D),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -204,55 +113,19 @@ class SignupPageState extends State<SignupPage> {
       _showError('Please select your barangay');
       return;
     }
-    if (_idPhotoFile == null && _idPhotoBytes == null) {
+    if (_idPhotoBytes == null) {
       _showError('Please upload a valid ID photo');
       return;
     }
 
-    // If email provided, send OTP and verify before creating account
-    final email = _emailCtrl.text.trim();
-    if (email.isNotEmpty) {
-      await _sendOtpAndVerify(email);
-    } else {
-      await _createAccount();
-    }
-  }
-
-  Future<void> _sendOtpAndVerify(String email) async {
-    setState(() => _isLoading = true);
-    try {
-      final api = Provider.of<ApiService>(context, listen: false);
-      await api.sendEmailOTP(email);
-    } catch (e) {
-      if (mounted) {
-        _showError(e is Exception
-            ? e.toString().replaceFirst('Exception: ', '')
-            : 'Failed to send verification code.');
-      }
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-    if (mounted) setState(() => _isLoading = false);
-
-    // Show OTP dialog
-    if (!mounted) return;
-    final verified = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _OtpDialog(email: email),
-    );
-    if (verified == true) {
-      await _createAccount();
-    }
+    await _createAccount();
   }
 
   Future<void> _createAccount() async {
     setState(() => _isLoading = true);
 
     try {
-      final idPhotoPath = kIsWeb
-          ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
-          : (_idPhotoFile?.path ?? '');
+      final idPhotoPath = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = Provider.of<ApiService>(context, listen: false);
@@ -290,7 +163,12 @@ class SignupPageState extends State<SignupPage> {
           return;
         }
       } else {
-        // Firebase phone OTP
+        // Firebase phone OTP — not supported on web (requires RecaptchaVerifier)
+        if (kIsWeb) {
+          _showError('Phone SMS verification is not supported on the web version. Please use Email OTP.');
+          setState(() => _isLoading = false);
+          return;
+        }
         final phone = _phoneController.text.trim();
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
@@ -620,7 +498,7 @@ class SignupPageState extends State<SignupPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Valid ID Photo',
           style: TextStyle(
             fontSize: 16,
@@ -628,40 +506,31 @@ class SignupPageState extends State<SignupPage> {
             color: Color(0xFF36454F),
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: (_idPhotoFile == null && _idPhotoBytes == null) ? Color(0xFF99272D) : Color(0xFFCDD5DF),
+              color: _idPhotoBytes == null ? const Color(0xFF99272D) : const Color(0xFFCDD5DF),
             ),
             color: Colors.white,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_idPhotoFile != null || _idPhotoBytes != null)
+              if (_idPhotoBytes != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: kIsWeb && _idPhotoBytes != null
-                      ? Image.memory(
-                          _idPhotoBytes!,
-                          height: 160,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        )
-                      : _idPhotoFile != null
-                          ? Image.file(
-                              _idPhotoFile!,
-                              height: 160,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            )
-                          : SizedBox.shrink(),
+                  child: Image.memory(
+                    _idPhotoBytes!,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
                 )
               else
-                Column(
+                const Column(
                   children: [
                     Icon(Icons.badge_outlined, size: 48, color: Color(0xFF99272D)),
                     SizedBox(height: 8),
@@ -672,31 +541,24 @@ class SignupPageState extends State<SignupPage> {
                     ),
                   ],
                 ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : _pickIdPhoto,
-                      icon: Icon(Icons.upload_file),
-                      label: Text(_idPhotoFile == null ? 'Upload ID Photo' : 'Replace Photo'),
+                      icon: const Icon(Icons.upload_file),
+                      label: Text(_idPhotoBytes == null ? 'Upload ID Photo' : 'Replace Photo'),
                       style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
-                  if (_idPhotoFile != null || _idPhotoBytes != null) ...[
-                    SizedBox(width: 8),
+                  if (_idPhotoBytes != null) ...[
+                    const SizedBox(width: 8),
                     IconButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                              setState(() {
-                                _idPhotoFile = null;
-                                _idPhotoBytes = null;
-                              });
-                            },
-                      icon: Icon(Icons.delete_outline, color: Color(0xFF99272D)),
+                      onPressed: _isLoading ? null : () => setState(() => _idPhotoBytes = null),
+                      icon: const Icon(Icons.delete_outline, color: Color(0xFF99272D)),
                       tooltip: 'Remove photo',
                     ),
                   ],

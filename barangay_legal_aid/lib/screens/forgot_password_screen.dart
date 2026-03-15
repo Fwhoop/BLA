@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -46,6 +47,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _userId = res['user_id'] as int?;
 
       if (_method == 'phone') {
+        if (kIsWeb) {
+          _showError('Phone SMS reset is not supported on the web version. Please use Email OTP.');
+          setState(() => _isLoading = false);
+          return;
+        }
         // Trigger Firebase phone OTP
         final phone = _identifierCtrl.text.trim();
         await FirebaseAuth.instance.verifyPhoneNumber(

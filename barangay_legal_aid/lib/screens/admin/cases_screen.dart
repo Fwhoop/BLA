@@ -625,6 +625,7 @@ class _DetailSheetState extends State<_DetailSheet> {
   /// Show a dialog to confirm resolution — captures mediator name + optional photo.
   Future<void> _showResolveDialog() async {
     final mediatorCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
     Uint8List? photoBytes;
     String? photoFilename;
 
@@ -655,6 +656,19 @@ class _DetailSheetState extends State<_DetailSheet> {
                     isDense: true,
                   ),
                   onChanged: (_) => setS(() {}),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: notesCtrl,
+                  maxLines: 3,
+                  minLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Resolution Notes (optional)',
+                    hintText: 'Describe the resolution or agreement reached…',
+                    prefixIcon: Icon(Icons.notes, size: 18),
+                    isDense: true,
+                    alignLabelWithHint: true,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Align(
@@ -722,6 +736,7 @@ class _DetailSheetState extends State<_DetailSheet> {
 
     if (confirmed != true || !mounted) return;
     final mediatorName = mediatorCtrl.text.trim();
+    final notes = notesCtrl.text.trim();
     if (mediatorName.isEmpty) return;
 
     setState(() => _addingMediation = true);
@@ -735,6 +750,7 @@ class _DetailSheetState extends State<_DetailSheet> {
         final med = await api.createMediation(caseId, {
           'resolution_status': 'resolved',
           'mediator_name': mediatorName,
+          if (notes.isNotEmpty) 'summary_notes': notes,
         });
         mediationId = med['id'] as int;
         await _loadMediations();
@@ -744,6 +760,7 @@ class _DetailSheetState extends State<_DetailSheet> {
         await api.updateMediation(mediationId, {
           'mediator_name': mediatorName,
           'resolution_status': 'resolved',
+          if (notes.isNotEmpty) 'summary_notes': notes,
         });
         await _loadMediations();
       }

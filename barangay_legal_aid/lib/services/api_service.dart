@@ -641,14 +641,14 @@ class ApiService {
     throw Exception(body['detail'] ?? 'Failed to create staff member');
   }
 
-  /// Forgot password – request an OTP for the given email.
-  /// Returns `{'detail': String, 'dev_otp': String?}`.
-  Future<Map<String, dynamic>> forgotPassword(String email) async {
+  /// Forgot password – send OTP via email or initiate phone reset.
+  /// [method] is `'email'` or `'phone'`. Returns `{'user_id': int, 'message': String}`.
+  Future<Map<String, dynamic>> forgotPassword(String identifier, String method) async {
     final r = await http
         .post(
           Uri.parse('$_baseUrl/auth/forgot-password'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'email': email}),
+          body: jsonEncode({'identifier': identifier, 'method': method}),
         )
         .timeout(_timeout);
     if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
@@ -661,16 +661,40 @@ class ApiService {
     }
   }
 
-  /// Reset password – verify OTP and set a new password.
-  Future<void> resetPassword({
-    required String token,
-    required String newPassword,
-  }) async {
+  /// Reset password via email OTP – verify OTP and set a new password.
+  Future<void> resetPassword(int userId, String otp, String newPassword) async {
     final r = await http
         .post(
           Uri.parse('$_baseUrl/auth/reset-password'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'token': token, 'new_password': newPassword}),
+          body: jsonEncode({
+            'user_id': userId,
+            'otp': otp,
+            'new_password': newPassword,
+          }),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Password reset failed');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Password reset failed: ${r.body}');
+    }
+  }
+
+  /// Reset password via Firebase phone OTP.
+  Future<void> resetPasswordPhone(int userId, String firebaseIdToken, String newPassword) async {
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/reset-password-phone'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': userId,
+            'firebase_id_token': firebaseIdToken,
+            'new_password': newPassword,
+          }),
         )
         .timeout(_timeout);
     if (r.statusCode == 200) return;
@@ -816,6 +840,103 @@ class ApiService {
       if (e is Exception) rethrow;
       throw Exception('Verification failed: ${r.body}');
     }
+  }
+
+  /// Lowercase alias — sends email OTP after registration, returns `{'user_id': int}`.
+  Future<Map<String, dynamic>> sendEmailOtp(String email) => sendEmailOTP(email);
+
+  /// Verify email OTP by user_id + code (post-registration flow).
+  Future<void> verifyEmailOtp(int userId, String otp) async {
+    final r = await http
+        .post(Uri.parse('$_baseUrl/auth/verify-email-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'otp': otp}))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Invalid OTP');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Verification failed: ${r.body}');
+    }
+  }
+
+  /// Verify Firebase phone ID token after phone OTP flow.
+  Future<void> verifyFirebasePhone(int userId, String firebaseIdToken) async {
+    final r = await http
+        .post(Uri.parse('$_baseUrl/auth/verify-firebase-phone'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'firebase_id_token': firebaseIdToken}))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Phone verification failed');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Phone verification failed: ${r.body}');
+    }
+  }
+
+  // ── Admin Approval ───────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getPendingAdmins() async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/users/pending-admins'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    throw Exception('Failed to load pending admins: ${r.body}');
+  }
+
+  Future<void> approveAdmin(int userId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(Uri.parse('$_baseUrl/users/$userId/approve-admin'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Failed to approve admin');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to approve admin: ${r.body}');
+    }
+  }
+
+  Future<void> rejectAdmin(int userId, {String? reason}) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/users/$userId/reject-admin'),
+          headers: headers,
+          body: jsonEncode({'reason': reason}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Failed to reject admin');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to reject admin: ${r.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAuditLogs({
+    String? actionType,
+    int? targetUserId,
+    int limit = 50,
+  }) async {
+    final headers = await _getHeaders();
+    final params = <String, String>{'limit': '$limit'};
+    if (actionType != null) params['action_type'] = actionType;
+    if (targetUserId != null) params['target_user_id'] = '$targetUserId';
+    final uri = Uri.parse('$_baseUrl/audit-logs').replace(queryParameters: params);
+    final r = await http.get(uri, headers: headers).timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    throw Exception('Failed to load audit logs: ${r.body}');
   }
 
   /// Send message to AI chatbot with conversation history for context.
