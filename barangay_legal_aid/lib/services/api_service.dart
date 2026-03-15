@@ -63,6 +63,7 @@ class ApiService {
     dynamic selfieWithIdBytes,
     String profilePhotoPath = '',
     dynamic profilePhotoBytes,
+    String role = 'user',
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register');
     final request = http.MultipartRequest('POST', uri);
@@ -72,6 +73,7 @@ class ApiService {
     request.fields['password']   = password;
     request.fields['phone']      = phone;
     request.fields['barangay']   = barangay;
+    request.fields['role']       = role;
     if (address.isNotEmpty)     request.fields['address']      = address;
     if (houseNumber?.isNotEmpty == true) request.fields['house_number'] = houseNumber!;
     if (streetName?.isNotEmpty  == true) request.fields['street_name']  = streetName!;
@@ -527,7 +529,13 @@ class ApiService {
         )
         .timeout(_timeout);
     if (r.statusCode == 200) return jsonDecode(r.body);
-    throw Exception('Failed to update case: ${r.body}');
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Failed to update case: ${r.statusCode}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to update case: ${r.statusCode}');
+    }
   }
 
   Future<void> deleteCase(int id) async {
@@ -672,6 +680,141 @@ class ApiService {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Password reset failed: ${r.body}');
+    }
+  }
+
+  // ── Mediation ────────────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getMediations(int caseId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/cases/$caseId/mediations'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    throw Exception('Failed to load mediations: ${r.body}');
+  }
+
+  Future<Map<String, dynamic>> createMediation(int caseId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(Uri.parse('$_baseUrl/cases/$caseId/mediations'),
+            headers: headers, body: jsonEncode(data))
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
+    try {
+      final d = jsonDecode(r.body);
+      throw Exception(d['detail'] ?? 'Failed to create mediation');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to create mediation: ${r.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateMediation(int mediationId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .put(Uri.parse('$_baseUrl/mediations/$mediationId'),
+            headers: headers, body: jsonEncode(data))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to update mediation: ${r.body}');
+  }
+
+  Future<void> deleteMediation(int mediationId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .delete(Uri.parse('$_baseUrl/mediations/$mediationId'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 204) {
+      throw Exception('Failed to delete mediation: ${r.body}');
+    }
+  }
+
+  /// Upload a fulfilled document file for a document request (admin only).
+  Future<Map<String, dynamic>> uploadRequestDocument(
+    int requestId,
+    List<int> bytes,
+    String filename,
+  ) async {
+    final token = await _getToken();
+    final uri = Uri.parse('$_baseUrl/requests/$requestId/upload-document');
+    final req = http.MultipartRequest('POST', uri);
+    if (token != null && token.isNotEmpty) {
+      req.headers['Authorization'] = 'Bearer $token';
+    }
+    req.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await req.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    try {
+      final d = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Upload failed: ${response.statusCode}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Upload failed: ${response.statusCode}');
+    }
+  }
+
+  /// Upload a resolution photo for a mediation record (admin only).
+  Future<Map<String, dynamic>> uploadResolutionPhoto(
+    int mediationId,
+    List<int> bytes,
+    String filename,
+  ) async {
+    final token = await _getToken();
+    final uri = Uri.parse('$_baseUrl/mediations/$mediationId/upload-resolution-photo');
+    final req = http.MultipartRequest('POST', uri);
+    if (token != null && token.isNotEmpty) {
+      req.headers['Authorization'] = 'Bearer $token';
+    }
+    req.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await req.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    try {
+      final d = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Upload failed: ${response.statusCode}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Upload failed: ${response.statusCode}');
+    }
+  }
+
+  // ── OTP ──────────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> sendEmailOTP(String email) async {
+    final r = await http
+        .post(Uri.parse('$_baseUrl/auth/send-email-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email}))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Failed to send OTP');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to send OTP: ${r.body}');
+    }
+  }
+
+  Future<void> verifyEmailOTP(String email, String otp) async {
+    final r = await http
+        .post(Uri.parse('$_baseUrl/auth/verify-email-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'otp': otp}))
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    try {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Invalid OTP');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Verification failed: ${r.body}');
     }
   }
 

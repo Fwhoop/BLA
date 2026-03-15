@@ -58,7 +58,7 @@ class NotificationBell extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Notification screen
+// Notification screen — categorized into Document Requests & Complaints
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NotificationScreen extends StatefulWidget {
@@ -71,15 +71,27 @@ class NotificationScreen extends StatefulWidget {
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> {
+class _NotificationScreenState extends State<NotificationScreen>
+    with SingleTickerProviderStateMixin {
   List<NotificationModel> _notifications = [];
   bool _isLoading = true;
   bool _markingAll = false;
+  late TabController _tabController;
+
+  static const _requestTypes = {'new_request', 'request_update'};
+  static const _caseTypes = {'new_case', 'case_update', 'mediation_update'};
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadNotifications();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadNotifications() async {
@@ -89,14 +101,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
       final items = await api.getNotifications();
       if (mounted) setState(() => _notifications = items);
     } catch (_) {
-      // silently fail — empty list shown
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _onTileTap(NotificationModel n) async {
-    // Mark read (fire-and-forget visually)
     if (!n.isRead) {
       try {
         final api = Provider.of<ApiService>(context, listen: false);
@@ -132,7 +142,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           break;
       }
     } else {
-      // Users: go to forms hub (where they can see their requests and cases)
       Navigator.pushNamed(context, '/forms');
     }
   }
@@ -155,6 +164,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   int get _unreadCount => _notifications.where((n) => !n.isRead).length;
 
+  List<NotificationModel> get _requestNotifs =>
+      _notifications.where((n) => _requestTypes.contains(n.notifType)).toList();
+
+  List<NotificationModel> get _caseNotifs =>
+      _notifications.where((n) => _caseTypes.contains(n.notifType)).toList();
+
+  List<NotificationModel> get _otherNotifs => _notifications
+      .where((n) =>
+          !_requestTypes.contains(n.notifType) && !_caseTypes.contains(n.notifType))
+      .toList();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -174,67 +194,166 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
+                            color: Colors.white, strokeWidth: 2),
                       ),
                     ),
                   )
                 : TextButton(
                     onPressed: _markAllRead,
-                    child: const Text(
-                      'Mark all read',
-                      style: TextStyle(color: Colors.white70),
-                    ),
+                    child: const Text('Mark all read',
+                        style: TextStyle(color: Colors.white70)),
                   ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          tabs: [
+            Tab(
+              child: _TabLabel(
+                icon: Icons.assignment_outlined,
+                label: 'Requests',
+                count: _requestNotifs.where((n) => !n.isRead).length,
+              ),
+            ),
+            Tab(
+              child: _TabLabel(
+                icon: Icons.report_problem_outlined,
+                label: 'Complaints',
+                count: _caseNotifs.where((n) => !n.isRead).length,
+              ),
+            ),
+            Tab(
+              child: _TabLabel(
+                icon: Icons.info_outline,
+                label: 'Other',
+                count: _otherNotifs.where((n) => !n.isRead).length,
+              ),
+            ),
+          ],
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _notifications.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _NotifList(
+                  items: _requestNotifs,
+                  emptyMessage: 'No document request notifications',
+                  emptySubtitle: 'Notifications about new requests and approvals will appear here.',
+                  onTap: _onTileTap,
                   onRefresh: _loadNotifications,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: _notifications.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 1),
-                    itemBuilder: (context, i) =>
-                        _NotificationTile(
-                          notification: _notifications[i],
-                          onTap: () => _onTileTap(_notifications[i]),
-                        ),
-                  ),
                 ),
+                _NotifList(
+                  items: _caseNotifs,
+                  emptyMessage: 'No complaint notifications',
+                  emptySubtitle: 'Notifications about filed complaints and updates will appear here.',
+                  onTap: _onTileTap,
+                  onRefresh: _loadNotifications,
+                ),
+                _NotifList(
+                  items: _otherNotifs,
+                  emptyMessage: 'No other notifications',
+                  emptySubtitle: '',
+                  onTap: _onTileTap,
+                  onRefresh: _loadNotifications,
+                ),
+              ],
+            ),
     );
   }
+}
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.notifications_none,
-            size: 72,
-            color: Colors.grey[350],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No notifications yet',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[500],
-              fontWeight: FontWeight.w500,
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab label with unread badge
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TabLabel extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int count;
+  const _TabLabel({required this.icon, required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16),
+        const SizedBox(width: 4),
+        Text(label),
+        if (count > 0) ...[
+          const SizedBox(width: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53935),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'You\'ll be notified about your requests\nand case updates here.',
-            style: TextStyle(fontSize: 13, color: Colors.grey[400]),
-            textAlign: TextAlign.center,
-          ),
         ],
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification list for a tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NotifList extends StatelessWidget {
+  final List<NotificationModel> items;
+  final String emptyMessage;
+  final String emptySubtitle;
+  final Future<void> Function(NotificationModel) onTap;
+  final Future<void> Function() onRefresh;
+
+  const _NotifList({
+    required this.items,
+    required this.emptyMessage,
+    required this.emptySubtitle,
+    required this.onTap,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.notifications_none, size: 72, color: Colors.grey[350]),
+            const SizedBox(height: 16),
+            Text(emptyMessage,
+                style: TextStyle(fontSize: 16, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+            if (emptySubtitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(emptySubtitle,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                  textAlign: TextAlign.center),
+            ],
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 1),
+        itemBuilder: (context, i) => _NotificationTile(
+          notification: items[i],
+          onTap: () => onTap(items[i]),
+        ),
       ),
     );
   }
@@ -254,7 +373,7 @@ class _NotificationTile extends StatelessWidget {
     switch (notification.notifType) {
       case 'request_update':
         final msg = notification.message.toLowerCase();
-        if (msg.contains('approved')) return const Color(0xFF43A047);
+        if (msg.contains('approved') || msg.contains('ready')) return const Color(0xFF43A047);
         if (msg.contains('rejected')) return const Color(0xFFE53935);
         return const Color(0xFF1E88E5);
       case 'new_request':
@@ -274,7 +393,7 @@ class _NotificationTile extends StatelessWidget {
     switch (notification.notifType) {
       case 'request_update':
         final msg = notification.message.toLowerCase();
-        if (msg.contains('approved')) return Icons.check_circle;
+        if (msg.contains('approved') || msg.contains('ready')) return Icons.check_circle;
         if (msg.contains('rejected')) return Icons.cancel;
         return Icons.assignment;
       case 'new_request':
@@ -315,7 +434,6 @@ class _NotificationTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Colored icon circle
               Container(
                 width: 42,
                 height: 42,
@@ -326,7 +444,6 @@ class _NotificationTile extends StatelessWidget {
                 child: Icon(_icon, color: _iconColor, size: 22),
               ),
               const SizedBox(width: 12),
-              // Text content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,9 +455,7 @@ class _NotificationTile extends StatelessWidget {
                             notification.title,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: isUnread
-                                  ? FontWeight.bold
-                                  : FontWeight.w500,
+                              fontWeight: isUnread ? FontWeight.bold : FontWeight.w500,
                               color: const Color(0xFF1A1A2E),
                             ),
                           ),
@@ -348,26 +463,18 @@ class _NotificationTile extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           _relativeTime(notification.createdAt.toLocal()),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
-                          ),
+                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       notification.message,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[700],
-                        height: 1.4,
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
                     ),
                   ],
                 ),
               ),
-              // Unread dot
               if (isUnread)
                 Padding(
                   padding: const EdgeInsets.only(left: 8, top: 4),

@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,31 +21,23 @@ class SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _imagePicker = ImagePicker();
 
-  // Personal info
-  final _firstNameCtrl    = TextEditingController();
-  final _lastNameCtrl     = TextEditingController();
-  final _emailCtrl        = TextEditingController();
-  final _passwordCtrl     = TextEditingController();
-  final _confirmPassCtrl  = TextEditingController();
-  final _phoneCtrl        = TextEditingController();
-
-  // Philippine address
-  final _houseNumberCtrl  = TextEditingController();
-  final _streetNameCtrl   = TextEditingController();
-  final _purokCtrl        = TextEditingController();
-  final _cityCtrl         = TextEditingController();
-  final _provinceCtrl     = TextEditingController();
-  final _zipCodeCtrl      = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
 
   String? _selectedBarangay;
-  bool _isLoading            = false;
-  bool _obscurePassword      = true;
-  bool _obscureConfirmPass   = true;
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  File? _idPhotoFile;
+  Uint8List? _idPhotoBytes; // For web platform
 
-  // Photos (bytes only — works on web and mobile)
-  Uint8List? _profilePhotoBytes;
-  Uint8List? _idPhotoBytes;
-  Uint8List? _selfieWithIdBytes;
+  String _role = 'user';               // 'user' or 'admin'
+  String _verificationMethod = 'email'; // 'email' or 'phone'
 
   List<Map<String, dynamic>> _barangayItems = [];
   bool _barangaysLoading = true;
@@ -57,9 +52,7 @@ class SignupPageState extends State<SignupPage> {
     try {
       final api = Provider.of<ApiService>(context, listen: false);
       final items = await api.getBarangays();
-      if (mounted) {
-        setState(() { _barangayItems = items; _barangaysLoading = false; });
-      }
+      if (mounted) setState(() { _barangayItems = items; _barangaysLoading = false; });
     } catch (_) {
       if (mounted) setState(() => _barangaysLoading = false);
     }
@@ -67,86 +60,143 @@ class SignupPageState extends State<SignupPage> {
 
   @override
   void dispose() {
-    _firstNameCtrl.dispose();
-    _lastNameCtrl.dispose();
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
-    _confirmPassCtrl.dispose();
-    _phoneCtrl.dispose();
-    _houseNumberCtrl.dispose();
-    _streetNameCtrl.dispose();
-    _purokCtrl.dispose();
-    _cityCtrl.dispose();
-    _provinceCtrl.dispose();
-    _zipCodeCtrl.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
-  // ── Photo picker ────────────────────────────────────────────────────────────
-
-  Future<void> _pickPhoto({
-    required String label,
-    required void Function(Uint8List bytes) onPicked,
-  }) async {
+  Future<void> _pickIdPhoto() async {
     try {
-      ImageSource? source;
+      // On web, camera is not supported - use gallery directly
       if (kIsWeb) {
-        source = ImageSource.gallery;
-      } else {
-        source = await showDialog<ImageSource>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text('Select $label'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.camera_alt, color: Color(0xFF99272D)),
-                  title: const Text('Take Photo'),
-                  onTap: () => Navigator.pop(ctx, ImageSource.camera),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library, color: Color(0xFF99272D)),
-                  title: const Text('Choose from Gallery'),
-                  onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-                ),
-              ],
+        final pickedFile = await _imagePicker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1600,
+          maxHeight: 1600,
+          imageQuality: 85,
+        );
+
+        if (pickedFile != null) {
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _idPhotoBytes = bytes;
+            _idPhotoFile = null;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('ID photo selected successfully'),
+                backgroundColor: Color(0xFF36454F),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+        return;
+      }
+
+      // For mobile/desktop, show dialog to choose between camera and gallery
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Select Photo Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.camera_alt, color: Color(0xFF99272D)),
+                title: Text('Take Photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library, color: Color(0xFF99272D)),
+                title: Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null) return; // User cancelled
+
+      final actualSource = source;
+
+      final pickedFile = await _imagePicker.pickImage(
+        source: actualSource,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        if (kIsWeb) {
+          // For web, read as bytes directly (XFile.readAsBytes works on web)
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _idPhotoBytes = bytes;
+            // On web, we don't create a File object, just store the path string
+            _idPhotoFile = null; // Will be null on web, we use bytes instead
+          });
+        } else {
+          // For mobile/desktop, use File object
+          setState(() {
+            _idPhotoFile = File(pickedFile.path);
+          });
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('ID photo selected successfully'),
+              backgroundColor: Color(0xFF36454F),
+              duration: Duration(seconds: 2),
             ),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      String errorMessage = 'Unable to pick ID photo';
+      if (e.toString().contains('camera')) {
+        errorMessage = 'Camera permission denied. Please enable camera access in settings.';
+      } else if (e.toString().contains('photo')) {
+        errorMessage = 'Photo permission denied. Please enable photo access in settings.';
+      } else {
+        errorMessage = 'Unable to pick ID photo: ${e.toString()}';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Color(0xFF99272D),
+            duration: Duration(seconds: 4),
           ),
         );
       }
-      if (source == null) return;
-
-      final picked = await _imagePicker.pickImage(
-        source: source, maxWidth: 1600, maxHeight: 1600, imageQuality: 85,
-      );
-      if (picked == null) return;
-
-      final bytes = await picked.readAsBytes();
-      onPicked(bytes);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$label selected'),
-          backgroundColor: const Color(0xFF36454F),
-          duration: const Duration(seconds: 2),
-        ));
-      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not pick photo: $e'),
-          backgroundColor: const Color(0xFF99272D),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: $e'),
+            backgroundColor: Color(0xFF99272D),
+            duration: Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
-
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_passwordCtrl.text != _confirmPassCtrl.text) {
+    if (_passwordController.text != _confirmPasswordController.text) {
       _showError('Passwords do not match');
       return;
     }
@@ -154,53 +204,108 @@ class SignupPageState extends State<SignupPage> {
       _showError('Please select your barangay');
       return;
     }
-    if (_idPhotoBytes == null) {
-      _showError('Please upload a photo of your valid government ID');
-      return;
-    }
-    if (_selfieWithIdBytes == null) {
-      _showError('Please upload a selfie holding your ID');
+    if (_idPhotoFile == null && _idPhotoBytes == null) {
+      _showError('Please upload a valid ID photo');
       return;
     }
 
     setState(() => _isLoading = true);
+
     try {
+      final idPhotoPath = kIsWeb
+          ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+          : (_idPhotoFile?.path ?? '');
+
       final auth = Provider.of<AuthService>(context, listen: false);
+      final api = Provider.of<ApiService>(context, listen: false);
+
       await auth.signUp(
-        firstName: _firstNameCtrl.text.trim(),
-        lastName:  _lastNameCtrl.text.trim(),
-        email:     _emailCtrl.text.trim(),
-        password:  _passwordCtrl.text,
-        phone:     _phoneCtrl.text.trim(),
-        barangay:  _selectedBarangay!,
-        houseNumber: _houseNumberCtrl.text.trim().isEmpty ? null : _houseNumberCtrl.text.trim(),
-        streetName:  _streetNameCtrl.text.trim().isEmpty  ? null : _streetNameCtrl.text.trim(),
-        purok:       _purokCtrl.text.trim().isEmpty        ? null : _purokCtrl.text.trim(),
-        city:        _cityCtrl.text.trim().isEmpty         ? null : _cityCtrl.text.trim(),
-        province:    _provinceCtrl.text.trim().isEmpty     ? null : _provinceCtrl.text.trim(),
-        zipCode:     _zipCodeCtrl.text.trim().isEmpty      ? null : _zipCodeCtrl.text.trim(),
-        idPhotoPath:  _idPhotoBytes != null ? 'id_photo.jpg' : '',
+        firstName: _firstNameController.text,
+        lastName: _lastNameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+        phone: _phoneController.text,
+        address: _addressController.text,
+        barangay: _selectedBarangay!,
+        idPhotoPath: idPhotoPath,
         idPhotoBytes: _idPhotoBytes,
-        selfieWithIdPath:  _selfieWithIdBytes != null ? 'selfie_with_id.jpg' : '',
-        selfieWithIdBytes: _selfieWithIdBytes,
-        profilePhotoPath:  _profilePhotoBytes != null ? 'profile_photo.jpg' : '',
-        profilePhotoBytes: _profilePhotoBytes,
+        role: _role,
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Account created! A barangay admin will review and approve your registration.'),
-        backgroundColor: Color(0xFF36454F),
-        duration: Duration(seconds: 4),
-      ));
+
+      if (_verificationMethod == 'email') {
+        // Send OTP then navigate to OTP screen
+        final res = await api.sendEmailOtp(_emailController.text.trim());
+        final userId = res['user_id'] as int?;
+        if (!mounted) return;
+        if (userId != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OtpVerificationScreen(
+                userId: userId,
+                email: _emailController.text.trim(),
+              ),
+            ),
+          );
+          return;
+        }
+      } else {
+        // Firebase phone OTP
+        final phone = _phoneController.text.trim();
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: phone,
+          verificationCompleted: (PhoneAuthCredential cred) async {
+            final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
+            final idToken = await userCred.user!.getIdToken();
+            // Get userId from backend
+            final res = await api.sendEmailOtp(_emailController.text.trim()).catchError((_) => <String, dynamic>{});
+            final uid = res['user_id'] as int?;
+            if (uid != null && idToken != null) {
+              await api.verifyFirebasePhone(uid, idToken);
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Phone verified! Awaiting admin approval.'), backgroundColor: Color(0xFF36454F)),
+              );
+              Navigator.pushReplacementNamed(context, '/login');
+            }
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            if (mounted) _showError(e.message ?? 'Phone verification failed');
+          },
+          codeSent: (String verificationId, int? _) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('SMS code sent! Check your messages.\nApplication submitted — await admin approval.'),
+                  backgroundColor: Color(0xFF36454F),
+                  duration: Duration(seconds: 5),
+                ),
+              );
+              Navigator.pushReplacementNamed(context, '/login');
+            }
+          },
+          codeAutoRetrievalTimeout: (_) {},
+        );
+        return;
+      }
+
+      // Fallback — no OTP flow needed
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Application submitted! An admin will review your ID for approval.'),
+          backgroundColor: Color(0xFF36454F),
+          duration: Duration(seconds: 3),
+        ),
+      );
       await Future.delayed(const Duration(seconds: 2));
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
       if (mounted) {
-        _showError(e is Exception
-            ? e.toString().replaceFirst('Exception: ', '')
-            : 'Registration failed. Please try again.');
+        _showError(e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Signup failed. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -208,110 +313,60 @@ class SignupPageState extends State<SignupPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: const Color(0xFF99272D),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: const Color(0xFF99272D)),
+    );
   }
-
-  // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Account'),
+        title: Text('Create Account'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/login');
+          },
+          tooltip: 'Back to Login',
         ),
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
+            constraints: BoxConstraints(maxWidth: 640),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildHeader(),
-                    const SizedBox(height: 28),
-
-                    _sectionLabel('Personal Information', Icons.person_outline),
-                    const SizedBox(height: 12),
-                    _buildNameRow(),
-                    const SizedBox(height: 14),
+                    _buildLogo(),
+                    SizedBox(height: 24),
+                    _buildNameFields(),
+                    SizedBox(height: 16),
                     _buildEmailField(),
-                    const SizedBox(height: 14),
-                    _buildPasswordRow(),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 16),
+                    _buildPasswordField(),
+                    SizedBox(height: 16),
+                    _buildConfirmPasswordField(),
+                    SizedBox(height: 16),
                     _buildPhoneField(),
-
-                    const SizedBox(height: 28),
-                    _sectionLabel('Philippine Address', Icons.home_outlined),
-                    const SizedBox(height: 12),
-                    _buildAddressFields(),
-
-                    const SizedBox(height: 28),
-                    _sectionLabel('Barangay', Icons.location_on_outlined),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 16),
+                    _buildAddressField(),
+                    SizedBox(height: 16),
+                    _buildIdPhotoUploader(),
+                    SizedBox(height: 16),
                     _buildBarangayDropdown(),
-
-                    const SizedBox(height: 28),
-                    _sectionLabel('Photo Verification', Icons.verified_user_outlined),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Required for identity verification. All photos are reviewed only by authorized barangay staff.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 14),
-                    _buildPhotoCard(
-                      label: 'Profile Photo',
-                      sublabel: 'Optional — shown on your account',
-                      icon: Icons.account_circle_outlined,
-                      required: false,
-                      bytes: _profilePhotoBytes,
-                      onTap: () => _pickPhoto(
-                        label: 'Profile Photo',
-                        onPicked: (b) => setState(() => _profilePhotoBytes = b),
-                      ),
-                      onClear: () => setState(() => _profilePhotoBytes = null),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPhotoCard(
-                      label: 'Government ID',
-                      sublabel: 'Required — front of any valid government-issued ID',
-                      icon: Icons.badge_outlined,
-                      required: true,
-                      bytes: _idPhotoBytes,
-                      onTap: () => _pickPhoto(
-                        label: 'Government ID',
-                        onPicked: (b) => setState(() => _idPhotoBytes = b),
-                      ),
-                      onClear: () => setState(() => _idPhotoBytes = null),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPhotoCard(
-                      label: 'Selfie Holding ID',
-                      sublabel: 'Required — a clear selfie with your ID visible',
-                      icon: Icons.camera_front_outlined,
-                      required: true,
-                      bytes: _selfieWithIdBytes,
-                      onTap: () => _pickPhoto(
-                        label: 'Selfie with ID',
-                        onPicked: (b) => setState(() => _selfieWithIdBytes = b),
-                      ),
-                      onClear: () => setState(() => _selfieWithIdBytes = null),
-                    ),
-
-                    const SizedBox(height: 32),
-                    _buildSubmitButton(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
+                    _buildRoleSelector(),
+                    SizedBox(height: 16),
+                    _buildVerificationMethodSelector(),
+                    SizedBox(height: 24),
+                    _buildSignupButton(),
+                    SizedBox(height: 16),
                     _buildLoginLink(),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -322,194 +377,296 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Section helpers ──────────────────────────────────────────────────────────
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF99272D), Color(0xFF36454F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _buildLogo() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [Color(0xFF99272D), Color(0xFF36454F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha:0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.gavel,
+                size: 60,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Barangay Legal Aid',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Create your account',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withValues(alpha:0.9),
+              ),
+            ),
+          ],
         ),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+    );
+  }
+
+  Widget _buildNameFields() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: _firstNameController,
+            decoration: InputDecoration(
+              labelText: 'First name',
+              prefixIcon: Icon(Icons.person_outline),
             ),
-            child: const Icon(Icons.gavel, size: 52, color: Colors.white),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your first name';
+              }
+              return null;
+            },
           ),
-          const SizedBox(height: 14),
-          const Text('Barangay Legal Aid',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-          const SizedBox(height: 6),
-          const Text('Create your resident account',
-              style: TextStyle(fontSize: 14, color: Colors.white70)),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionLabel(String text, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: const Color(0xFF99272D)),
-        const SizedBox(width: 8),
-        Text(text,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF36454F),
-            )),
-      ],
-    );
-  }
-
-  Widget _buildNameRow() {
-    return Row(
-      children: [
-        Expanded(child: _textField(_firstNameCtrl, 'First name', Icons.person_outline, required: true)),
-        const SizedBox(width: 12),
-        Expanded(child: _textField(_lastNameCtrl, 'Last name', Icons.person_outline, required: true)),
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: TextFormField(
+            controller: _lastNameController,
+            decoration: InputDecoration(
+              labelText: 'Last name',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your last name';
+              }
+              return null;
+            },
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildEmailField() {
     return TextFormField(
-      controller: _emailCtrl,
+      controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Email address',
         hintText: 'you@example.com',
         prefixIcon: Icon(Icons.email_outlined),
       ),
-      validator: (v) {
-        if (v == null || v.isEmpty) return 'Required';
-        if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) {
-          return 'Enter a valid email';
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter your email';
+        }
+        final emailRegex = RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+        if (!emailRegex.hasMatch(value)) {
+          return 'Please enter a valid email';
         }
         return null;
       },
     );
   }
 
-  Widget _buildPasswordRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: _passwordCtrl,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Required';
-              if (v.length < 6) return 'Min 6 characters';
-              return null;
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: TextFormField(
-            controller: _confirmPassCtrl,
-            obscureText: _obscureConfirmPass,
-            decoration: InputDecoration(
-              labelText: 'Confirm password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscureConfirmPass ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscureConfirmPass = !_obscureConfirmPass),
-              ),
-            ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Required';
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhoneField() {
+  Widget _buildPasswordField() {
     return TextFormField(
-      controller: _phoneCtrl,
-      keyboardType: TextInputType.phone,
-      decoration: const InputDecoration(
-        labelText: 'Mobile number',
-        hintText: '09XXXXXXXXX',
-        prefixIcon: Icon(Icons.phone_outlined),
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        prefixIcon: Icon(Icons.lock_outline),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+          ),
+          onPressed: () {
+            setState(() => _obscurePassword = !_obscurePassword);
+          },
+        ),
       ),
-      validator: (v) {
-        if (v == null || v.isEmpty) return 'Required';
-        if (v.length < 10) return 'Enter a valid phone number';
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter a password';
+        }
+        if (value.length < 6) {
+          return 'Password must be at least 6 characters';
+        }
         return null;
       },
     );
   }
 
-  Widget _buildAddressFields() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: _textField(_houseNumberCtrl, 'House / Unit No.', Icons.house_outlined),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 3,
-              child: _textField(_streetNameCtrl, 'Street name', Icons.edit_road_outlined),
-            ),
-          ],
+  Widget _buildConfirmPasswordField() {
+    return TextFormField(
+      controller: _confirmPasswordController,
+      obscureText: _obscureConfirmPassword,
+      decoration: InputDecoration(
+        labelText: 'Confirm Password',
+        prefixIcon: Icon(Icons.lock_outline),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+          ),
+          onPressed: () {
+            setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+          },
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _textField(_purokCtrl, 'Purok / Zone (optional)', Icons.map_outlined)),
-            const SizedBox(width: 12),
-            Expanded(child: _textField(_cityCtrl, 'City / Municipality', Icons.location_city_outlined)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _textField(_provinceCtrl, 'Province', Icons.terrain_outlined)),
-            const SizedBox(width: 12),
-            Expanded(child: _textField(_zipCodeCtrl, 'ZIP code (optional)', Icons.markunread_mailbox_outlined)),
-          ],
-        ),
-      ],
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please confirm your password';
+        }
+        return null;
+      },
     );
   }
 
-  Widget _textField(
-    TextEditingController ctrl,
-    String label,
-    IconData icon, {
-    bool required = false,
-  }) {
+  Widget _buildPhoneField() {
     return TextFormField(
-      controller: ctrl,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
-      validator: required
-          ? (v) => (v == null || v.isEmpty) ? 'Required' : null
-          : null,
+      controller: _phoneController,
+      keyboardType: TextInputType.phone,
+      decoration: InputDecoration(
+        labelText: 'Phone number',
+        prefixIcon: Icon(Icons.phone_outlined),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter your phone number';
+        }
+        if (value.length < 10) {
+          return 'Please enter a valid phone number';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildAddressField() {
+    return TextFormField(
+      controller: _addressController,
+      decoration: InputDecoration(
+        labelText: 'Complete address',
+        prefixIcon: Icon(Icons.home_outlined),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter your address';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildIdPhotoUploader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Valid ID Photo',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF36454F),
+          ),
+        ),
+        SizedBox(height: 8),
+        Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (_idPhotoFile == null && _idPhotoBytes == null) ? Color(0xFF99272D) : Color(0xFFCDD5DF),
+            ),
+            color: Colors.white,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_idPhotoFile != null || _idPhotoBytes != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: kIsWeb && _idPhotoBytes != null
+                      ? Image.memory(
+                          _idPhotoBytes!,
+                          height: 160,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : _idPhotoFile != null
+                          ? Image.file(
+                              _idPhotoFile!,
+                              height: 160,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            )
+                          : SizedBox.shrink(),
+                )
+              else
+                Column(
+                  children: [
+                    Icon(Icons.badge_outlined, size: 48, color: Color(0xFF99272D)),
+                    SizedBox(height: 8),
+                    Text(
+                      'Upload a clear photo of your valid ID.\nPNG or JPG formats are accepted.',
+                      style: TextStyle(color: Color(0xFF36454F)),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _pickIdPhoto,
+                      icon: Icon(Icons.upload_file),
+                      label: Text(_idPhotoFile == null ? 'Upload ID Photo' : 'Replace Photo'),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  if (_idPhotoFile != null || _idPhotoBytes != null) ...[
+                    SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              setState(() {
+                                _idPhotoFile = null;
+                                _idPhotoBytes = null;
+                              });
+                            },
+                      icon: Icon(Icons.delete_outline, color: Color(0xFF99272D)),
+                      tooltip: 'Remove photo',
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -519,7 +676,11 @@ class SignupPageState extends State<SignupPage> {
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
             SizedBox(width: 12),
             Text('Loading barangays…', style: TextStyle(color: Colors.grey)),
           ],
@@ -545,101 +706,102 @@ class SignupPageState extends State<SignupPage> {
         final name = b['name'] as String? ?? '';
         return DropdownMenuItem<String>(value: name, child: Text(name));
       }).toList(),
-      onChanged: (v) => setState(() => _selectedBarangay = v),
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your barangay' : null,
+      onChanged: (String? newValue) {
+        setState(() => _selectedBarangay = newValue);
+      },
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please select your barangay';
+        }
+        return null;
+      },
     );
   }
 
-  Widget _buildPhotoCard({
-    required String label,
-    required String sublabel,
-    required IconData icon,
-    required bool required,
-    required Uint8List? bytes,
-    required VoidCallback onTap,
-    required VoidCallback onClear,
-  }) {
-    final hasPhoto = bytes != null;
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: (required && !hasPhoto) ? const Color(0xFF99272D) : Colors.grey.shade300,
+  Widget _buildRoleSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Register as',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF36454F)),
         ),
-        color: Colors.white,
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: const Color(0xFF99272D)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(label,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                        if (required) ...[
-                          const SizedBox(width: 4),
-                          const Text('*', style: TextStyle(color: Color(0xFF99272D))),
-                        ],
-                      ],
-                    ),
-                    Text(sublabel,
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
+        Row(
+          children: [
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Resident'),
+                value: 'user',
+                groupValue: _role,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _role = v!),
               ),
-              if (hasPhoto)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Color(0xFF99272D), size: 20),
-                  onPressed: _isLoading ? null : onClear,
-                  tooltip: 'Remove',
-                ),
-            ],
-          ),
-          if (hasPhoto) ...[
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.memory(bytes, height: 140, width: double.infinity, fit: BoxFit.cover),
+            ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Barangay Admin'),
+                value: 'admin',
+                groupValue: _role,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _role = v!),
+              ),
             ),
           ],
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _isLoading ? null : onTap,
-              icon: Icon(hasPhoto ? Icons.refresh : Icons.upload_file, size: 18),
-              label: Text(hasPhoto ? 'Replace' : 'Upload Photo'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildSubmitButton() {
+  Widget _buildVerificationMethodSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Verify identity with',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF36454F)),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Email OTP'),
+                value: 'email',
+                groupValue: _verificationMethod,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _verificationMethod = v!),
+              ),
+            ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: Text('Phone SMS'),
+                value: 'phone',
+                groupValue: _verificationMethod,
+                activeColor: Color(0xFF99272D),
+                onChanged: (v) => setState(() => _verificationMethod = v!),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSignupButton() {
     return ElevatedButton(
       onPressed: _isLoading ? null : _submitForm,
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
       child: _isLoading
-          ? const SizedBox(
-              height: 20, width: 20,
-              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+          ? SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
             )
-          : const Text('Create Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          : Text(
+              'Create Account',
+            style: Theme.of(context).textTheme.labelLarge,
+            ),
     );
   }
 
@@ -647,10 +809,16 @@ class SignupPageState extends State<SignupPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text('Already have an account?'),
+        Text('Already have an account?'),
+        SizedBox(width: 5),
         TextButton(
-          onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-          child: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold)),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/login');
+          },
+          child: Text(
+            'Sign In',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );

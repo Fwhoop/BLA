@@ -216,17 +216,13 @@ class LoginPageState extends State<LoginPage> {
       keyboardType: TextInputType.emailAddress,
       textInputAction: TextInputAction.next,
       decoration: const InputDecoration(
-        labelText: 'Email address',
-        hintText: 'you@example.com',
-        prefixIcon: Icon(Icons.email_outlined),
+        labelText: 'Email or Phone Number',
+        hintText: 'you@example.com or 09XXXXXXXXX',
+        prefixIcon: Icon(Icons.person_outline),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter your email';
-        }
-        final emailRegex = RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$");
-        if (!emailRegex.hasMatch(value)) {
-          return 'Please enter a valid email address';
+        if (value == null || value.trim().isEmpty) {
+          return 'Please enter your email or phone number';
         }
         return null;
       },

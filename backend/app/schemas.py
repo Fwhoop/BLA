@@ -172,6 +172,8 @@ class MediationCreate(BaseModel):
     resolution_status: Optional[str] = "scheduled"
     next_hearing_date: Optional[date] = None
     agreement_document_path: Optional[str] = None
+    mediator_name: Optional[str] = None
+    resolution_photo_path: Optional[str] = None
 
 
 class MediationUpdate(BaseModel):
@@ -182,6 +184,8 @@ class MediationUpdate(BaseModel):
     resolution_status: Optional[str] = None
     next_hearing_date: Optional[date] = None
     agreement_document_path: Optional[str] = None
+    mediator_name: Optional[str] = None
+    resolution_photo_path: Optional[str] = None
 
 
 class MediationRead(MediationCreate):
@@ -260,12 +264,16 @@ class RequestCreate(RequestBase):
 
 class RequestUpdate(BaseModel):
     status: Optional[str] = None
+    file_url: Optional[str] = None
 
 
 class RequestRead(RequestBase):
     id: int
     requester_id: int
     status: str
+    file_url: Optional[str] = None
+    requester_name: Optional[str] = None
+    requester_email: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

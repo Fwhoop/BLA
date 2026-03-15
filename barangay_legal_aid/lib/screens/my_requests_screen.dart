@@ -1,3 +1,6 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
@@ -453,14 +456,51 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
             const SizedBox(height: 14),
 
-            // Download / Print buttons
+            // Admin-attached document download
+            if ((req['file_url'] as String?) != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF43A047).withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.insert_drive_file, color: Color(0xFF2E7D32), size: 18),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Document ready for download',
+                        style: TextStyle(fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        const baseUrl = 'https://bla-production-441d.up.railway.app';
+                        html.window.open('$baseUrl${req['file_url']}', '_blank');
+                      },
+                      icon: const Icon(Icons.download, size: 16),
+                      label: const Text('Download'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF2E7D32),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // Receipt Download / Print buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 OutlinedButton.icon(
                   onPressed: () => _downloadOrPrint(req, false),
-                  icon: const Icon(Icons.download_outlined, size: 18),
-                  label: const Text('Download'),
+                  icon: const Icon(Icons.receipt_outlined, size: 18),
+                  label: const Text('Receipt'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF99272D),
                     side: const BorderSide(color: Color(0xFF99272D)),

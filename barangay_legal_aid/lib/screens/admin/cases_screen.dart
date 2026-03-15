@@ -1,3 +1,8 @@
+import 'dart:typed_data';
+import 'dart:async';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
@@ -156,6 +161,7 @@ class AdminCasesScreenState extends State<AdminCasesScreen> {
           Navigator.pop(context);
           _deleteCase(caseData);
         },
+        onRefresh: _loadCases,
       ),
     );
   }
@@ -443,31 +449,353 @@ class _StatusChip extends StatelessWidget {
 
 // ─── Detail Bottom Sheet ─────────────────────────────────────────────────────
 
-class _DetailSheet extends StatelessWidget {
+class _DetailSheet extends StatefulWidget {
   final Map<String, dynamic> caseData;
   final ValueChanged<String> onStatusChanged;
   final VoidCallback onDelete;
+  final VoidCallback onRefresh;
 
   const _DetailSheet({
     required this.caseData,
     required this.onStatusChanged,
     required this.onDelete,
+    required this.onRefresh,
   });
 
   @override
+  State<_DetailSheet> createState() => _DetailSheetState();
+}
+
+class _DetailSheetState extends State<_DetailSheet> {
+  List<Map<String, dynamic>> _mediations = [];
+  bool _mediationsLoading = true;
+  bool _addingMediation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMediations();
+  }
+
+  Future<void> _loadMediations() async {
+    final caseId = widget.caseData['id'] as int?;
+    if (caseId == null) { setState(() => _mediationsLoading = false); return; }
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final list = await api.getMediations(caseId);
+      if (mounted) setState(() { _mediations = list; _mediationsLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _mediationsLoading = false);
+    }
+  }
+
+  Future<void> _showAddMediationDialog() async {
+    final dateCtrl = TextEditingController();
+    final timeCtrl = TextEditingController();
+    final locationCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    String resolutionStatus = 'scheduled';
+    DateTime? pickedDate;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(children: [
+            Icon(Icons.event_note, color: _kPrimary),
+            SizedBox(width: 8),
+            Text('Schedule Mediation', style: TextStyle(fontSize: 16)),
+          ]),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Date picker
+                TextFormField(
+                  controller: dateCtrl,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Date *',
+                    prefixIcon: Icon(Icons.calendar_today, size: 18),
+                    isDense: true,
+                  ),
+                  onTap: () async {
+                    final d = await showDatePicker(
+                      context: ctx,
+                      initialDate: DateTime.now().add(const Duration(days: 1)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (d != null) {
+                      pickedDate = d;
+                      dateCtrl.text = '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+                      setS(() {});
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: timeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Time (e.g. 9:00 AM)',
+                    prefixIcon: Icon(Icons.access_time, size: 18),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: locationCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                    prefixIcon: Icon(Icons.place_outlined, size: 18),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: resolutionStatus,
+                  decoration: const InputDecoration(labelText: 'Status', isDense: true),
+                  items: const [
+                    DropdownMenuItem(value: 'scheduled', child: Text('Scheduled')),
+                    DropdownMenuItem(value: 'ongoing',   child: Text('Ongoing')),
+                    DropdownMenuItem(value: 'resolved',  child: Text('Resolved')),
+                    DropdownMenuItem(value: 'failed',    child: Text('Failed')),
+                  ],
+                  onChanged: (v) => setS(() => resolutionStatus = v ?? 'scheduled'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: notesCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (optional)',
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: pickedDate == null ? null : () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: _kPrimary, foregroundColor: Colors.white),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || pickedDate == null) return;
+
+    setState(() => _addingMediation = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.createMediation(widget.caseData['id'] as int, {
+        'mediation_date': dateCtrl.text,
+        if (timeCtrl.text.trim().isNotEmpty) 'mediation_time': timeCtrl.text.trim(),
+        if (locationCtrl.text.trim().isNotEmpty) 'location': locationCtrl.text.trim(),
+        if (notesCtrl.text.trim().isNotEmpty) 'summary_notes': notesCtrl.text.trim(),
+        'resolution_status': resolutionStatus,
+      });
+      await _loadMediations();
+      widget.onRefresh();
+      if (mounted) {
+        showTopSnack(context,
+          message: 'Mediation session scheduled',
+          backgroundColor: const Color(0xFF10B981),
+          icon: Icons.check_circle_outline,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showTopSnack(context,
+          message: 'Failed: ${e.toString().replaceFirst("Exception: ", "")}',
+          backgroundColor: _kPrimary,
+          icon: Icons.error_outline,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _addingMediation = false);
+    }
+  }
+
+  /// Show a dialog to confirm resolution — captures mediator name + optional photo.
+  Future<void> _showResolveDialog() async {
+    final mediatorCtrl = TextEditingController();
+    Uint8List? photoBytes;
+    String? photoFilename;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(children: [
+            Icon(Icons.check_circle, color: Color(0xFF10B981)),
+            SizedBox(width: 8),
+            Text('Mark as Resolved', style: TextStyle(fontSize: 16)),
+          ]),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Please confirm mediation details before marking this complaint as resolved.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: mediatorCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Mediator Name *',
+                    prefixIcon: Icon(Icons.person, size: 18),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setS(() {}),
+                ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Resolution Photo (optional)',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ),
+                const SizedBox(height: 8),
+                if (photoFilename != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(children: [
+                      const Icon(Icons.image, size: 16, color: Color(0xFF43A047)),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(photoFilename!, style: const TextStyle(fontSize: 12, color: Color(0xFF43A047)), overflow: TextOverflow.ellipsis)),
+                      GestureDetector(
+                        onTap: () => setS(() { photoBytes = null; photoFilename = null; }),
+                        child: const Icon(Icons.close, size: 16, color: Colors.grey),
+                      ),
+                    ]),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final c = Completer<(Uint8List, String)?>();
+                    final input = html.FileUploadInputElement()
+                      ..accept = 'image/*';
+                    input.click();
+                    input.onChange.listen((_) {
+                      final f = input.files?.first;
+                      if (f == null) { c.complete(null); return; }
+                      final reader = html.FileReader();
+                      reader.readAsArrayBuffer(f);
+                      reader.onLoad.listen((_) {
+                        c.complete((Uint8List.fromList(reader.result as List<int>), f.name));
+                      });
+                      reader.onError.listen((_) => c.complete(null));
+                    });
+                    final result = await c.future;
+                    if (result != null) {
+                      setS(() { photoBytes = result.$1; photoFilename = result.$2; });
+                    }
+                  },
+                  icon: const Icon(Icons.photo_camera, size: 16),
+                  label: Text(photoFilename != null ? 'Change Photo' : 'Attach Photo'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1565C0),
+                    side: const BorderSide(color: Color(0xFF1565C0)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: mediatorCtrl.text.trim().isEmpty ? null : () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+              child: const Text('Mark Resolved'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final mediatorName = mediatorCtrl.text.trim();
+    if (mediatorName.isEmpty) return;
+
+    setState(() => _addingMediation = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final caseId = widget.caseData['id'] as int;
+
+      int mediationId;
+      if (_mediations.isEmpty) {
+        // Create a new resolved mediation record so backend check passes
+        final med = await api.createMediation(caseId, {
+          'resolution_status': 'resolved',
+          'mediator_name': mediatorName,
+        });
+        mediationId = med['id'] as int;
+        await _loadMediations();
+      } else {
+        // Update the most recent mediation with mediator name
+        mediationId = _mediations.first['id'] as int;
+        await api.updateMediation(mediationId, {
+          'mediator_name': mediatorName,
+          'resolution_status': 'resolved',
+        });
+        await _loadMediations();
+      }
+
+      // Upload resolution photo if provided
+      if (photoBytes != null && photoFilename != null) {
+        await api.uploadResolutionPhoto(mediationId, photoBytes!, photoFilename!);
+      }
+
+      // Now mark the case as resolved
+      widget.onStatusChanged('resolved');
+    } catch (e) {
+      if (mounted) {
+        showTopSnack(context,
+          message: 'Failed: ${e.toString().replaceFirst("Exception: ", "")}',
+          backgroundColor: _kPrimary,
+          icon: Icons.error_outline,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _addingMediation = false);
+    }
+  }
+
+  Future<void> _deleteMediationItem(int mediationId) async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.deleteMediation(mediationId);
+      await _loadMediations();
+      widget.onRefresh();
+    } catch (e) {
+      if (mounted) {
+        showTopSnack(context, message: 'Delete failed: $e', backgroundColor: _kPrimary, icon: Icons.error_outline);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final status = (caseData['status'] ?? 'pending') as String;
+    final cd = widget.caseData;
+    final status = (cd['status'] ?? 'pending') as String;
     final meta = _statusMeta[status] ?? _statusMeta['pending']!;
-    final title = (caseData['title'] ?? 'Untitled') as String;
-    final description = (caseData['description'] ?? '') as String;
-    final reporterName = caseData['reporter_name'] as String?;
-    final reporterEmail = caseData['reporter_email'] as String?;
-    final createdAt = caseData['created_at'] as String?;
+    final title = (cd['title'] ?? 'Untitled') as String;
+    final description = (cd['description'] ?? '') as String;
+    final reporterName = cd['reporter_name'] as String?;
+    final reporterEmail = cd['reporter_email'] as String?;
+    final createdAt = cd['created_at'] as String?;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.65,
+      initialChildSize: 0.75,
       minChildSize: 0.4,
-      maxChildSize: 0.92,
+      maxChildSize: 0.95,
       builder: (_, controller) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -475,15 +803,10 @@ class _DetailSheet extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Drag handle
             Container(
               margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
             ),
             Expanded(
               child: ListView(
@@ -494,16 +817,7 @@ class _DetailSheet extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: _kCharcoal,
-                          ),
-                        ),
-                      ),
+                      Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _kCharcoal))),
                       _StatusChip(meta: meta, status: status),
                     ],
                   ),
@@ -513,37 +827,17 @@ class _DetailSheet extends StatelessWidget {
                   if (reporterName != null || reporterEmail != null)
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FA),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
+                      decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Reporter',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
+                          const Text('Reporter', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.8)),
                           const SizedBox(height: 6),
                           if (reporterName != null)
-                            Row(children: [
-                              const Icon(Icons.person, size: 16, color: _kCharcoal),
-                              const SizedBox(width: 8),
-                              Text(reporterName, style: const TextStyle(color: _kCharcoal, fontWeight: FontWeight.w500)),
-                            ]),
+                            Row(children: [const Icon(Icons.person, size: 16, color: _kCharcoal), const SizedBox(width: 8), Text(reporterName, style: const TextStyle(color: _kCharcoal, fontWeight: FontWeight.w500))]),
                           if (reporterEmail != null) ...[
                             const SizedBox(height: 4),
-                            Row(children: [
-                              const Icon(Icons.email_outlined, size: 16, color: _kCharcoal),
-                              const SizedBox(width: 8),
-                              Text(reporterEmail, style: TextStyle(color: _kCharcoal.withValues(alpha: 0.8))),
-                            ]),
+                            Row(children: [const Icon(Icons.email_outlined, size: 16, color: _kCharcoal), const SizedBox(width: 8), Text(reporterEmail, style: TextStyle(color: _kCharcoal.withValues(alpha: 0.8)))]),
                           ],
                         ],
                       ),
@@ -552,27 +846,14 @@ class _DetailSheet extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Description
-                  const Text(
-                    'Description',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey),
-                  ),
+                  const Text('Description', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
                   const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Text(
-                      description.isEmpty ? 'No description provided.' : description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: _kCharcoal.withValues(alpha: 0.9),
-                        height: 1.5,
-                      ),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
+                    child: Text(description.isEmpty ? 'No description provided.' : description,
+                        style: TextStyle(fontSize: 14, color: _kCharcoal.withValues(alpha: 0.9), height: 1.5)),
                   ),
 
                   if (createdAt != null) ...[
@@ -580,29 +861,64 @@ class _DetailSheet extends StatelessWidget {
                     Row(children: [
                       Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
                       const SizedBox(width: 6),
-                      Text(
-                        'Submitted ${_formatDate(createdAt)}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                      ),
+                      Text('Submitted ${_formatDate(createdAt)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                     ]),
                   ],
 
                   const SizedBox(height: 24),
 
-                  // Status update
-                  const Text(
-                    'Update Status',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey),
+                  // ── Mediation Section ──────────────────────────────────────
+                  Row(
+                    children: [
+                      const Icon(Icons.gavel, size: 16, color: _kPrimary),
+                      const SizedBox(width: 6),
+                      const Text('Mediation Sessions', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
+                      const Spacer(),
+                      if (_addingMediation)
+                        const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _kPrimary))
+                      else
+                        TextButton.icon(
+                          onPressed: _showAddMediationDialog,
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Add'),
+                          style: TextButton.styleFrom(foregroundColor: _kPrimary, visualDensity: VisualDensity.compact),
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
+                  if (_mediationsLoading)
+                    const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 2)))
+                  else if (_mediations.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
+                      child: const Row(children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text('No mediation sessions yet.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      ]),
+                    )
+                  else
+                    ...(_mediations.map((m) => _MediationTile(mediation: m, onDelete: () => _deleteMediationItem(m['id'] as int)))),
+
+                  const SizedBox(height: 24),
+
+                  // Status update
+                  const Text('Update Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
                   const SizedBox(height: 10),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 8, runSpacing: 8,
                     children: _statusMeta.entries.map((e) {
                       final isActive = e.key == status;
                       final m = e.value;
                       return GestureDetector(
-                        onTap: isActive ? null : () => onStatusChanged(e.key),
+                        onTap: isActive ? null : () {
+                        if (e.key == 'resolved') {
+                          _showResolveDialog();
+                        } else {
+                          widget.onStatusChanged(e.key);
+                        }
+                      },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -616,14 +932,7 @@ class _DetailSheet extends StatelessWidget {
                             children: [
                               Icon(m.icon, size: 14, color: isActive ? Colors.white : m.color),
                               const SizedBox(width: 6),
-                              Text(
-                                m.label,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isActive ? Colors.white : m.color,
-                                ),
-                              ),
+                              Text(m.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isActive ? Colors.white : m.color)),
                             ],
                           ),
                         ),
@@ -635,7 +944,7 @@ class _DetailSheet extends StatelessWidget {
 
                   // Delete button
                   OutlinedButton.icon(
-                    onPressed: onDelete,
+                    onPressed: widget.onDelete,
                     icon: const Icon(Icons.delete_outline),
                     label: const Text('Delete Complaint'),
                     style: OutlinedButton.styleFrom(
@@ -665,5 +974,123 @@ class _DetailSheet extends StatelessWidget {
     } catch (_) {
       return raw;
     }
+  }
+}
+
+// ─── Mediation Tile ───────────────────────────────────────────────────────────
+
+class _MediationTile extends StatelessWidget {
+  final Map<String, dynamic> mediation;
+  final VoidCallback onDelete;
+  const _MediationTile({required this.mediation, required this.onDelete});
+
+  static const _statusColors = <String, Color>{
+    'scheduled': Color(0xFF3B82F6),
+    'ongoing':   Color(0xFFF59E0B),
+    'resolved':  Color(0xFF10B981),
+    'failed':    Color(0xFF6B7280),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final date         = mediation['mediation_date'] as String?;
+    final time         = mediation['mediation_time'] as String?;
+    final location     = mediation['location'] as String?;
+    final notes        = mediation['summary_notes'] as String?;
+    final mediatorName = mediation['mediator_name'] as String?;
+    final photoPath    = mediation['resolution_photo_path'] as String?;
+    final resStatus    = (mediation['resolution_status'] ?? 'scheduled') as String;
+    final color = _statusColors[resStatus] ?? _statusColors['scheduled']!;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: color.withValues(alpha: 0.04),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 4, height: 60,
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                        child: Text(resStatus.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 16, color: _kPrimary),
+                        onPressed: onDelete,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Remove',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  if (date != null)
+                    Row(children: [
+                      const Icon(Icons.calendar_today, size: 13, color: _kCharcoal),
+                      const SizedBox(width: 6),
+                      Text(date + (time != null ? '  $time' : ''),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kCharcoal)),
+                    ]),
+                  if (location != null) ...[
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      const Icon(Icons.place_outlined, size: 13, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text(location, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ]),
+                  ],
+                  if (mediatorName != null && mediatorName.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      const Icon(Icons.person_pin, size: 13, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text('Mediator: $mediatorName', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ]),
+                  ],
+                  if (notes != null && notes.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(notes,
+                        style: TextStyle(fontSize: 12, color: _kCharcoal.withValues(alpha: 0.7)),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                  if (photoPath != null) ...[
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () {
+                        const baseUrl = 'https://bla-production-441d.up.railway.app';
+                        html.window.open('$baseUrl$photoPath', '_blank');
+                      },
+                      child: Row(children: [
+                        const Icon(Icons.photo, size: 13, color: Color(0xFF10B981)),
+                        const SizedBox(width: 4),
+                        const Text('View resolution photo', style: TextStyle(fontSize: 12, color: Color(0xFF10B981), decoration: TextDecoration.underline)),
+                      ]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
