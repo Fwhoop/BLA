@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     # Firebase Admin SDK (JSON string of service account credentials)
     firebase_credentials_json: str | None = None
 
-    # SMTP / email settings (optional — used for OTP and notification emails)
+    # ── Resend API (recommended on Railway — SMTP ports are blocked) ──────────
+    # Sign up free at resend.com → create API key → set this env var.
+    # From address: set SMTP_FROM_EMAIL to e.g. "BLA <noreply@yourdomain.com>"
+    resend_api_key: str | None = None
+
+    # ── SMTP (fallback — only works if your host allows outbound port 587/465) ─
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_use_ssl: bool = False   # True → SMTP_SSL (port 465); False → STARTTLS (port 587)
