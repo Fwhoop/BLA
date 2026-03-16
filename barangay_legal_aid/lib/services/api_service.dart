@@ -14,6 +14,7 @@ class ApiService {
   static const _aiTimeout = Duration(seconds: 120);
 
   String get _baseUrl => dotenv.env['API_URL'] ?? 'http://127.0.0.1:8000';
+  String get baseUrl  => _baseUrl;
 
   Future<String?> _getToken() => _secure.getAccessToken();
 
