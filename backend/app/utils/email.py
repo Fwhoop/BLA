@@ -1,11 +1,23 @@
 """Email sending utilities.
 
-Primary: Resend HTTP API (https://resend.com) — works on Railway (port 443).
-Fallback: smtplib — only works if the host allows outbound SMTP (ports 587/465).
+Provider priority (first configured one wins):
+  1. SendGrid  — set SENDGRID_API_KEY + SENDGRID_FROM_EMAIL
+                 Easy: single-sender verification (verify any Gmail, no domain needed)
+                 Free: 100 emails/day
+                 Sign up: sendgrid.com
 
-Railway free/hobby plans block all outbound SMTP TCP connections.
-Set RESEND_API_KEY in your Railway environment variables to fix this.
+  2. Resend    — set RESEND_API_KEY + RESEND_FROM_EMAIL
+                 Requires domain verification in Resend dashboard
+                 Free: 3 000 emails/month
+                 Sign up: resend.com
+
+  3. SMTP      — set SMTP_HOST + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD + SMTP_FROM_EMAIL
+                 ⚠ Railway free/hobby blocks outbound SMTP (ports 25/465/587).
+                 Only use this for non-Railway deployments.
+
+Railway fix: use SendGrid (easiest) or Resend (requires domain).
 """
+import re
 import smtplib
 import ssl
 import logging
@@ -17,17 +29,77 @@ from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
+_EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
-# ── Resend HTTP API ────────────────────────────────────────────────────────────
+
+def _valid_email(addr: str | None) -> str | None:
+    """Return addr if it contains a valid email, else None."""
+    if not addr:
+        return None
+    addr = addr.strip()
+    if _EMAIL_RE.search(addr):
+        return addr
+    return None
+
+
+# ── 1. SendGrid ────────────────────────────────────────────────────────────────
+
+def _send_via_sendgrid(to_email: str, subject: str, body_html: str) -> bool:
+    from_addr = _valid_email(settings.sendgrid_from_email)
+    if not from_addr:
+        logger.error(
+            "[EMAIL/SendGrid] SENDGRID_FROM_EMAIL is not set or invalid. "
+            "Set it to your SendGrid-verified email address."
+        )
+        return False
+
+    try:
+        resp = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={
+                "Authorization": f"Bearer {settings.sendgrid_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": from_addr},
+                "subject": subject,
+                "content": [{"type": "text/html", "value": body_html}],
+            },
+            timeout=15,
+        )
+        # SendGrid returns 202 Accepted on success
+        if resp.status_code == 202:
+            logger.info("[EMAIL/SendGrid] Sent '%s' to %s", subject, to_email)
+            return True
+        try:
+            err = resp.json()
+        except Exception:
+            err = resp.text
+        logger.error(
+            "[EMAIL/SendGrid] Failed '%s' to %s: HTTP %s — %s",
+            subject, to_email, resp.status_code, err,
+        )
+        return False
+    except Exception as exc:
+        logger.error("[EMAIL/SendGrid] Exception: %s", exc)
+        return False
+
+
+# ── 2. Resend ──────────────────────────────────────────────────────────────────
 
 def _send_via_resend(to_email: str, subject: str, body_html: str) -> bool:
-    """Send email via Resend REST API (HTTPS — works on Railway).
+    # Use RESEND_FROM_EMAIL (dedicated setting); do NOT fall back to smtp_from_email
+    # because that may be an unverified address or in the wrong format.
+    from_addr = _valid_email(settings.resend_from_email)
+    if not from_addr:
+        logger.error(
+            "[EMAIL/Resend] RESEND_FROM_EMAIL is not set or invalid. "
+            "Set it to an email on your Resend-verified domain, e.g. noreply@yourdomain.com. "
+            "Note: onboarding@resend.dev only delivers to your own Resend account email."
+        )
+        return False
 
-    Requires RESEND_API_KEY env var.
-    From address uses SMTP_FROM_EMAIL if set, otherwise falls back to
-    the Resend shared test address (only delivers to the Resend account owner).
-    """
-    from_addr = settings.smtp_from_email or "Barangay Legal Aid <onboarding@resend.dev>"
     try:
         resp = requests.post(
             "https://api.resend.com/emails",
@@ -46,40 +118,39 @@ def _send_via_resend(to_email: str, subject: str, body_html: str) -> bool:
         if resp.status_code in (200, 201):
             logger.info("[EMAIL/Resend] Sent '%s' to %s", subject, to_email)
             return True
-        # Resend returns structured errors
         try:
             err = resp.json()
         except Exception:
             err = resp.text
         logger.error(
-            "[EMAIL/Resend] Failed to send '%s' to %s: HTTP %s — %s",
+            "[EMAIL/Resend] Failed '%s' to %s: HTTP %s — %s",
             subject, to_email, resp.status_code, err,
         )
         return False
     except Exception as exc:
-        logger.error("[EMAIL/Resend] Exception sending '%s' to %s: %s", subject, to_email, exc)
+        logger.error("[EMAIL/Resend] Exception: %s", exc)
         return False
 
 
-# ── SMTP fallback ──────────────────────────────────────────────────────────────
+# ── 3. SMTP ────────────────────────────────────────────────────────────────────
 
 def _send_via_smtp(to_email: str, subject: str, body_html: str) -> bool:
-    """Send email via SMTP (STARTTLS port 587 or SSL port 465).
-
-    NOTE: Railway free/hobby plans block outbound SMTP.
-          Use Resend (HTTP API) instead — set RESEND_API_KEY.
-    """
     if not all([settings.smtp_host, settings.smtp_username,
                 settings.smtp_password, settings.smtp_from_email]):
         logger.warning(
-            "[EMAIL/SMTP] Not configured — missing SMTP_HOST / SMTP_USERNAME / "
-            "SMTP_PASSWORD / SMTP_FROM_EMAIL. Skipping send to %s.", to_email,
+            "[EMAIL/SMTP] Not fully configured — missing one of: "
+            "SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL."
         )
+        return False
+
+    from_addr = _valid_email(settings.smtp_from_email)
+    if not from_addr:
+        logger.error("[EMAIL/SMTP] SMTP_FROM_EMAIL is not a valid email address.")
         return False
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"]    = settings.smtp_from_email
+    msg["From"]    = from_addr
     msg["To"]      = to_email
     msg.attach(MIMEText(body_html, "html"))
 
@@ -90,40 +161,38 @@ def _send_via_smtp(to_email: str, subject: str, body_html: str) -> bool:
                 settings.smtp_host, settings.smtp_port, context=ctx, timeout=10
             ) as srv:
                 srv.login(settings.smtp_username, settings.smtp_password)
-                srv.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+                srv.sendmail(from_addr, to_email, msg.as_string())
         else:
             with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as srv:
                 srv.ehlo()
                 srv.starttls(context=ctx)
                 srv.login(settings.smtp_username, settings.smtp_password)
-                srv.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+                srv.sendmail(from_addr, to_email, msg.as_string())
         logger.info("[EMAIL/SMTP] Sent '%s' to %s", subject, to_email)
         return True
     except Exception as exc:
         logger.error(
-            "[EMAIL/SMTP] Failed to send '%s' to %s: %s. "
-            "Railway blocks SMTP — switch to Resend: set RESEND_API_KEY env var.",
+            "[EMAIL/SMTP] Failed '%s' to %s: %s — "
+            "Railway blocks outbound SMTP. Use SendGrid or Resend instead.",
             subject, to_email, exc,
         )
         return False
 
 
-# ── Public dispatcher ──────────────────────────────────────────────────────────
+# ── Dispatcher ─────────────────────────────────────────────────────────────────
 
 def _send_email(to_email: str, subject: str, body_html: str) -> bool:
-    """Send an HTML email. Returns True if delivered, False otherwise.
-
-    Tries Resend first (works on Railway), then falls back to SMTP.
-    """
+    """Try each configured provider in order. Returns True if sent."""
+    if settings.sendgrid_api_key:
+        return _send_via_sendgrid(to_email, subject, body_html)
     if settings.resend_api_key:
         return _send_via_resend(to_email, subject, body_html)
     return _send_via_smtp(to_email, subject, body_html)
 
 
-# ── Email templates ───────────────────────────────────────────────────────────
+# ── Templates ──────────────────────────────────────────────────────────────────
 
 def send_otp_email(to_email: str, otp: str) -> bool:
-    """Send a 6-digit OTP for signup/email verification. Returns True if sent."""
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;
                 border:1px solid #e0e0e0;border-radius:8px;">
@@ -139,7 +208,6 @@ def send_otp_email(to_email: str, otp: str) -> bool:
 
 
 def send_password_reset_email(to_email: str, otp: str) -> bool:
-    """Send a 6-digit OTP for password reset. Returns True if sent."""
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;
                 border:1px solid #e0e0e0;border-radius:8px;">
@@ -156,7 +224,6 @@ def send_password_reset_email(to_email: str, otp: str) -> bool:
 
 
 def send_admin_approved_email(to_email: str, name: str) -> None:
-    """Notify an admin that their account has been approved."""
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;
                 border:1px solid #e0e0e0;border-radius:8px;">
@@ -171,7 +238,6 @@ def send_admin_approved_email(to_email: str, name: str) -> None:
 
 
 def send_admin_rejected_email(to_email: str, name: str, reason: str = "") -> None:
-    """Notify an admin that their registration was rejected."""
     reason_html = f"<p><strong>Reason:</strong> {reason}</p>" if reason else ""
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;

@@ -16,15 +16,28 @@ class Settings(BaseSettings):
     # Firebase Admin SDK (JSON string of service account credentials)
     firebase_credentials_json: str | None = None
 
-    # ── Resend API (recommended on Railway — SMTP ports are blocked) ──────────
-    # Sign up free at resend.com → create API key → set this env var.
-    # From address: set SMTP_FROM_EMAIL to e.g. "BLA <noreply@yourdomain.com>"
+    # ── Resend API ────────────────────────────────────────────────────────────
+    # Railway blocks SMTP — use Resend HTTP API instead (port 443, never blocked).
+    # 1. Sign up free at resend.com
+    # 2. Add & verify a domain (or use a free domain)  ← required to send to anyone
+    # 3. Create an API key → paste below
+    # 4. Set RESEND_FROM_EMAIL to "BLA <noreply@yourdomain.com>"
     resend_api_key: str | None = None
+    resend_from_email: str | None = None   # e.g. "BLA <noreply@yourdomain.com>"
 
-    # ── SMTP (fallback — only works if your host allows outbound port 587/465) ─
+    # ── SendGrid API (alternative — supports single-sender verification) ───────
+    # Easier than Resend if you don't own a domain:
+    # 1. Sign up free at sendgrid.com (100 emails/day free)
+    # 2. Settings → Sender Authentication → Single Sender Verification → verify your Gmail
+    # 3. Settings → API Keys → Create API Key (Full Access)
+    # 4. Set SENDGRID_API_KEY and SENDGRID_FROM_EMAIL (your verified Gmail)
+    sendgrid_api_key: str | None = None
+    sendgrid_from_email: str | None = None  # must be your SendGrid-verified email
+
+    # ── SMTP (last resort — Railway blocks ports 25/465/587) ──────────────────
     smtp_host: str | None = None
     smtp_port: int = 587
-    smtp_use_ssl: bool = False   # True → SMTP_SSL (port 465); False → STARTTLS (port 587)
+    smtp_use_ssl: bool = False
     smtp_username: str | None = None
     smtp_password: str | None = None
     smtp_from_email: str | None = None
