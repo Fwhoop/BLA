@@ -410,8 +410,19 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
         user = db.query(models.User).filter(models.User.phone == payload.identifier).first()
 
     if not user:
-        # Return success to prevent user enumeration
-        return {"message": "If the account exists, a reset code has been sent.", "user_id": None}
+        return {"message": "No account found.", "user_id": None,
+                "display_name": None, "masked_contact": None}
+
+    # Build masked contact for display (user already knows their own identifier)
+    if payload.method == "email":
+        em = user.email or ""
+        local, _, domain = em.partition("@")
+        masked_contact = local[:2] + "***@" + domain if len(local) > 2 else "***@" + domain
+    else:
+        ph = user.phone or ""
+        masked_contact = ph[:4] + "****" + ph[-3:] if len(ph) >= 7 else ph
+
+    display_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.username or "User"
 
     if payload.method == "email":
         otp = generate_otp()
@@ -421,9 +432,12 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
         db.commit()
         send_password_reset_email(user.email, otp)
 
-    # For phone method: client will trigger Firebase OTP directly.
-    # We just return the user_id so the client can call reset-password-phone after Firebase verifies.
-    return {"message": "If the account exists, a reset code has been sent.", "user_id": user.id}
+    return {
+        "message": "Reset code sent.",
+        "user_id": user.id,
+        "display_name": display_name,
+        "masked_contact": masked_contact,
+    }
 
 
 @router.post("/reset-password")
