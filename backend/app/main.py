@@ -80,18 +80,54 @@ def _backfill_users():
         ))
 
 
-# ── Global DB error handler ───────────────────────────────────────────────────
+# ── Global exception handlers ─────────────────────────────────────────────────
+from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException as FastAPIHTTPException
+import traceback
+
+@app.exception_handler(FastAPIHTTPException)
+async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
+    """Return every HTTP error in consistent {success, error} shape."""
+    detail = exc.detail
+    # detail may be a dict (structured) or a plain string
+    if isinstance(detail, dict):
+        error_msg = detail.get("error") or detail.get("detail") or str(detail)
+    else:
+        error_msg = str(detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "error": error_msg},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Pydantic validation failures → 422 with consistent shape."""
+    errors = [
+        f"{' → '.join(str(l) for l in e['loc'])}: {e['msg']}"
+        for e in exc.errors()
+    ]
+    logger.warning(f"Validation error on {request.url}: {errors}")
+    return JSONResponse(
+        status_code=422,
+        content={"success": False, "error": "Validation failed", "fields": errors},
+    )
+
+
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    import pymysql
-    if isinstance(exc, pymysql.err.OperationalError):
-        logger.error(f"DB OperationalError on {request.url}: {exc}")
-        return JSONResponse(
-            status_code=503,
-            content={"detail": "Database error — please try again shortly."},
-        )
-    # Re-raise anything else so FastAPI's default handler runs
-    raise exc
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """
+    Catch-all for unhandled exceptions.
+    Logs the full stack trace server-side; returns a safe message to the client.
+    """
+    logger.error(
+        f"Unhandled exception on {request.method} {request.url}:\n"
+        + traceback.format_exc()
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "error": "An unexpected server error occurred."},
+    )
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
