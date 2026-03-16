@@ -46,8 +46,9 @@ class ApiService {
     }
   }
 
-  /// Register (signup). ID photo sent as multipart; backend stores URL/hash only.
-  Future<void> register({
+  /// Register (signup). All three photos sent as multipart fields.
+  /// Returns the created user data map (includes `id`).
+  Future<Map<String, dynamic>> register({
     required String firstName,
     required String lastName,
     required String email,
@@ -57,6 +58,8 @@ class ApiService {
     required String barangay,
     required String idPhotoPath,
     dynamic idPhotoBytes,
+    dynamic profilePhotoBytes,
+    dynamic selfieWithIdBytes,
     String role = 'user',
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register');
@@ -70,26 +73,42 @@ class ApiService {
     request.fields['barangay'] = barangay;
     request.fields['role'] = role;
 
-    List<int>? photoBytes;
+    // Attach government ID photo
+    List<int>? idBytes;
     if (idPhotoBytes is Uint8List) {
-      photoBytes = idPhotoBytes;
+      idBytes = idPhotoBytes;
     } else if (idPhotoBytes is List<int>) {
-      photoBytes = idPhotoBytes;
+      idBytes = idPhotoBytes;
     }
-    if (photoBytes != null && photoBytes.isNotEmpty) {
-      request.files.add(http.MultipartFile.fromBytes(
-        'id_photo',
-        photoBytes,
-        filename: 'id_photo.jpg',
-      ));
+    if (idBytes != null && idBytes.isNotEmpty) {
+      request.files.add(http.MultipartFile.fromBytes('id_photo', idBytes, filename: 'id_photo.jpg'));
     } else if (idPhotoPath.isNotEmpty && !idPhotoPath.startsWith('web_')) {
       final file = File(idPhotoPath);
       if (await file.exists()) {
         request.files.add(await http.MultipartFile.fromPath(
-          'id_photo',
-          idPhotoPath,
+          'id_photo', idPhotoPath,
           filename: idPhotoPath.split(RegExp(r'[/\\]')).last,
         ));
+      }
+    }
+
+    // Attach selfie → stored as profile_photo (shown on profile after approval)
+    if (profilePhotoBytes != null) {
+      final bytes = profilePhotoBytes is Uint8List
+          ? profilePhotoBytes
+          : profilePhotoBytes is List<int> ? Uint8List.fromList(profilePhotoBytes) : null;
+      if (bytes != null && bytes.isNotEmpty) {
+        request.files.add(http.MultipartFile.fromBytes('profile_photo', bytes, filename: 'profile_photo.jpg'));
+      }
+    }
+
+    // Attach selfie-holding-ID photo
+    if (selfieWithIdBytes != null) {
+      final bytes = selfieWithIdBytes is Uint8List
+          ? selfieWithIdBytes
+          : selfieWithIdBytes is List<int> ? Uint8List.fromList(selfieWithIdBytes) : null;
+      if (bytes != null && bytes.isNotEmpty) {
+        request.files.add(http.MultipartFile.fromBytes('selfie_with_id', bytes, filename: 'selfie_with_id.jpg'));
       }
     }
 
@@ -105,6 +124,7 @@ class ApiService {
         throw Exception('Registration failed: ${response.statusCode} - $body');
       }
     }
+    return json.decode(response.body) as Map<String, dynamic>;
   }
 
   Future<bool> updateProfile({

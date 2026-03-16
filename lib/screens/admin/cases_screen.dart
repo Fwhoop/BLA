@@ -5,6 +5,7 @@ import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:barangay_legal_aid/config/env_config.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/top_snack.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
@@ -1093,8 +1094,55 @@ class _MediationTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     GestureDetector(
                       onTap: () {
-                        const baseUrl = 'https://bla-production-441d.up.railway.app';
-                        html.window.open('$baseUrl$photoPath', '_blank');
+                        showDialog(
+                          context: context,
+                          builder: (_) => Dialog(
+                            backgroundColor: Colors.transparent,
+                            insetPadding: const EdgeInsets.all(16),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+                                  decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(16)),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          child: Row(
+                                            children: [
+                                              const Text('Resolution Photo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                              const Spacer(),
+                                              IconButton(
+                                                icon: const Icon(Icons.close, color: Colors.white),
+                                                onPressed: () => Navigator.pop(context),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: InteractiveViewer(
+                                            child: Image.network(
+                                              '$apiBaseUrl$photoPath',
+                                              fit: BoxFit.contain,
+                                              loadingBuilder: (_, child, p) => p == null ? child
+                                                  : const Center(child: CircularProgressIndicator(color: Colors.white)),
+                                              errorBuilder: (_, __, ___) => const Center(
+                                                child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
                       },
                       child: Row(children: [
                         const Icon(Icons.photo, size: 13, color: Color(0xFF10B981)),
