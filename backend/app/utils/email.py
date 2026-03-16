@@ -1,21 +1,26 @@
 """Email sending utilities.
 
 Provider priority (first configured one wins):
-  1. SendGrid  — set SENDGRID_API_KEY + SENDGRID_FROM_EMAIL
-                 Easy: single-sender verification (verify any Gmail, no domain needed)
+  1. Brevo     — set BREVO_API_KEY + BREVO_FROM_EMAIL
+                 Easiest: single-sender verification (verify any Gmail, no domain needed)
+                 Free: 300 emails/day
+                 Sign up: brevo.com
+
+  2. SendGrid  — set SENDGRID_API_KEY + SENDGRID_FROM_EMAIL
+                 Single-sender verification, no domain needed
                  Free: 100 emails/day
                  Sign up: sendgrid.com
 
-  2. Resend    — set RESEND_API_KEY + RESEND_FROM_EMAIL
+  3. Resend    — set RESEND_API_KEY + RESEND_FROM_EMAIL
                  Requires domain verification in Resend dashboard
                  Free: 3 000 emails/month
                  Sign up: resend.com
 
-  3. SMTP      — set SMTP_HOST + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD + SMTP_FROM_EMAIL
+  4. SMTP      — set SMTP_HOST + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD + SMTP_FROM_EMAIL
                  ⚠ Railway free/hobby blocks outbound SMTP (ports 25/465/587).
                  Only use this for non-Railway deployments.
 
-Railway fix: use SendGrid (easiest) or Resend (requires domain).
+Railway fix: use Brevo (easiest) or SendGrid.
 """
 import re
 import smtplib
@@ -42,7 +47,50 @@ def _valid_email(addr: str | None) -> str | None:
     return None
 
 
-# ── 1. SendGrid ────────────────────────────────────────────────────────────────
+# ── 1. Brevo ──────────────────────────────────────────────────────────────────
+
+def _send_via_brevo(to_email: str, subject: str, body_html: str) -> bool:
+    from_addr = _valid_email(settings.brevo_from_email)
+    if not from_addr:
+        logger.error(
+            "[EMAIL/Brevo] BREVO_FROM_EMAIL is not set or invalid. "
+            "Set it to your Brevo-verified sender email address."
+        )
+        return False
+    try:
+        resp = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": settings.brevo_api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "sender": {"name": "Barangay Legal Aid", "email": from_addr},
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": body_html,
+            },
+            timeout=15,
+        )
+        # Brevo returns 201 Created on success
+        if resp.status_code == 201:
+            logger.info("[EMAIL/Brevo] Sent '%s' to %s", subject, to_email)
+            return True
+        try:
+            err = resp.json()
+        except Exception:
+            err = resp.text
+        logger.error(
+            "[EMAIL/Brevo] Failed '%s' to %s: HTTP %s — %s",
+            subject, to_email, resp.status_code, err,
+        )
+        return False
+    except Exception as exc:
+        logger.error("[EMAIL/Brevo] Exception: %s", exc)
+        return False
+
+
+# ── 2. SendGrid ────────────────────────────────────────────────────────────────
 
 def _send_via_sendgrid(to_email: str, subject: str, body_html: str) -> bool:
     from_addr = _valid_email(settings.sendgrid_from_email)
@@ -183,6 +231,8 @@ def _send_via_smtp(to_email: str, subject: str, body_html: str) -> bool:
 
 def _send_email(to_email: str, subject: str, body_html: str) -> bool:
     """Try each configured provider in order. Returns True if sent."""
+    if settings.brevo_api_key:
+        return _send_via_brevo(to_email, subject, body_html)
     if settings.sendgrid_api_key:
         return _send_via_sendgrid(to_email, subject, body_html)
     if settings.resend_api_key:

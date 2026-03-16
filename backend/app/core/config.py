@@ -25,12 +25,15 @@ class Settings(BaseSettings):
     resend_api_key: str | None = None
     resend_from_email: str | None = None   # e.g. "BLA <noreply@yourdomain.com>"
 
+    # ── Brevo API (easiest — single-sender verification, no domain needed) ──────
+    # 1. Sign up free at brevo.com (300 emails/day free)
+    # 2. Settings → Senders & IPs → Senders → Add a Sender → verify your Gmail
+    # 3. Settings → API Keys → Generate a new API key
+    # 4. Set BREVO_API_KEY and BREVO_FROM_EMAIL (your verified Gmail)
+    brevo_api_key: str | None = None
+    brevo_from_email: str | None = None     # must be your Brevo-verified email
+
     # ── SendGrid API (alternative — supports single-sender verification) ───────
-    # Easier than Resend if you don't own a domain:
-    # 1. Sign up free at sendgrid.com (100 emails/day free)
-    # 2. Settings → Sender Authentication → Single Sender Verification → verify your Gmail
-    # 3. Settings → API Keys → Create API Key (Full Access)
-    # 4. Set SENDGRID_API_KEY and SENDGRID_FROM_EMAIL (your verified Gmail)
     sendgrid_api_key: str | None = None
     sendgrid_from_email: str | None = None  # must be your SendGrid-verified email
 
