@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
+import 'package:barangay_legal_aid/screens/phone_sms_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/utils/phone_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -26,11 +28,8 @@ class SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _imagePicker = ImagePicker();
 
-  // Identity
   final TextEditingController _firstNameController       = TextEditingController();
   final TextEditingController _lastNameController        = TextEditingController();
-
-  // Contact
   final TextEditingController _emailController           = TextEditingController();
   final TextEditingController _passwordController        = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -75,29 +74,12 @@ class SignupPageState extends State<SignupPage> {
   bool _citiesLoading    = false;
   bool _barangaysLoading = false;
 
-  // ── Init / Dispose ──────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _loadRegions();
   }
 
-  @override
-  void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _phoneController.dispose();
-    _houseNoController.dispose();
-    _purokController.dispose();
-    _streetController.dispose();
-    _zipCodeController.dispose();
-    super.dispose();
-  }
-
-  // ── PSGC loaders ────────────────────────────────────────────────────────────
   Future<void> _loadRegions() async {
     if (mounted) setState(() => _regionsLoading = true);
     try {
@@ -131,7 +113,6 @@ class SignupPageState extends State<SignupPage> {
       if (resp.statusCode == 200) {
         final list = jsonDecode(resp.body) as List;
         if (list.isEmpty) {
-          // NCR or region without provinces — load cities directly from the region
           if (mounted) setState(() { _noProvinceRegion = true; _provincesLoading = false; _citiesLoading = true; });
           final citiesResp = await http.get(Uri.parse('$_psgcBase/regions/$code/cities-municipalities/'));
           if (citiesResp.statusCode == 200) {
@@ -202,25 +183,21 @@ class SignupPageState extends State<SignupPage> {
     if (mounted) setState(() => _barangaysLoading = false);
   }
 
-  // ── Camera ──────────────────────────────────────────────────────────────────
-  Future<void> _pickPhoto({required void Function(Uint8List) onPicked}) async {
-    try {
-      final file = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
-      );
-      if (file != null) {
-        final bytes = await file.readAsBytes();
-        setState(() => onPicked(bytes));
-      }
-    } catch (e) {
-      if (mounted) _showError('Unable to open camera: $e');
-    }
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _phoneController.dispose();
+    _houseNoController.dispose();
+    _purokController.dispose();
+    _streetController.dispose();
+    _zipCodeController.dispose();
+    super.dispose();
   }
 
-  // ── Address builder ─────────────────────────────────────────────────────────
   String _buildFullAddress() {
     final parts = <String>[];
     final houseNo = _houseNoController.text.trim();
@@ -243,17 +220,35 @@ class SignupPageState extends State<SignupPage> {
     return parts.join(', ');
   }
 
-  // ── Validation & Submit ─────────────────────────────────────────────────────
+  Future<void> _pickPhoto({required void Function(Uint8List) onPicked}) async {
+    try {
+      final file = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        setState(() => onPicked(bytes));
+      }
+    } catch (e) {
+      if (mounted) _showError('Unable to open camera: $e');
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
 
+    // Cross-field: at least one contact required
     if (email.isEmpty && phone.isEmpty) {
       _showError('Please provide at least an email address or phone number.');
       return;
     }
+
     if (_passwordController.text != _confirmPasswordController.text) {
       _showError('Passwords do not match.');
       return;
@@ -294,18 +289,24 @@ class SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = true);
 
     final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
+    // Normalize phone to E.164 (+63XXXXXXXXX) so backend lookup and Firebase both work
+    final phone = _phoneController.text.trim().isEmpty
+        ? ''
+        : normalizePhPhone(_phoneController.text.trim());
 
+    // Determine verification method automatically when only one contact given
     String method = _verificationMethod;
     if (email.isNotEmpty && phone.isEmpty) method = 'email';
     if (phone.isNotEmpty && email.isEmpty) method = 'phone';
 
     try {
       final idPhotoPath = 'id_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
       final auth = Provider.of<AuthService>(context, listen: false);
       final api  = Provider.of<ApiService>(context, listen: false);
 
-      await auth.signUp(
+      // Register user — returns the full user object including `id`
+      final userData = await auth.signUp(
         firstName:         _firstNameController.text.trim(),
         lastName:          _lastNameController.text.trim(),
         email:             email,
@@ -320,63 +321,110 @@ class SignupPageState extends State<SignupPage> {
         role:              _role,
       );
 
+      // Capture the DB user ID for use in verification callbacks
+      final registeredUserId = userData['id'] as int?;
+
       if (!mounted) return;
 
+      // ── Email OTP path ────────────────────────────────────────────────────
       if (method == 'email' && email.isNotEmpty) {
         final res = await api.sendEmailOtp(email);
-        final userId = res['user_id'] as int?;
+        final userId   = res['user_id']   as int?;
+        final emailSent = res['email_sent'] as bool? ?? true;
         if (!mounted) return;
         if (userId != null) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => OtpVerificationScreen(userId: userId, email: email),
+              builder: (_) => OtpVerificationScreen(
+                userId:    userId,
+                email:     email,
+                emailSent: emailSent,
+              ),
             ),
           );
           return;
+        } else {
+          _showError('Could not send verification code. Please try again.');
+          return;
         }
-      } else if (method == 'phone' && phone.isNotEmpty) {
+      }
+
+      // ── Phone SMS path ────────────────────────────────────────────────────
+      if (method == 'phone' && phone.isNotEmpty) {
         if (kIsWeb) {
           _showError('Phone SMS verification is not supported on the web. Please use Email OTP.');
           setState(() => _isLoading = false);
           return;
         }
+
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
+          timeout: const Duration(seconds: 60),
+
+          // Auto-verification (some Android devices detect SMS instantly)
           verificationCompleted: (PhoneAuthCredential cred) async {
-            final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
-            final idToken  = await userCred.user!.getIdToken();
-            final res = await api.sendEmailOtp(email).catchError((_) => <String, dynamic>{});
-            final uid = res['user_id'] as int?;
-            if (uid != null && idToken != null) {
-              await api.verifyFirebasePhone(uid, idToken);
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Phone verified! Awaiting admin approval.'),
-                backgroundColor: _kCharcoal,
-              ));
-              Navigator.pushReplacementNamed(context, '/login');
+            try {
+              final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
+              final idToken  = await userCred.user?.getIdToken();
+              if (registeredUserId != null && idToken != null) {
+                await api.verifyFirebasePhone(registeredUserId, idToken);
+                await FirebaseAuth.instance.signOut();
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Phone auto-verified! Awaiting admin approval.'),
+                  backgroundColor: _kCharcoal,
+                ));
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            } catch (e) {
+              if (mounted) _showError('Auto-verification failed: $e');
             }
           },
+
+          // Firebase could not send / validate
           verificationFailed: (FirebaseAuthException e) {
-            if (mounted) _showError(e.message ?? 'Phone verification failed.');
-          },
-          codeSent: (String verificationId, int? _) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('SMS code sent! Application submitted — await admin approval.'),
-                backgroundColor: _kCharcoal,
-                duration: Duration(seconds: 5),
-              ));
-              Navigator.pushReplacementNamed(context, '/login');
+              final msg = switch (e.code) {
+                'invalid-phone-number' => 'Invalid phone number format. Use +639XXXXXXXXX.',
+                'too-many-requests'    => 'Too many SMS requests. Please wait and try again.',
+                'quota-exceeded'       => 'SMS quota exceeded. Please use email verification instead.',
+                'app-not-authorized'   => 'This app is not authorised for Firebase Phone Auth. '
+                    'Check SHA-1 fingerprint in the Firebase console.',
+                _                      => e.message ?? 'Phone verification failed.',
+              };
+              _showError(msg);
+              setState(() => _isLoading = false);
             }
           },
+
+          // SMS sent — navigate to the code-entry screen
+          codeSent: (String verificationId, int? resendToken) {
+            if (!mounted) return;
+            setState(() => _isLoading = false);
+            if (registeredUserId == null) {
+              _showError('Registration error: could not retrieve user ID. Please try again.');
+              return;
+            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PhoneSmsVerificationScreen(
+                  verificationId: verificationId,
+                  userId:         registeredUserId,
+                  phoneNumber:    phone,
+                ),
+              ),
+            );
+          },
+
           codeAutoRetrievalTimeout: (_) {},
         );
-        return;
+        return; // Firebase callbacks handle navigation
       }
 
+      // ── Fallback — no OTP triggered ──────────────────────────────────────
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Application submitted! An admin will review your photos for approval.'),
         backgroundColor: _kCharcoal,
@@ -460,39 +508,18 @@ class SignupPageState extends State<SignupPage> {
                     // ── Section 4: Location ──────────────────────────────
                     _sectionLabel('Location'),
                     const SizedBox(height: 10),
-                    // Optional text fields
-                    _buildTextField(
-                      controller: _houseNoController,
-                      label: 'House No. / Unit / Building',
-                      hint: 'e.g. 12, Unit 3A, Bldg. 2',
-                      icon: Icons.home_outlined,
-                      optional: true,
-                    ),
+                    _buildTextField(controller: _houseNoController, label: 'House No. / Unit / Building', hint: 'e.g. 12, Unit 3A', icon: Icons.home_outlined, optional: true),
                     const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _purokController,
-                      label: 'Purok / Sitio',
-                      hint: 'e.g. Purok 4, Sitio Mabuhay',
-                      icon: Icons.holiday_village_outlined,
-                      optional: true,
-                    ),
+                    _buildTextField(controller: _purokController, label: 'Purok / Sitio', hint: 'e.g. Purok 4, Sitio Mabuhay', icon: Icons.holiday_village_outlined, optional: true),
                     const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _streetController,
-                      label: 'Street Name',
-                      hint: 'e.g. Rizal St.',
-                      icon: Icons.edit_road_outlined,
-                      optional: true,
-                    ),
+                    _buildTextField(controller: _streetController, label: 'Street Name', hint: 'e.g. Rizal St.', icon: Icons.edit_road_outlined, optional: true),
                     const SizedBox(height: 12),
-                    // Cascading dropdowns
                     _buildRegionDropdown(),
                     if (_selectedRegionCode != null && !_noProvinceRegion) ...[
                       const SizedBox(height: 12),
                       _buildProvinceDropdown(),
                     ],
-                    if (_selectedRegionCode != null &&
-                        (_noProvinceRegion || _selectedProvinceCode != null)) ...[
+                    if (_selectedRegionCode != null && (_noProvinceRegion || _selectedProvinceCode != null)) ...[
                       const SizedBox(height: 12),
                       _buildCityDropdown(),
                     ],
@@ -501,20 +528,13 @@ class SignupPageState extends State<SignupPage> {
                       _buildBarangayDropdown(),
                     ],
                     const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _zipCodeController,
-                      label: 'ZIP Code',
-                      hint: 'e.g. 1000',
-                      icon: Icons.markunread_mailbox_outlined,
-                      optional: true,
-                      keyboardType: TextInputType.number,
-                    ),
+                    _buildTextField(controller: _zipCodeController, label: 'ZIP Code', hint: 'e.g. 1000', icon: Icons.markunread_mailbox_outlined, optional: true, keyboardType: TextInputType.number),
 
                     const SizedBox(height: 20),
 
                     // ── Section 5: Photo Verification ────────────────────
                     _sectionLabel('Photo Verification',
-                        sub: 'Camera is required — all three photos must be freshly taken'),
+                        sub: 'Camera required — all three photos must be freshly taken'),
                     const SizedBox(height: 10),
                     _buildPhotoUploader(
                       label: 'Your Selfie',
@@ -527,7 +547,7 @@ class SignupPageState extends State<SignupPage> {
                     const SizedBox(height: 12),
                     _buildPhotoUploader(
                       label: 'Valid ID Photo',
-                      hint: "Government-issued ID: Driver's License, PhilHealth, SSS, UMID, Passport, Voter's ID, etc.",
+                      hint: 'Government-issued ID: Driver\'s License, PhilHealth, SSS, UMID, Passport, Voter\'s ID, etc.',
                       icon: Icons.badge_outlined,
                       bytes: _idPhotoBytes,
                       onPick: () => _pickPhoto(onPicked: (b) => _idPhotoBytes = b),
@@ -590,7 +610,8 @@ class SignupPageState extends State<SignupPage> {
             )),
         if (sub != null) ...[
           const SizedBox(height: 2),
-          Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(sub,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ],
         const SizedBox(height: 4),
         Container(height: 1.5, color: _kPrimary.withValues(alpha: 0.12)),
@@ -680,7 +701,7 @@ class SignupPageState extends State<SignupPage> {
         helperText: 'Optional if phone is provided',
       ),
       validator: (v) {
-        if (v == null || v.trim().isEmpty) return null;
+        if (v == null || v.trim().isEmpty) return null; // optional
         final ok = RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v.trim());
         return ok ? null : 'Enter a valid email address';
       },
@@ -700,8 +721,8 @@ class SignupPageState extends State<SignupPage> {
         helperText: 'Optional if email is provided. Use +63 format.',
       ),
       validator: (v) {
-        if (v == null || v.trim().isEmpty) return null;
-        if (v.trim().length < 10) return 'Enter a valid phone number';
+        if (v == null || v.trim().isEmpty) return null; // optional
+        if (!isValidPhPhone(v.trim())) return 'Enter a valid PH number (09XX or +63XX)';
         return null;
       },
     );
@@ -766,23 +787,14 @@ class SignupPageState extends State<SignupPage> {
 
   // ── Region dropdown ────────────────────────────────────────────────────────
   Widget _buildRegionDropdown() {
-    if (_regionsLoading) {
-      return _loadingRow('Loading regions…');
-    }
-    if (_regions.isEmpty) {
-      return _retryRow('Could not load regions.', _loadRegions);
-    }
+    if (_regionsLoading) return _loadingRow('Loading regions…');
+    if (_regions.isEmpty) return _retryRow('Could not load regions.', _loadRegions);
     return DropdownButtonFormField<String>(
       value: _selectedRegionCode,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Region',
-        prefixIcon: Icon(Icons.map_outlined),
-      ),
+      decoration: const InputDecoration(labelText: 'Region', prefixIcon: Icon(Icons.map_outlined)),
       items: _regions.map((r) {
-        final code = r['code'] as String? ?? '';
-        final name = r['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: code, child: Text(name));
+        return DropdownMenuItem<String>(value: r['code'] as String, child: Text(r['name'] as String));
       }).toList(),
       onChanged: (v) { if (v != null) _onRegionChanged(v); },
       validator: (v) => (v == null || v.isEmpty) ? 'Please select your region' : null,
@@ -796,42 +808,32 @@ class SignupPageState extends State<SignupPage> {
     return DropdownButtonFormField<String>(
       value: _selectedProvinceCode,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Province',
-        prefixIcon: Icon(Icons.location_city_outlined),
-      ),
+      decoration: const InputDecoration(labelText: 'Province', prefixIcon: Icon(Icons.location_city_outlined)),
       items: _provinces.map((p) {
-        final code = p['code'] as String? ?? '';
-        final name = p['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: code, child: Text(name));
+        return DropdownMenuItem<String>(value: p['code'] as String, child: Text(p['name'] as String));
       }).toList(),
       onChanged: (v) { if (v != null) _onProvinceChanged(v); },
       validator: (v) => (v == null || v.isEmpty) ? 'Please select your province' : null,
     );
   }
 
-  // ── City / Municipality dropdown ────────────────────────────────────────────
+  // ── City / Municipality dropdown ───────────────────────────────────────────
   Widget _buildCityDropdown() {
     if (_citiesLoading) return _loadingRow('Loading cities / municipalities…');
     if (_cities.isEmpty) return const SizedBox.shrink();
     return DropdownButtonFormField<String>(
       value: _selectedCityCode,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'City / Municipality',
-        prefixIcon: Icon(Icons.location_on_outlined),
-      ),
+      decoration: const InputDecoration(labelText: 'City / Municipality', prefixIcon: Icon(Icons.location_on_outlined)),
       items: _cities.map((c) {
-        final code = c['code'] as String? ?? '';
-        final name = c['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: code, child: Text(name));
+        return DropdownMenuItem<String>(value: c['code'] as String, child: Text(c['name'] as String));
       }).toList(),
       onChanged: (v) { if (v != null) _onCityChanged(v); },
       validator: (v) => (v == null || v.isEmpty) ? 'Please select your city or municipality' : null,
     );
   }
 
-  // ── Barangay dropdown ───────────────────────────────────────────────────────
+  // ── Barangay dropdown ──────────────────────────────────────────────────────
   Widget _buildBarangayDropdown() {
     if (_barangaysLoading) return _loadingRow('Loading barangays…');
     if (_barangayItems.isEmpty) {
@@ -844,10 +846,7 @@ class SignupPageState extends State<SignupPage> {
     return DropdownButtonFormField<String>(
       value: _selectedBarangay,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Barangay',
-        prefixIcon: Icon(Icons.apartment_outlined),
-      ),
+      decoration: const InputDecoration(labelText: 'Barangay', prefixIcon: Icon(Icons.apartment_outlined)),
       items: _barangayItems.map((b) {
         final name = b['name'] as String? ?? '';
         return DropdownMenuItem<String>(value: name, child: Text(name));
@@ -857,7 +856,6 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Loading / retry helpers ─────────────────────────────────────────────────
   Widget _loadingRow(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -880,7 +878,7 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Reusable camera photo uploader ─────────────────────────────────────────
+  // ── Reusable photo uploader ────────────────────────────────────────────────
   Widget _buildPhotoUploader({
     required String label,
     required String hint,
@@ -933,7 +931,7 @@ class SignupPageState extends State<SignupPage> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : onPick,
-                  icon: Icon(bytes == null ? Icons.camera_alt : Icons.camera_alt, size: 16),
+                  icon: const Icon(Icons.camera_alt, size: 16),
                   label: Text(bytes == null ? 'Open Camera' : 'Retake Photo',
                       style: const TextStyle(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
@@ -986,7 +984,7 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Verification method ────────────────────────────────────────────────────
+  // ── Verification method (only shown when both email+phone are filled) ───────
   Widget _buildVerificationMethodSelector() {
     return Row(
       children: [
