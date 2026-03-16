@@ -121,7 +121,7 @@ def users_summary(
 
     all_users = q.all()
     total    = len(all_users)
-    pending  = sum(1 for u in all_users if not u.is_active and u.verification_status in ("pending", "rejected", None))
+    pending  = sum(1 for u in all_users if not u.is_active and u.verification_status == "pending")
     approved = sum(1 for u in all_users if u.verification_status == "approved")
     rejected = sum(1 for u in all_users if u.verification_status == "rejected")
     active   = sum(1 for u in all_users if u.is_active)

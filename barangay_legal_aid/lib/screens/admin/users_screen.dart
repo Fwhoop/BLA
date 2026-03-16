@@ -49,8 +49,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
     _tabCtrl = TabController(length: 2, vsync: this);
     _tabCtrl.addListener(() {
       if (!_tabCtrl.indexIsChanging) {
-        // Sync filter with active tab
-        final newFilter = _tabCtrl.index == 0 ? 'pending' : 'approved';
+        // Tab 0 = all inactive (pending + rejected); Tab 1 = active/approved
+        final newFilter = _tabCtrl.index == 0 ? 'inactive' : 'approved';
         if (_filterStatus != newFilter) {
           setState(() => _filterStatus = newFilter);
           _reload();
@@ -58,7 +58,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _filterStatus = 'pending';
+      _filterStatus = 'inactive';
       _loadUsers(reset: true);
     });
     loadUserFromPrefs().then((m) { if (mounted) setState(() => _userMap = m); });
@@ -101,7 +101,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       if (reset) {
         try {
           final summary = await api.getUserSummary();
-          _pendingCount = (summary['pending'] as int?) ?? 0;
+          _pendingCount = (summary['inactive'] as int?) ?? 0;
           _activeCount  = (summary['approved'] as int?) ?? 0;
         } catch (_) {}
       }
@@ -661,29 +661,56 @@ class _UserCard extends StatelessWidget {
                         const Text('Tap to view details',
                             style: TextStyle(fontSize: 11, color: Colors.grey)),
                         const Spacer(),
-                        OutlinedButton.icon(
-                          onPressed: onReject,
-                          icon: const Icon(Icons.close_rounded, size: 14, color: _kRed),
-                          label: const Text('Reject', style: TextStyle(color: _kRed, fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: _kRed),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        if (user['verification_status'] == 'rejected') ...[
+                          // Rejected: show Delete + Approve (re-approve option)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: _kRed, size: 18),
+                            onPressed: onDelete,
+                            tooltip: 'Delete',
                             visualDensity: VisualDensity.compact,
+                            style: IconButton.styleFrom(
+                              backgroundColor: _kRed.withValues(alpha: 0.08),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          onPressed: onApprove,
-                          icon: const Icon(Icons.check_rounded, size: 14),
-                          label: const Text('Approve', style: TextStyle(fontSize: 12)),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: _kGreen,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            visualDensity: VisualDensity.compact,
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            onPressed: onApprove,
+                            icon: const Icon(Icons.undo_rounded, size: 14),
+                            label: const Text('Re-approve', style: TextStyle(fontSize: 12)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _kGreen,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              visualDensity: VisualDensity.compact,
+                            ),
                           ),
-                        ),
+                        ] else ...[
+                          // Pending: show Reject + Approve
+                          OutlinedButton.icon(
+                            onPressed: onReject,
+                            icon: const Icon(Icons.close_rounded, size: 14, color: _kRed),
+                            label: const Text('Reject', style: TextStyle(color: _kRed, fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: _kRed),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            onPressed: onApprove,
+                            icon: const Icon(Icons.check_rounded, size: 14),
+                            label: const Text('Approve', style: TextStyle(fontSize: 12)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _kGreen,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ],
                       ],
                     )
                   else
