@@ -228,12 +228,39 @@ class SignupPageState extends State<SignupPage> {
 
       // ── Phone SMS path ────────────────────────────────────────────────────
       if (method == 'phone' && phone.isNotEmpty) {
-        if (kIsWeb) {
-          _showError('Phone SMS verification is not supported on the web. Please use Email OTP.');
+        if (registeredUserId == null) {
+          _showError('Registration error: could not retrieve user ID. Please try again.');
           setState(() => _isLoading = false);
           return;
         }
 
+        // ── Web: signInWithPhoneNumber + invisible reCAPTCHA ──────────────
+        if (kIsWeb) {
+          try {
+            final confirmationResult =
+                await FirebaseAuth.instance.signInWithPhoneNumber(phone);
+            if (!mounted) return;
+            setState(() => _isLoading = false);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PhoneSmsVerificationScreen(
+                  confirmationResult: confirmationResult,
+                  userId:             registeredUserId,
+                  phoneNumber:        phone,
+                ),
+              ),
+            );
+          } on FirebaseAuthException catch (e) {
+            if (mounted) {
+              _showError(_webPhoneError(e));
+              setState(() => _isLoading = false);
+            }
+          }
+          return;
+        }
+
+        // ── Native: verifyPhoneNumber ─────────────────────────────────────
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
           timeout: const Duration(seconds: 60),
@@ -279,10 +306,6 @@ class SignupPageState extends State<SignupPage> {
           codeSent: (String verificationId, int? resendToken) {
             if (!mounted) return;
             setState(() => _isLoading = false);
-            if (registeredUserId == null) {
-              _showError('Registration error: could not retrieve user ID. Please try again.');
-              return;
-            }
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -324,6 +347,21 @@ class SignupPageState extends State<SignupPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: _kPrimary),
     );
+  }
+
+  String _webPhoneError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-phone-number':
+        return 'Invalid phone number. Use +639XXXXXXXXX or 09XXXXXXXXX.';
+      case 'too-many-requests':
+        return 'Too many SMS requests. Please wait and try again.';
+      case 'quota-exceeded':
+        return 'SMS quota exceeded. Please use Email OTP instead.';
+      case 'captcha-check-failed':
+        return 'reCAPTCHA verification failed. Please try again.';
+      default:
+        return e.message ?? 'Phone verification failed. Please try again.';
+    }
   }
 
   // ── Build ───────────────────────────────────────────────────────────────────

@@ -11,15 +11,17 @@ const _kCharcoal = Color(0xFF36454F);
 
 /// Screen shown after Firebase sends the SMS OTP during phone-based registration.
 ///
-/// The user enters the 6-digit code from SMS here.  On success the credential is
-/// exchanged for a Firebase ID token which is sent to the backend
-/// `POST /auth/verify-firebase-phone` to mark [userId] as phone-verified.
+/// Supports two flows:
+/// - **Native** (Android/iOS): pass [verificationId] from `verifyPhoneNumber → codeSent`.
+/// - **Web**: pass [confirmationResult] from `signInWithPhoneNumber`.
 class PhoneSmsVerificationScreen extends StatefulWidget {
-  /// The `verificationId` returned by `FirebaseAuth.verifyPhoneNumber → codeSent`.
+  /// Native flow: verificationId from `FirebaseAuth.verifyPhoneNumber → codeSent`.
   final String verificationId;
 
-  /// Backend user ID created during registration — used to link the verified
-  /// Firebase phone number to the correct DB record.
+  /// Web flow: ConfirmationResult from `FirebaseAuth.signInWithPhoneNumber`.
+  final ConfirmationResult? confirmationResult;
+
+  /// Backend user ID — used to link the verified phone to the correct DB record.
   final int userId;
 
   /// E.164 phone number (e.g. +639XXXXXXXXX) shown on screen for clarity.
@@ -27,7 +29,8 @@ class PhoneSmsVerificationScreen extends StatefulWidget {
 
   const PhoneSmsVerificationScreen({
     super.key,
-    required this.verificationId,
+    this.verificationId = '',
+    this.confirmationResult,
     required this.userId,
     required this.phoneNumber,
   });
@@ -49,13 +52,15 @@ class _PhoneSmsVerificationScreenState extends State<PhoneSmsVerificationScreen>
   int _resendCooldown = 60;
   Timer? _cooldownTimer;
 
-  // Resend tracking — Firebase may give us a new verificationId
+  // Resend tracking
   String _currentVerificationId = '';
+  ConfirmationResult? _currentConfirmationResult;
 
   @override
   void initState() {
     super.initState();
-    _currentVerificationId = widget.verificationId;
+    _currentVerificationId       = widget.verificationId;
+    _currentConfirmationResult   = widget.confirmationResult;
     _startExpiryTimer();
     _startCooldownTimer();
   }
@@ -109,14 +114,20 @@ class _PhoneSmsVerificationScreenState extends State<PhoneSmsVerificationScreen>
     }
     setState(() => _isVerifying = true);
     try {
-      // 1. Build Firebase credential from verificationId + user-entered code
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _currentVerificationId,
-        smsCode: code,
-      );
+      UserCredential userCred;
 
-      // 2. Sign in with the credential to get a Firebase ID token
-      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      if (_currentConfirmationResult != null) {
+        // Web flow: confirm code via ConfirmationResult
+        userCred = await _currentConfirmationResult!.confirm(code);
+      } else {
+        // Native flow: build credential then sign in
+        final credential = PhoneAuthProvider.credential(
+          verificationId: _currentVerificationId,
+          smsCode: code,
+        );
+        userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      }
+
       final idToken = await userCred.user?.getIdToken();
       if (idToken == null) {
         throw Exception('Could not retrieve Firebase ID token. Please try again.');
@@ -159,6 +170,26 @@ class _PhoneSmsVerificationScreenState extends State<PhoneSmsVerificationScreen>
     if (_isResending || _resendCooldown > 0) return;
     setState(() => _isResending = true);
     try {
+      // Web: call signInWithPhoneNumber again to get a fresh ConfirmationResult
+      if (_currentConfirmationResult != null) {
+        final newResult = await FirebaseAuth.instance
+            .signInWithPhoneNumber(widget.phoneNumber);
+        if (mounted) {
+          setState(() {
+            _currentConfirmationResult = newResult;
+            _resendCooldown = 60;
+          });
+          _startExpiryTimer();
+          _startCooldownTimer();
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('A new SMS code has been sent.'),
+            backgroundColor: _kCharcoal,
+          ));
+        }
+        return;
+      }
+
+      // Native: verifyPhoneNumber
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: widget.phoneNumber,
         verificationCompleted: (PhoneAuthCredential cred) async {
