@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:barangay_legal_aid/config/env_config.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
@@ -483,8 +484,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                     ),
                     TextButton.icon(
                       onPressed: () {
-                        const baseUrl = 'https://bla-production-441d.up.railway.app';
-                        html.window.open('$baseUrl${req['file_url']}', '_blank');
+                        html.window.open('$apiBaseUrl${req['file_url']}', '_blank');
                       },
                       icon: const Icon(Icons.download, size: 16),
                       label: const Text('Download'),
