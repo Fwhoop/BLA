@@ -1,17 +1,13 @@
 """
 Schema drift protection.
 
-On every startup, inspects the live database tables and compares them
-against the required column definitions. Any missing column is added
-automatically via ALTER TABLE, isolated in its own transaction so one
-failure cannot block the others.
+On every startup, inspects the live database tables and:
+  1. Adds any missing required columns (ALTER TABLE ADD COLUMN).
+  2. Cleans up stale columns left by previous migrations.
+  3. Ensures NOT NULL columns that should be nullable are corrected.
 
-This prevents Railway deployments from crashing due to a schema that
-was created by an older version of the model.
-
-Special case handled: the `mediations` table may have been created when
-the FK column was named `case_id`. If `complaint_id` is absent but
-`case_id` is present, data is copied and the canonical column is created.
+Each repair runs in its own independent transaction so one failure
+cannot prevent repairs on other tables.
 """
 
 import logging
@@ -22,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Required columns: {table: {column: ALTER TABLE DDL}}
-# Every column the application ever reads or writes must appear here.
+# The canonical source of truth for every column the application uses.
 # ---------------------------------------------------------------------------
 REQUIRED_COLUMNS: dict[str, dict[str, str]] = {
     "mediations": {
-        # Primary FK — this is the column that causes the 500 crash
-        "complaint_id": (
+        # Primary FK — case_id is the real column name in the production DB
+        "case_id": (
             "ALTER TABLE mediations "
-            "ADD COLUMN complaint_id INT NULL"
+            "ADD COLUMN case_id INT NULL"
         ),
         "mediated_by": (
             "ALTER TABLE mediations ADD COLUMN mediated_by INT NULL"
@@ -171,66 +167,82 @@ REQUIRED_COLUMNS: dict[str, dict[str, str]] = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Stale columns to remove: {table: [column, ...]}
+# These were created by previous migrations and are no longer used.
+# ---------------------------------------------------------------------------
+STALE_COLUMNS: dict[str, list[str]] = {
+    "mediations": ["complaint_id"],
+}
 
-def _handle_mediations_complaint_id(
-    existing_cols: set, inspector_ref
-) -> None:
-    """
-    Special repair for the mediations.complaint_id column.
+# ---------------------------------------------------------------------------
+# Nullable fixes: columns that must be nullable but may have been created
+# as NOT NULL by an older schema. MODIFY COLUMN is idempotent on MySQL.
+# ---------------------------------------------------------------------------
+NULLABLE_FIXES: dict[str, dict[str, str]] = {
+    "mediations": {
+        "mediation_time": (
+            "ALTER TABLE mediations "
+            "MODIFY COLUMN mediation_time VARCHAR(20) NULL"
+        ),
+        "location": (
+            "ALTER TABLE mediations "
+            "MODIFY COLUMN location VARCHAR(200) NULL"
+        ),
+        "summary_notes": (
+            "ALTER TABLE mediations "
+            "MODIFY COLUMN summary_notes TEXT NULL"
+        ),
+        "mediator_name": (
+            "ALTER TABLE mediations "
+            "MODIFY COLUMN mediator_name VARCHAR(200) NULL"
+        ),
+    },
+}
 
-    History: the table was created when the FK was named `case_id`.
-    The model was later renamed to `complaint_id`, but `create_all()`
-    skips existing tables — so the column never appeared in the live DB.
 
-    Strategy:
-      1. If `complaint_id` already exists → nothing to do.
-      2. If `case_id` exists but `complaint_id` does not → add
-         `complaint_id` as a nullable INT, backfill from `case_id`.
-      3. If neither exists → add `complaint_id` as a plain nullable INT.
-    """
-    if "complaint_id" in existing_cols:
-        return  # already correct
-
-    try:
-        if "case_id" in existing_cols:
-            # Backfill path: copy existing FK data into the new column name
+def _drop_stale_columns(table: str, existing: set) -> None:
+    """Drop columns that are no longer referenced by the application."""
+    stale = STALE_COLUMNS.get(table, [])
+    for col in stale:
+        if col not in existing:
+            continue
+        try:
             with engine.begin() as conn:
-                conn.execute(
-                    text(
-                        "ALTER TABLE mediations "
-                        "ADD COLUMN complaint_id INT NULL"
-                    )
-                )
-                conn.execute(
-                    text("UPDATE mediations SET complaint_id = case_id")
-                )
-            logger.info(
-                "Schema guard: added mediations.complaint_id "
-                "and backfilled from case_id."
+                conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {col}"))
+            logger.info(f"Schema guard: dropped stale column '{col}' from '{table}'.")
+        except Exception as exc:
+            logger.warning(
+                f"Schema guard: could not drop '{col}' from '{table}': {exc}"
             )
-        else:
+
+
+def _fix_nullable_columns(table: str, existing: set) -> None:
+    """Ensure columns that must be nullable are not NOT NULL in the DB."""
+    fixes = NULLABLE_FIXES.get(table, {})
+    for col, ddl in fixes.items():
+        if col not in existing:
+            continue
+        try:
             with engine.begin() as conn:
-                conn.execute(
-                    text(
-                        "ALTER TABLE mediations "
-                        "ADD COLUMN complaint_id INT NULL"
-                    )
-                )
+                conn.execute(text(ddl))
             logger.info(
-                "Schema guard: added mediations.complaint_id (no case_id found)."
+                f"Schema guard: ensured '{col}' in '{table}' is nullable."
             )
-    except Exception as exc:
-        logger.warning(
-            f"Schema guard: mediations.complaint_id repair failed: {exc}"
-        )
+        except Exception as exc:
+            logger.warning(
+                f"Schema guard: nullable fix for '{col}' in '{table}' failed: {exc}"
+            )
 
 
 def validate_schema() -> None:
     """
-    Inspect the live database and add any missing columns.
+    Inspect the live database and repair schema drift.
 
-    Each table is repaired inside its own independent transaction so a
-    failure on one table cannot prevent repairs on others.
+    Order of operations per table:
+      1. Drop stale columns (e.g. complaint_id left by old migration)
+      2. Add missing required columns
+      3. Fix NOT NULL columns that should be nullable
     """
     try:
         inspector = inspect(engine)
@@ -239,7 +251,9 @@ def validate_schema() -> None:
         logger.error(f"Schema guard: cannot inspect DB — {exc}")
         return
 
-    for table, columns in REQUIRED_COLUMNS.items():
+    all_tables = set(REQUIRED_COLUMNS) | set(STALE_COLUMNS) | set(NULLABLE_FIXES)
+
+    for table in all_tables:
         if table not in live_tables:
             logger.warning(
                 f"Schema guard: table '{table}' does not exist yet — skipped."
@@ -254,16 +268,17 @@ def validate_schema() -> None:
             )
             continue
 
-        # Special case: mediations FK rename
-        if table == "mediations":
-            _handle_mediations_complaint_id(existing, inspector)
-            # Re-read after potential repair so the loop below doesn't try again
-            try:
-                existing = {c["name"] for c in inspector.get_columns(table)}
-            except Exception:
-                pass
+        # Step 1 — remove stale columns
+        _drop_stale_columns(table, existing)
 
-        for col, ddl in columns.items():
+        # Refresh existing set after potential drops
+        try:
+            existing = {c["name"] for c in inspector.get_columns(table)}
+        except Exception:
+            pass
+
+        # Step 2 — add missing required columns
+        for col, ddl in REQUIRED_COLUMNS.get(table, {}).items():
             if col in existing:
                 continue
             try:
@@ -276,3 +291,6 @@ def validate_schema() -> None:
                 logger.warning(
                     f"Schema guard: could not add '{col}' to '{table}': {exc}"
                 )
+
+        # Step 3 — fix NOT NULL columns that must be nullable
+        _fix_nullable_columns(table, existing)

@@ -50,7 +50,7 @@ def list_mediations(
 
         return (
             db.query(models.Mediation)
-            .filter(models.Mediation.complaint_id == case_id)
+            .filter(models.Mediation.case_id == case_id)
             .order_by(models.Mediation.mediation_date.asc())
             .all()
         )
@@ -78,7 +78,7 @@ def create_mediation(
         case = _get_case_or_404(db, case_id)
 
         mediation = models.Mediation(
-            complaint_id=case_id,
+            case_id=case_id,
             mediated_by=current_user.id,
             **payload.model_dump(exclude_unset=True),
         )

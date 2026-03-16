@@ -169,11 +169,11 @@ class ComplaintRespondentRead(ComplaintRespondentCreate):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class MediationCreate(BaseModel):
-    mediation_date: Optional[date] = None
+    mediation_date: date                     # required — must pick a date
     mediation_time: Optional[str] = None
     location: Optional[str] = None
     summary_notes: Optional[str] = None
-    resolution_status: Optional[str] = "scheduled"
+    resolution_status: str = "scheduled"     # required — default provided
     next_hearing_date: Optional[date] = None
     agreement_document_path: Optional[str] = None
     mediator_name: Optional[str] = None
@@ -192,10 +192,19 @@ class MediationUpdate(BaseModel):
     resolution_photo_path: Optional[str] = None
 
 
-class MediationRead(MediationCreate):
+class MediationRead(BaseModel):
     id: int
-    complaint_id: int
+    case_id: int
     mediated_by: Optional[int] = None
+    mediation_date: Optional[date] = None
+    mediation_time: Optional[str] = None
+    location: Optional[str] = None
+    summary_notes: Optional[str] = None
+    resolution_status: Optional[str] = "scheduled"
+    next_hearing_date: Optional[date] = None
+    agreement_document_path: Optional[str] = None
+    mediator_name: Optional[str] = None
+    resolution_photo_path: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

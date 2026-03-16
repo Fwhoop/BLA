@@ -88,7 +88,7 @@ class Case(Base):
 
     reporter = relationship("User", back_populates="cases")
     respondents = relationship("ComplaintRespondent", back_populates="complaint", cascade="all, delete-orphan")
-    mediations  = relationship("Mediation", back_populates="complaint", cascade="all, delete-orphan")
+    mediations  = relationship("Mediation", back_populates="case", cascade="all, delete-orphan")
 
 
 class ComplaintRespondent(Base):
@@ -113,7 +113,7 @@ class Mediation(Base):
     __tablename__ = "mediations"
 
     id = Column(Integer, primary_key=True, index=True)
-    complaint_id = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id      = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True)
     mediated_by  = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     mediation_date = Column(Date, nullable=True)
     mediation_time = Column(String(20), nullable=True)
@@ -127,8 +127,8 @@ class Mediation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    complaint  = relationship("Case", back_populates="mediations")
-    mediator   = relationship("User", foreign_keys=[mediated_by])
+    case     = relationship("Case", back_populates="mediations")
+    mediator = relationship("User", foreign_keys=[mediated_by])
 
 
 class Chat(Base):
