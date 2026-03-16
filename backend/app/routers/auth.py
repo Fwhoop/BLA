@@ -159,8 +159,11 @@ def register(
     db: Session = Depends(get_db),
 ):
     """Public signup endpoint for residents and barangay admin self-registration."""
-    if db.query(models.User).filter(models.User.email == email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
+    existing = db.query(models.User).filter(models.User.email == email).first()
+    if existing:
+        # Allow re-registration only if the previous attempt was rejected
+        if existing.verification_status != "rejected":
+            raise HTTPException(status_code=400, detail="Email already registered")
 
     # Sanitize role — only "user" and "admin" are allowed via self-registration
     safe_role = "admin" if role == "admin" else "user"
@@ -193,29 +196,58 @@ def register(
                        "Please wait for the superadmin to review it before submitting again.",
             )
 
-    new_user = models.User(
-        email=email,
-        username=username,
-        hashed_password=get_password_hash(password),
-        first_name=first_name,
-        last_name=last_name,
-        phone=phone or "",
-        address=address or "",
-        house_number=house_number,
-        street_name=street_name,
-        purok=purok,
-        city=city,
-        province=province,
-        zip_code=zip_code,
-        role=safe_role,
-        barangay_id=barangay_id,
-        is_active=False,
-        verification_status="pending",
-        id_photo_url=_save_upload(id_photo),
-        selfie_with_id_path=_save_upload(selfie_with_id),
-        profile_photo_path=_save_upload(profile_photo),
-        created_at=datetime.utcnow(),
-    )
+    # Re-registration: reuse the rejected user record (same ID, fresh data)
+    if existing and existing.verification_status == "rejected":
+        new_user = existing
+        new_user.first_name = first_name
+        new_user.last_name = last_name
+        new_user.hashed_password = get_password_hash(password)
+        new_user.phone = phone or ""
+        new_user.address = address or ""
+        new_user.house_number = house_number
+        new_user.street_name = street_name
+        new_user.purok = purok
+        new_user.city = city
+        new_user.province = province
+        new_user.zip_code = zip_code
+        new_user.role = safe_role
+        new_user.barangay_id = barangay_id
+        new_user.is_active = False
+        new_user.verification_status = "pending"
+        new_user.rejected_by = None
+        new_user.rejected_at = None
+        new_user.rejection_reason = None
+        new_user.otp_code = None
+        new_user.otp_expiry = None
+        new_user.otp_attempts = 0
+        new_user.email_verified = False
+        if id_photo: new_user.id_photo_url = _save_upload(id_photo)
+        if selfie_with_id: new_user.selfie_with_id_path = _save_upload(selfie_with_id)
+        if profile_photo: new_user.profile_photo_path = _save_upload(profile_photo)
+    else:
+        new_user = models.User(
+            email=email,
+            username=username,
+            hashed_password=get_password_hash(password),
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone or "",
+            address=address or "",
+            house_number=house_number,
+            street_name=street_name,
+            purok=purok,
+            city=city,
+            province=province,
+            zip_code=zip_code,
+            role=safe_role,
+            barangay_id=barangay_id,
+            is_active=False,
+            verification_status="pending",
+            id_photo_url=_save_upload(id_photo),
+            selfie_with_id_path=_save_upload(selfie_with_id),
+            profile_photo_path=_save_upload(profile_photo),
+            created_at=datetime.utcnow(),
+        )
 
     try:
         db.add(new_user)

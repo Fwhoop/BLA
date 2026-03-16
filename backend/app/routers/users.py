@@ -121,7 +121,7 @@ def users_summary(
 
     all_users = q.all()
     total    = len(all_users)
-    pending  = sum(1 for u in all_users if u.verification_status == "pending")
+    pending  = sum(1 for u in all_users if not u.is_active and u.verification_status in ("pending", "rejected", None))
     approved = sum(1 for u in all_users if u.verification_status == "approved")
     rejected = sum(1 for u in all_users if u.verification_status == "rejected")
     active   = sum(1 for u in all_users if u.is_active)
@@ -173,12 +173,78 @@ def read_users(
             q = q.filter(models.User.is_active == True)
         elif filter_status == "inactive":
             q = q.filter(models.User.is_active == False)
-        elif filter_status in ("pending", "approved", "rejected"):
+        elif filter_status == "pending":
+            # "pending" means not yet approved: includes explicit 'pending', 'rejected', and NULL
+            q = q.filter(
+                models.User.is_active == False,
+                or_(
+                    models.User.verification_status == "pending",
+                    models.User.verification_status == "rejected",
+                    models.User.verification_status.is_(None),
+                ),
+            )
+        elif filter_status in ("approved", "rejected"):
             q = q.filter(models.User.verification_status == filter_status)
 
     # Pagination
     offset = (page - 1) * limit
     return q.order_by(models.User.created_at.desc()).offset(offset).limit(limit).all()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STATIC ROUTES — must be before /{user_id} to avoid FastAPI routing conflicts
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/pending-admins", response_model=List[schemas.PendingAdminRead])
+def get_pending_admins_top(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin: list all pending admin self-registrations."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    pending = db.query(models.User).filter(
+        models.User.role == "admin",
+        or_(models.User.verification_status == "pending", models.User.verification_status.is_(None)),
+        models.User.is_active == False,
+    ).order_by(models.User.created_at.desc()).all()
+
+    result = []
+    for u in pending:
+        barangay_name = u.barangay.name if u.barangay else None
+        result.append(schemas.PendingAdminRead(
+            id=u.id,
+            first_name=u.first_name,
+            last_name=u.last_name,
+            email=u.email,
+            phone=u.phone,
+            barangay_id=u.barangay_id,
+            barangay_name=barangay_name,
+            verification_status=u.verification_status,
+            created_at=u.created_at,
+        ))
+    return result
+
+
+@router.get("/audit-logs", response_model=List[schemas.AuditLogRead])
+def get_audit_logs_top(
+    action_type: Optional[str] = Query(None),
+    target_user_id: Optional[int] = Query(None),
+    limit: int = Query(50, le=200),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin: retrieve audit log entries."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    query = db.query(models.AuditLog)
+    if action_type:
+        query = query.filter(models.AuditLog.action_type == action_type)
+    if target_user_id:
+        query = query.filter(models.AuditLog.target_user_id == target_user_id)
+    return query.order_by(models.AuditLog.created_at.desc()).limit(limit).all()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

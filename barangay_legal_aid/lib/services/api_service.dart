@@ -102,7 +102,7 @@ class ApiService {
       final body = response.body;
       try {
         final d = json.decode(body) as Map<String, dynamic>;
-        throw Exception(d['detail'] ?? 'Registration failed: ${response.statusCode}');
+        throw Exception(d['detail'] ?? d['error'] ?? d['error'] ?? 'Registration failed: ${response.statusCode}');
       } catch (e) {
         if (e is Exception) rethrow;
         throw Exception('Registration failed: ${response.statusCode} - $body');
@@ -152,7 +152,7 @@ class ApiService {
     if (r.statusCode != 200) {
       try {
         final d = json.decode(r.body) as Map<String, dynamic>;
-        throw Exception(d['detail'] ?? 'Change password failed');
+        throw Exception(d['detail'] ?? d['error'] ?? 'Change password failed');
       } catch (e) {
         if (e is Exception) rethrow;
         throw Exception('Change password failed: ${r.body}');
@@ -393,7 +393,7 @@ class ApiService {
     try {
       final d = jsonDecode(r.body);
       throw Exception(
-        d['detail'] ?? 'Failed to create request: ${r.statusCode}',
+        d['detail'] ?? d['error'] ?? 'Failed to create request: ${r.statusCode}',
       );
     } catch (e) {
       if (e is Exception) rethrow;
@@ -419,7 +419,7 @@ class ApiService {
     if (r.statusCode == 404) {
       try {
         final d = jsonDecode(r.body);
-        throw Exception(d['detail'] ?? 'Endpoint not found.');
+        throw Exception(d['detail'] ?? d['error'] ?? 'Endpoint not found.');
       } catch (e) {
         if (e is Exception) rethrow;
       }
@@ -532,7 +532,7 @@ class ApiService {
     if (r.statusCode == 200) return jsonDecode(r.body);
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Failed to update case: ${r.statusCode}');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Failed to update case: ${r.statusCode}');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Failed to update case: ${r.statusCode}');
@@ -655,7 +655,7 @@ class ApiService {
     if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Failed to send OTP');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Failed to send OTP');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Failed to send OTP: ${r.body}');
@@ -678,7 +678,7 @@ class ApiService {
     if (r.statusCode == 200) return;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Password reset failed');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Password reset failed');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Password reset failed: ${r.body}');
@@ -701,7 +701,7 @@ class ApiService {
     if (r.statusCode == 200) return;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Password reset failed');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Password reset failed');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Password reset failed: ${r.body}');
@@ -728,7 +728,7 @@ class ApiService {
     if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
     try {
       final d = jsonDecode(r.body);
-      throw Exception(d['detail'] ?? 'Failed to create mediation');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Failed to create mediation');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Failed to create mediation: ${r.body}');
@@ -775,7 +775,7 @@ class ApiService {
     }
     try {
       final d = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Upload failed: ${response.statusCode}');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Upload failed: ${response.statusCode}');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Upload failed: ${response.statusCode}');
@@ -802,7 +802,7 @@ class ApiService {
     }
     try {
       final d = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Upload failed: ${response.statusCode}');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Upload failed: ${response.statusCode}');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Upload failed: ${response.statusCode}');
@@ -820,7 +820,7 @@ class ApiService {
     if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Failed to send OTP');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Failed to send OTP');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Failed to send OTP: ${r.body}');
@@ -836,7 +836,7 @@ class ApiService {
     if (r.statusCode == 200) return;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Invalid OTP');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Invalid OTP');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Verification failed: ${r.body}');
@@ -856,7 +856,7 @@ class ApiService {
     if (r.statusCode == 200) return;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Invalid OTP');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Invalid OTP');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Verification failed: ${r.body}');
@@ -873,7 +873,7 @@ class ApiService {
     if (r.statusCode == 200) return;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Phone verification failed');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Phone verification failed');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Phone verification failed: ${r.body}');
@@ -899,7 +899,7 @@ class ApiService {
     if (r.statusCode == 200) return;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Failed to approve admin');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Failed to approve admin');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Failed to approve admin: ${r.body}');
@@ -918,7 +918,7 @@ class ApiService {
     if (r.statusCode == 200) return;
     try {
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      throw Exception(d['detail'] ?? 'Failed to reject admin');
+      throw Exception(d['detail'] ?? d['error'] ?? 'Failed to reject admin');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Failed to reject admin: ${r.body}');
