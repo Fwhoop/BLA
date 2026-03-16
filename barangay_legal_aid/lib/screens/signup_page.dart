@@ -5,6 +5,7 @@ import 'package:barangay_legal_aid/screens/phone_sms_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/phone_utils.dart';
+import 'package:barangay_legal_aid/data/ph_locations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -31,9 +32,17 @@ class SignupPageState extends State<SignupPage> {
   final TextEditingController _passwordController     = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _phoneController        = TextEditingController();
-  final TextEditingController _addressController      = TextEditingController();
 
-  String? _selectedBarangay;
+  // Address fields
+  final TextEditingController _houseNoController  = TextEditingController();
+  final TextEditingController _purokController    = TextEditingController();
+  final TextEditingController _streetController   = TextEditingController();
+  final TextEditingController _zipController      = TextEditingController();
+  String? _selectedRegion;
+  String? _selectedProvince;
+  String? _selectedCity;
+
+  String? _selectedBarangay; // service barangay (from backend)
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -77,7 +86,10 @@ class SignupPageState extends State<SignupPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _phoneController.dispose();
-    _addressController.dispose();
+    _houseNoController.dispose();
+    _purokController.dispose();
+    _streetController.dispose();
+    _zipController.dispose();
     super.dispose();
   }
 
@@ -155,13 +167,26 @@ class SignupPageState extends State<SignupPage> {
       final api  = Provider.of<ApiService>(context, listen: false);
 
       // Register user — returns the full user object including `id`
+      // Build full address string from individual fields
+      final addressParts = [
+        if (_houseNoController.text.trim().isNotEmpty) _houseNoController.text.trim(),
+        if (_purokController.text.trim().isNotEmpty)   _purokController.text.trim(),
+        if (_streetController.text.trim().isNotEmpty)  _streetController.text.trim(),
+        if (_selectedBarangay != null)                 'Brgy. $_selectedBarangay',
+        if (_selectedCity != null)                     _selectedCity!,
+        if (_selectedProvince != null)                 _selectedProvince!,
+        if (_selectedRegion != null)                   _selectedRegion!,
+        if (_zipController.text.trim().isNotEmpty)     _zipController.text.trim(),
+      ];
+      final fullAddress = addressParts.join(', ');
+
       final userData = await auth.signUp(
         firstName:         _firstNameController.text.trim(),
         lastName:          _lastNameController.text.trim(),
         email:             email,
         password:          _passwordController.text,
         phone:             phone,
-        address:           _addressController.text.trim(),
+        address:           fullAddress,
         barangay:          _selectedBarangay!,
         idPhotoPath:       idPhotoPath,
         idPhotoBytes:      _idPhotoBytes,
@@ -357,9 +382,7 @@ class SignupPageState extends State<SignupPage> {
                     // ── Section 4: Location ──────────────────────────────
                     _sectionLabel('Location'),
                     const SizedBox(height: 10),
-                    _buildAddressField(),
-                    const SizedBox(height: 12),
-                    _buildBarangayDropdown(),
+                    _buildLocationFields(),
 
                     const SizedBox(height: 20),
 
@@ -596,49 +619,161 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Address ────────────────────────────────────────────────────────────────
-  Widget _buildAddressField() {
-    return TextFormField(
-      controller: _addressController,
-      decoration: const InputDecoration(
-        labelText: 'Complete address',
-        prefixIcon: Icon(Icons.home_outlined),
-      ),
-      validator: (v) => (v == null || v.isEmpty) ? 'Please enter your address' : null,
-    );
-  }
+  // ── Location (cascading PH address) ───────────────────────────────────────
+  Widget _buildLocationFields() {
+    final provinces = _selectedRegion != null
+        ? (kRegionProvinces[_selectedRegion] ?? <String>[])
+        : <String>[];
+    final cities = _selectedProvince != null
+        ? (kProvinceCities[_selectedProvince] ?? <String>[])
+        : <String>[];
 
-  // ── Barangay ───────────────────────────────────────────────────────────────
-  Widget _buildBarangayDropdown() {
-    if (_barangaysLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Row(children: [
-          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-          SizedBox(width: 12),
-          Text('Loading barangays…', style: TextStyle(color: Colors.grey)),
-        ]),
-      );
-    }
-    if (_barangayItems.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('No barangays available. Please contact your administrator.',
-            style: TextStyle(color: Colors.red, fontSize: 13)),
-      );
-    }
-    return DropdownButtonFormField<String>(
-      value: _selectedBarangay,
-      decoration: const InputDecoration(
-        labelText: 'Select barangay',
-        prefixIcon: Icon(Icons.location_on_outlined),
-      ),
-      items: _barangayItems.map((b) {
-        final name = b['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: name, child: Text(name));
-      }).toList(),
-      onChanged: (v) => setState(() => _selectedBarangay = v),
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your barangay' : null,
+    return Column(
+      children: [
+        // House No. / Unit / Building (optional)
+        TextFormField(
+          controller: _houseNoController,
+          decoration: const InputDecoration(
+            labelText: 'House No. / Unit / Building',
+            hintText: 'e.g. 12B, Unit 3, Bldg. 5 (optional)',
+            prefixIcon: Icon(Icons.home_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Purok / Sitio (optional)
+        TextFormField(
+          controller: _purokController,
+          decoration: const InputDecoration(
+            labelText: 'Purok / Sitio',
+            hintText: 'e.g. Purok 3, Sitio Malaya (optional)',
+            prefixIcon: Icon(Icons.landscape_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Street Name (optional)
+        TextFormField(
+          controller: _streetController,
+          decoration: const InputDecoration(
+            labelText: 'Street Name',
+            hintText: 'e.g. Rizal Street (optional)',
+            prefixIcon: Icon(Icons.add_road_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Region
+        DropdownButtonFormField<String>(
+          value: _selectedRegion,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Region',
+            prefixIcon: Icon(Icons.map_outlined),
+          ),
+          items: kPhRegions
+              .map((r) => DropdownMenuItem(value: r, child: Text(r, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: (v) => setState(() {
+            _selectedRegion   = v;
+            _selectedProvince = null;
+            _selectedCity     = null;
+            _selectedBarangay = null;
+          }),
+          validator: (v) => (v == null) ? 'Please select a region' : null,
+        ),
+        const SizedBox(height: 12),
+
+        // Province (filtered by region)
+        DropdownButtonFormField<String>(
+          value: _selectedProvince,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Province',
+            prefixIcon: const Icon(Icons.location_city_outlined),
+            enabled: _selectedRegion != null,
+          ),
+          items: provinces
+              .map((p) => DropdownMenuItem(value: p, child: Text(p, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: _selectedRegion == null ? null : (v) => setState(() {
+            _selectedProvince = v;
+            _selectedCity     = null;
+            _selectedBarangay = null;
+          }),
+          validator: (v) => (v == null) ? 'Please select a province' : null,
+        ),
+        const SizedBox(height: 12),
+
+        // City / Municipality (filtered by province)
+        DropdownButtonFormField<String>(
+          value: _selectedCity,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'City / Municipality',
+            prefixIcon: const Icon(Icons.location_on_outlined),
+            enabled: _selectedProvince != null,
+          ),
+          items: cities
+              .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: _selectedProvince == null ? null : (v) => setState(() {
+            _selectedCity     = v;
+            _selectedBarangay = null;
+          }),
+          validator: (v) => (v == null) ? 'Please select a city/municipality' : null,
+        ),
+        const SizedBox(height: 12),
+
+        // Barangay (service barangay from backend, required)
+        if (_barangaysLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Row(children: [
+              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(width: 12),
+              Text('Loading barangays…', style: TextStyle(color: Colors.grey)),
+            ]),
+          )
+        else if (_barangayItems.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('No barangays available. Please contact your administrator.',
+                style: TextStyle(color: Colors.red, fontSize: 13)),
+          )
+        else
+          DropdownButtonFormField<String>(
+            value: _selectedBarangay,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Barangay',
+              prefixIcon: Icon(Icons.holiday_village_outlined),
+            ),
+            items: _barangayItems.map((b) {
+              final name = b['name'] as String? ?? '';
+              return DropdownMenuItem<String>(value: name, child: Text(name, overflow: TextOverflow.ellipsis));
+            }).toList(),
+            onChanged: (v) => setState(() => _selectedBarangay = v),
+            validator: (v) => (v == null || v.isEmpty) ? 'Please select your barangay' : null,
+          ),
+        const SizedBox(height: 12),
+
+        // ZIP Code (optional)
+        TextFormField(
+          controller: _zipController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'ZIP Code',
+            hintText: 'e.g. 1000 (optional)',
+            prefixIcon: Icon(Icons.markunread_mailbox_outlined),
+          ),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return null;
+            if (!RegExp(r'^\d{4}$').hasMatch(v.trim())) return 'Enter a valid 4-digit ZIP code';
+            return null;
+          },
+        ),
+      ],
     );
   }
 
