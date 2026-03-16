@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/request_form.dart';
 import 'package:barangay_legal_aid/screens/complaint_form_screen.dart';
 import 'package:barangay_legal_aid/screens/suggestion_box_screen.dart';
+import 'package:barangay_legal_aid/screens/notification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
+import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
 class FormsHubPage extends StatefulWidget {
@@ -16,27 +19,49 @@ class FormsHubPage extends StatefulWidget {
 class FormsHubPageState extends State<FormsHubPage> {
   final AuthService _authService = AuthService();
   User? _currentUser;
+  int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
+    _loadUnreadCount();
   }
 
   Future<void> _loadCurrentUser() async {
     final user = await _authService.getCurrentUser();
-    setState(() {
-      _currentUser = user;
-    });
+    if (mounted) setState(() { _currentUser = user; });
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final count = await api.getUnreadNotificationCount();
+      if (mounted) setState(() { _unreadCount = count; });
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Forms & Services'),
-        backgroundColor: Color(0xFF99272D),
+        title: const Text('Forms & Services'),
+        backgroundColor: const Color(0xFF99272D),
         foregroundColor: Colors.white,
+        actions: [
+          NotificationBell(
+            count: _unreadCount,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => NotificationScreen(
+                  userRole: 'user',
+                  currentUser: _currentUser,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: Container(
         color: Color(0xFFFFFFFF),

@@ -515,6 +515,26 @@ class ApiService {
         .timeout(_timeout);
   }
 
+  Future<Map<String, dynamic>> getUserStats(int userId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/users/$userId/stats'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    if (r.statusCode == 403) throw Exception('Not authorized to view this user\'s stats.');
+    if (r.statusCode == 404) throw Exception('User not found.');
+    throw Exception('Failed to load user stats: ${r.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> getMyStats() async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/users/me/stats'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    throw Exception('Failed to load your stats: ${r.statusCode}');
+  }
+
   Future<List<Map<String, dynamic>>> getChats() async {
     final headers = await _getHeaders();
     final r = await http

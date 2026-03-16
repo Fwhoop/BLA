@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
+import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
@@ -31,6 +32,9 @@ class UserProfilePageState extends State<UserProfilePage> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   User? _currentUser;
+  Map<String, dynamic>? _stats;
+  bool _statsLoading = false;
+  String? _statsError;
 
   final List<String> _barangays = [
     'Barangay 1',
@@ -53,6 +57,19 @@ class UserProfilePageState extends State<UserProfilePage> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    if (!mounted) return;
+    setState(() { _statsLoading = true; _statsError = null; });
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final stats = await api.getMyStats();
+      if (mounted) setState(() { _stats = stats; _statsLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _statsError = e.toString().replaceFirst('Exception: ', ''); _statsLoading = false; });
+    }
   }
 
   @override
@@ -272,6 +289,8 @@ class UserProfilePageState extends State<UserProfilePage> {
                           _buildProfileHeader(),
                           SizedBox(height: 24),
                           _buildProfileInfoCard(),
+                          SizedBox(height: 20),
+                          _buildStatsCard(),
                           SizedBox(height: 20),
                           _buildPasswordCard(),
                           SizedBox(height: 20),
@@ -656,6 +675,81 @@ class UserProfilePageState extends State<UserProfilePage> {
         }
         return null;
       },
+    );
+  }
+
+  Widget _buildStatsCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.bar_chart, color: Color(0xFF99272D)),
+              const SizedBox(width: 8),
+              const Text('My Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF36454F))),
+            ]),
+            const SizedBox(height: 16),
+            if (_statsLoading)
+              const Center(child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(color: Color(0xFF99272D)),
+              ))
+            else if (_statsError != null)
+              Column(children: [
+                Text(_statsError!, style: const TextStyle(color: Color(0xFF99272D), fontSize: 13), textAlign: TextAlign.center),
+                const SizedBox(height: 8),
+                TextButton(onPressed: _loadStats, child: const Text('Retry')),
+              ])
+            else if (_stats != null)
+              _buildStatsContent()
+            else
+              const Text('No activity yet.', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsContent() {
+    final s = _stats!;
+    final byStatus = (s['complaints_by_status'] as Map<String, dynamic>?) ?? {};
+    final reqByStatus = (s['requests_by_status'] as Map<String, dynamic>?) ?? {};
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('My Complaints: ${s['complaints_filed_count'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF36454F))),
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 4, children: [
+          _statsChip('Pending', byStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
+          _statsChip('Reviewing', byStatus['reviewing'] ?? 0, const Color(0xFF3B82F6)),
+          _statsChip('Resolved', byStatus['resolved'] ?? 0, const Color(0xFF10B981)),
+          _statsChip('Dismissed', byStatus['dismissed'] ?? 0, const Color(0xFF6B7280)),
+        ]),
+        const Divider(height: 24),
+        Text('My Requests: ${s['requests_total'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF36454F))),
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 4, children: [
+          _statsChip('Pending', reqByStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
+          _statsChip('Approved', reqByStatus['approved'] ?? 0, const Color(0xFF10B981)),
+          _statsChip('Rejected', reqByStatus['rejected'] ?? 0, const Color(0xFF99272D)),
+        ]),
+      ],
+    );
+  }
+
+  Widget _statsChip(String label, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text('$label: $count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
     );
   }
 

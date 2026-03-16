@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from .. import models, schemas
 from ..db import get_db
 from ..routers.auth import get_current_user
@@ -245,6 +245,66 @@ def get_audit_logs_top(
     if target_user_id:
         query = query.filter(models.AuditLog.target_user_id == target_user_id)
     return query.order_by(models.AuditLog.created_at.desc()).limit(limit).all()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# USER STATS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _compute_user_stats(user_id: int, db: Session) -> schemas.UserStatsRead:
+    filed_cases = db.query(models.Case.status).filter(models.Case.reporter_id == user_id).all()
+    filed_counts = {"pending": 0, "reviewing": 0, "resolved": 0, "dismissed": 0}
+    for (s,) in filed_cases:
+        if s in filed_counts:
+            filed_counts[s] += 1
+
+    against_count = (
+        db.query(func.count(models.ComplaintRespondent.id))
+        .filter(models.ComplaintRespondent.respondent_id == user_id)
+        .scalar() or 0
+    )
+
+    reqs = db.query(models.Request.status).filter(models.Request.requester_id == user_id).all()
+    req_counts = {"pending": 0, "approved": 0, "rejected": 0}
+    for (s,) in reqs:
+        if s in req_counts:
+            req_counts[s] += 1
+
+    return schemas.UserStatsRead(
+        complaints_filed_count=len(filed_cases),
+        complaints_filed_against_count=against_count,
+        complaints_by_status=schemas.ComplaintStatusBreakdown(**filed_counts),
+        requests_total=len(reqs),
+        requests_by_status=schemas.RequestStatusBreakdown(**req_counts),
+    )
+
+
+@router.get("/me/stats", response_model=schemas.UserStatsRead)
+def get_my_stats(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return _compute_user_stats(current_user.id, db)
+
+
+@router.get("/{user_id}/stats", response_model=schemas.UserStatsRead)
+def get_user_stats(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role == "user" and user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if current_user.role == "admin":
+        target = db.query(models.User).filter(models.User.id == user_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+        if target.barangay_id != current_user.barangay_id:
+            raise HTTPException(status_code=403, detail="Not authorized to view users from other barangays")
+    elif current_user.role == "superadmin":
+        if not db.query(models.User).filter(models.User.id == user_id).first():
+            raise HTTPException(status_code=404, detail="User not found")
+    return _compute_user_stats(user_id, db)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

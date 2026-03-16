@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:barangay_legal_aid/models/notification_model.dart';
+import 'package:barangay_legal_aid/models/user_model.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/screens/admin/requests_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/cases_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
+import 'package:barangay_legal_aid/screens/my_cases_screen.dart';
+import 'package:barangay_legal_aid/screens/my_requests_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable bell icon with unread badge — drop into any AppBar actions list
@@ -64,8 +67,9 @@ class NotificationBell extends StatelessWidget {
 class NotificationScreen extends StatefulWidget {
   /// 'admin', 'superadmin', or 'user'
   final String userRole;
+  final User? currentUser;
 
-  const NotificationScreen({super.key, this.userRole = 'user'});
+  const NotificationScreen({super.key, this.userRole = 'user', this.currentUser});
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
@@ -132,8 +136,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
           break;
       }
     } else {
-      // Users: go to forms hub (where they can see their requests and cases)
-      Navigator.pushNamed(context, '/forms');
+      switch (n.notifType) {
+        case 'case_update':
+        case 'new_case':
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MyCasesScreen()));
+          break;
+        case 'request_update':
+        case 'new_request':
+          if (widget.currentUser != null) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => MyRequestsScreen(currentUser: widget.currentUser!)));
+          } else {
+            Navigator.pushNamed(context, '/forms');
+          }
+          break;
+        default:
+          Navigator.pushNamed(context, '/forms');
+      }
     }
   }
 
