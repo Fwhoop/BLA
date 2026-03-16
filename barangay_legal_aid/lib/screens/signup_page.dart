@@ -178,6 +178,9 @@ class SignupPageState extends State<SignupPage> {
             ),
           );
           return;
+        } else {
+          _showError('Could not send verification code. Please try again.');
+          return;
         }
       } else if (method == 'phone' && phone.isNotEmpty) {
         if (kIsWeb) {

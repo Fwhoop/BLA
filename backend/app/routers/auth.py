@@ -225,39 +225,8 @@ def register(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
-    # ── Notify appropriate admins ─────────────────────────────────────────────
-    try:
-        if safe_role == "admin":
-            # Notify all superadmins
-            notify_users = db.query(models.User).filter(
-                models.User.role == "superadmin",
-                models.User.is_active == True,
-            ).all()
-            notif_title = "New Admin Registration Request"
-            notif_msg = f"{first_name} {last_name} has applied to be a barangay admin and is awaiting your approval."
-            log_action(db, "admin_self_registered", new_user.id, new_user.id, {"barangay_id": barangay_id})
-        else:
-            # Notify barangay admins
-            notify_users = db.query(models.User).filter(
-                models.User.barangay_id == barangay_id,
-                models.User.role.in_(["admin", "superadmin"]),
-                models.User.is_active == True,
-            ).all() if barangay_id else []
-            notif_title = "New Resident Registration"
-            notif_msg = f"{first_name} {last_name} has registered and is awaiting your approval."
-
-        for u in notify_users:
-            db.add(models.Notification(
-                user_id=u.id,
-                title=notif_title,
-                message=notif_msg,
-                notif_type="new_user",
-                reference_id=new_user.id,
-            ))
-        if notify_users:
-            db.commit()
-    except Exception:
-        pass
+    # Admin notification is deferred until the user verifies their email.
+    # See verify-email-otp endpoint below.
 
     return new_user
 
@@ -305,6 +274,40 @@ def verify_email_otp(payload: schemas.VerifyEmailOTPRequest, db: Session = Depen
     user.otp_expiry = None
     user.otp_attempts = 0
     db.commit()
+
+    # Now that email is verified, notify the appropriate admins for approval
+    try:
+        full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        if user.role == "admin":
+            notify_users = db.query(models.User).filter(
+                models.User.role == "superadmin",
+                models.User.is_active == True,
+            ).all()
+            notif_title = "New Admin Registration Request"
+            notif_msg = f"{full_name} has applied to be a barangay admin and is awaiting your approval."
+            log_action(db, "admin_self_registered", user.id, user.id, {"barangay_id": user.barangay_id})
+        else:
+            notify_users = db.query(models.User).filter(
+                models.User.barangay_id == user.barangay_id,
+                models.User.role.in_(["admin", "superadmin"]),
+                models.User.is_active == True,
+            ).all() if user.barangay_id else []
+            notif_title = "New Resident Registration"
+            notif_msg = f"{full_name} has registered and is awaiting your approval."
+
+        for u in notify_users:
+            db.add(models.Notification(
+                user_id=u.id,
+                title=notif_title,
+                message=notif_msg,
+                notif_type="new_user",
+                reference_id=user.id,
+            ))
+        if notify_users:
+            db.commit()
+    except Exception:
+        pass
+
     return {"message": "Email verified successfully"}
 
 
