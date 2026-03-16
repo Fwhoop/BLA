@@ -96,13 +96,25 @@ def list_mediations(
     if current_user.role == "user" and case.reporter_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    return (
+    mediations = (
         db.query(models.Mediation)
         .options(joinedload(models.Mediation.mediator))
         .filter(models.Mediation.case_id == case_id)
         .order_by(models.Mediation.mediation_date.asc())
         .all()
     )
+
+    # Back-fill mediator_name in memory for records created before the
+    # auto-fill was added. This does NOT write to the DB — it only ensures
+    # the API response always carries a human-readable mediator name.
+    for m in mediations:
+        if not m.mediator_name and m.mediator:
+            m.mediator_name = (
+                f"{m.mediator.first_name} {m.mediator.last_name}".strip()
+                or m.mediator.username
+            )
+
+    return mediations
 
 
 def schedule_mediation(
