@@ -1,11 +1,11 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import Depends, FastAPI
-from fastapi.responses import Response
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 import os
 import logging
 
@@ -16,6 +16,8 @@ from app.models import User
 from app.routers import auth, barangays, cases, chat, users, requests, notifications
 from app.routers import respondents, mediations, analytics
 from app.schemas import UserRead, UserUpdate
+from app.utils.db_ready import wait_for_database
+from app.utils.schema_guard import validate_schema
 from sqlalchemy.orm import Session
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -37,89 +39,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Migrations ────────────────────────────────────────────────────────────────
-def _run_migrations():
-    """Idempotent migrations — each table uses its own transaction so one
-    failure cannot silently block the others."""
-    try:
-        inspector = inspect(engine)
-        table_names = inspector.get_table_names()
-    except Exception as e:
-        logger.warning(f"Migration: could not inspect DB: {e}")
-        return
-
-    def _add_columns(table: str, col_ddl_pairs: list):
-        """Add missing columns to *table* inside an independent transaction."""
-        if table not in table_names:
-            return
-        try:
-            existing = {c["name"] for c in inspector.get_columns(table)}
-            with engine.begin() as conn:
-                for col, ddl in col_ddl_pairs:
-                    if col not in existing:
-                        conn.execute(text(ddl))
-                        logger.info(f"Migration: added '{col}' to {table}")
-        except Exception as e:
-            logger.warning(f"Migration for '{table}' skipped: {e}")
-
-    # ── cases ──────────────────────────────────────────────────────────────────
-    _add_columns("cases", [
-        ("status",                "ALTER TABLE cases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"),
-        ("updated_at",            "ALTER TABLE cases ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-        ("category",              "ALTER TABLE cases ADD COLUMN category VARCHAR(50) NULL"),
-        ("urgency",               "ALTER TABLE cases ADD COLUMN urgency VARCHAR(20) DEFAULT 'medium'"),
-        ("is_cross_barangay",     "ALTER TABLE cases ADD COLUMN is_cross_barangay BOOLEAN DEFAULT FALSE"),
-        ("complaint_barangay_id", "ALTER TABLE cases ADD COLUMN complaint_barangay_id INT NULL"),
-    ])
-
-    # ── users ──────────────────────────────────────────────────────────────────
-    _add_columns("users", [
-        ("id_photo_url",        "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"),
-        ("selfie_with_id_path", "ALTER TABLE users ADD COLUMN selfie_with_id_path VARCHAR(500) NULL"),
-        ("profile_photo_path",  "ALTER TABLE users ADD COLUMN profile_photo_path VARCHAR(500) NULL"),
-        ("verification_status", "ALTER TABLE users ADD COLUMN verification_status VARCHAR(20) DEFAULT 'pending'"),
-        ("verification_method", "ALTER TABLE users ADD COLUMN verification_method VARCHAR(50) NULL"),
-        ("email_verified",      "ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE"),
-        ("mobile_verified",     "ALTER TABLE users ADD COLUMN mobile_verified BOOLEAN DEFAULT FALSE"),
-        ("approved_by",         "ALTER TABLE users ADD COLUMN approved_by INT NULL"),
-        ("approved_at",         "ALTER TABLE users ADD COLUMN approved_at DATETIME NULL"),
-        ("house_number",        "ALTER TABLE users ADD COLUMN house_number VARCHAR(50) NULL"),
-        ("street_name",         "ALTER TABLE users ADD COLUMN street_name VARCHAR(100) NULL"),
-        ("purok",               "ALTER TABLE users ADD COLUMN purok VARCHAR(50) NULL"),
-        ("city",                "ALTER TABLE users ADD COLUMN city VARCHAR(100) NULL"),
-        ("province",            "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
-        ("zip_code",            "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
-        ("rejected_by",         "ALTER TABLE users ADD COLUMN rejected_by INT NULL"),
-        ("rejected_at",         "ALTER TABLE users ADD COLUMN rejected_at DATETIME NULL"),
-        ("rejection_reason",    "ALTER TABLE users ADD COLUMN rejection_reason VARCHAR(500) NULL"),
-        ("otp_code",            "ALTER TABLE users ADD COLUMN otp_code VARCHAR(255) NULL"),
-        ("otp_expiry",          "ALTER TABLE users ADD COLUMN otp_expiry DATETIME NULL"),
-        ("otp_attempts",        "ALTER TABLE users ADD COLUMN otp_attempts INT DEFAULT 0"),
-    ])
-    try:
-        with engine.begin() as conn:
-            conn.execute(text(
-                "UPDATE users SET verification_status='approved' "
-                "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
-            ))
-    except Exception as e:
-        logger.warning(f"Migration: users backfill skipped: {e}")
-
-    # ── requests ───────────────────────────────────────────────────────────────
-    _add_columns("requests", [
-        ("file_url", "ALTER TABLE requests ADD COLUMN file_url VARCHAR(500) NULL"),
-    ])
-
-    # ── mediations ─────────────────────────────────────────────────────────────
-    _add_columns("mediations", [
-        ("mediator_name",           "ALTER TABLE mediations ADD COLUMN mediator_name VARCHAR(200) NULL"),
-        ("resolution_photo_path",   "ALTER TABLE mediations ADD COLUMN resolution_photo_path VARCHAR(500) NULL"),
-        ("next_hearing_date",       "ALTER TABLE mediations ADD COLUMN next_hearing_date DATE NULL"),
-        ("agreement_document_path", "ALTER TABLE mediations ADD COLUMN agreement_document_path VARCHAR(500) NULL"),
-        ("updated_at",              "ALTER TABLE mediations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-        ("mediated_by",             "ALTER TABLE mediations ADD COLUMN mediated_by INT NULL"),
-    ])
-
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 @app.on_event("startup")
@@ -127,16 +46,52 @@ async def startup():
     logger.info("=== BLA BACKEND STARTING ===")
     import asyncio
     loop = asyncio.get_event_loop()
+
     def _init_db():
+        # Step 1 — wait for DB to accept connections
+        wait_for_database(max_retries=30, delay=2.0)
+
+        # Step 2 — create any tables that don't exist yet
         try:
             Base.metadata.create_all(bind=engine)
             logger.info("Database tables OK")
-            _run_migrations()
-            logger.info("Migrations OK")
         except Exception as e:
-            logger.warning(f"DB init skipped: {e}")
+            logger.warning(f"create_all skipped: {e}")
+
+        # Step 3 — idempotent column migrations + schema drift repair
+        try:
+            _backfill_users()
+        except Exception as e:
+            logger.warning(f"Users backfill skipped: {e}")
+
+        validate_schema()
+        logger.info("Schema validation OK")
+
     await loop.run_in_executor(None, _init_db)
     logger.info("=== BLA BACKEND READY ===")
+
+
+def _backfill_users():
+    """One-time data fix: mark all previously active users as approved."""
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE users SET verification_status='approved' "
+            "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
+        ))
+
+
+# ── Global DB error handler ───────────────────────────────────────────────────
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import pymysql
+    if isinstance(exc, pymysql.err.OperationalError):
+        logger.error(f"DB OperationalError on {request.url}: {exc}")
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Database error — please try again shortly."},
+        )
+    # Re-raise anything else so FastAPI's default handler runs
+    raise exc
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -190,4 +145,3 @@ try:
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 except Exception as e:
     logger.warning(f"Static files not mounted: {e}")
-
