@@ -10,11 +10,20 @@ from ..core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def _send_email(to_email: str, subject: str, body_html: str) -> None:
-    """Internal helper — sends an HTML email via SMTP."""
+def _send_email(to_email: str, subject: str, body_html: str) -> bool:
+    """Internal helper — sends an HTML email via SMTP.
+
+    Returns True if the email was sent, False otherwise.
+    Supports both STARTTLS (port 587, default) and SSL (port 465, set SMTP_USE_SSL=true).
+    """
     if not all([settings.smtp_host, settings.smtp_username, settings.smtp_password, settings.smtp_from_email]):
-        logger.warning("[EMAIL] SMTP not configured — skipping email send to %s", to_email)
-        return
+        logger.warning(
+            "[EMAIL] SMTP not configured (missing host/user/password/from_email) — "
+            "skipping email send to %s. Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, "
+            "SMTP_FROM_EMAIL in Railway environment variables.",
+            to_email,
+        )
+        return False
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -24,18 +33,34 @@ def _send_email(to_email: str, subject: str, body_html: str) -> None:
 
     context = ssl.create_default_context()
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=8) as server:
-            server.ehlo()
-            server.starttls(context=context)
-            server.login(settings.smtp_username, settings.smtp_password)
-            server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+        if settings.smtp_use_ssl:
+            # Direct SSL connection (port 465) — no STARTTLS handshake required
+            with smtplib.SMTP_SSL(
+                settings.smtp_host, settings.smtp_port, context=context, timeout=10
+            ) as server:
+                server.login(settings.smtp_username, settings.smtp_password)
+                server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+        else:
+            # STARTTLS (port 587) — Railway may block this; switch to SSL if needed
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.login(settings.smtp_username, settings.smtp_password)
+                server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
         logger.info("[EMAIL] Sent '%s' to %s", subject, to_email)
+        return True
     except Exception as e:
-        logger.warning("[EMAIL] Failed to send to %s: %s", to_email, e)
+        logger.error(
+            "[EMAIL] Failed to send '%s' to %s: %s. "
+            "If using Railway, set SMTP_USE_SSL=true and SMTP_PORT=465, "
+            "or switch to an HTTP-based email provider (Resend, SendGrid, Mailgun).",
+            subject, to_email, e,
+        )
+        return False
 
 
-def send_otp_email(to_email: str, otp: str) -> None:
-    """Send a 6-digit OTP for signup/email verification."""
+def send_otp_email(to_email: str, otp: str) -> bool:
+    """Send a 6-digit OTP for signup/email verification. Returns True if sent."""
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #e0e0e0;border-radius:8px;">
       <h2 style="color:#99272D;">Barangay Legal Aid — Verification Code</h2>
@@ -45,11 +70,11 @@ def send_otp_email(to_email: str, otp: str) -> None:
       <p style="color:#888;font-size:12px;">If you did not request this, please ignore this email.</p>
     </div>
     """
-    _send_email(to_email, "BLA Verification Code", body)
+    return _send_email(to_email, "BLA Verification Code", body)
 
 
-def send_password_reset_email(to_email: str, otp: str) -> None:
-    """Send a 6-digit OTP for password reset."""
+def send_password_reset_email(to_email: str, otp: str) -> bool:
+    """Send a 6-digit OTP for password reset. Returns True if sent."""
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #e0e0e0;border-radius:8px;">
       <h2 style="color:#99272D;">Barangay Legal Aid — Password Reset</h2>
@@ -59,7 +84,7 @@ def send_password_reset_email(to_email: str, otp: str) -> None:
       <p style="color:#888;font-size:12px;">If you did not request a password reset, please ignore this email.</p>
     </div>
     """
-    _send_email(to_email, "BLA Password Reset Code", body)
+    return _send_email(to_email, "BLA Password Reset Code", body)
 
 
 def send_admin_approved_email(to_email: str, name: str) -> None:

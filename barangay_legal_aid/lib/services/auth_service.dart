@@ -30,7 +30,8 @@ class AuthService {
   final SecureStorageService _secure;
   late final ApiService _api;
 
-  Future<bool> signUp({
+  /// Registers the user and returns the backend user object (includes `id`, `email`, etc.)
+  Future<Map<String, dynamic>> signUp({
     required String firstName,
     required String lastName,
     required String email,
@@ -44,7 +45,7 @@ class AuthService {
     dynamic selfieWithIdBytes,
     String role = 'user',
   }) async {
-    await _api.register(
+    return _api.register(
       firstName: firstName,
       lastName: lastName,
       email: email,
@@ -58,7 +59,6 @@ class AuthService {
       selfieWithIdBytes: selfieWithIdBytes,
       role: role,
     );
-    return true;
   }
 
   /// Login: backend only. [identifier] may be email or phone number.

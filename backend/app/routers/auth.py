@@ -161,8 +161,19 @@ def register(
     """Public signup endpoint for residents and barangay admin self-registration."""
     existing = db.query(models.User).filter(models.User.email == email).first()
     if existing:
-        # Allow re-registration only if the previous attempt was rejected
-        if existing.verification_status != "rejected":
+        # Allow re-registration if:
+        #   (a) previously rejected, OR
+        #   (b) pending but NOT yet verified via email or phone
+        #       (e.g. user registered, no OTP email arrived, trying again)
+        can_reregister = (
+            existing.verification_status == "rejected"
+            or (
+                not existing.email_verified
+                and not existing.mobile_verified
+                and existing.is_active == False
+            )
+        )
+        if not can_reregister:
             raise HTTPException(status_code=400, detail="Email already registered")
 
     # Sanitize role — only "user" and "admin" are allowed via self-registration
@@ -196,8 +207,11 @@ def register(
                        "Please wait for the superadmin to review it before submitting again.",
             )
 
-    # Re-registration: reuse the rejected user record (same ID, fresh data)
-    if existing and existing.verification_status == "rejected":
+    # Re-registration: reuse the existing unverified/rejected record (same ID, fresh data)
+    if existing and (
+        existing.verification_status == "rejected"
+        or (not existing.email_verified and not existing.mobile_verified)
+    ):
         new_user = existing
         new_user.first_name = first_name
         new_user.last_name = last_name
@@ -221,6 +235,8 @@ def register(
         new_user.otp_expiry = None
         new_user.otp_attempts = 0
         new_user.email_verified = False
+        new_user.mobile_verified = False
+        new_user.verification_method = None
         if id_photo: new_user.id_photo_url = _save_upload(id_photo)
         if selfie_with_id: new_user.selfie_with_id_path = _save_upload(selfie_with_id)
         if profile_photo: new_user.profile_photo_path = _save_upload(profile_photo)
@@ -267,7 +283,13 @@ def register(
 
 @router.post("/send-email-otp")
 def send_email_otp(payload: schemas.SendEmailOTPRequest, db: Session = Depends(get_db)):
-    """Generate and email a 6-digit OTP for signup verification."""
+    """Generate and email a 6-digit OTP for signup verification.
+
+    Always returns 200 with user_id so the frontend can proceed to the OTP screen.
+    The `email_sent` flag tells the frontend whether the email actually went out.
+    If False, it means SMTP is not configured or the connection failed — the admin
+    must set SMTP_HOST / SMTP_USE_SSL env vars on Railway.
+    """
     user = db.query(models.User).filter(models.User.email == payload.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -278,8 +300,12 @@ def send_email_otp(payload: schemas.SendEmailOTPRequest, db: Session = Depends(g
     user.otp_attempts = 0
     db.commit()
 
-    send_otp_email(user.email, otp)
-    return {"message": "OTP sent to your email", "user_id": user.id}
+    email_sent = send_otp_email(user.email, otp)
+    return {
+        "message": "OTP sent to your email" if email_sent else "OTP generated but email delivery failed",
+        "user_id": user.id,
+        "email_sent": email_sent,
+    }
 
 
 @router.post("/verify-email-otp")

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
+import 'package:barangay_legal_aid/screens/phone_sms_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -149,7 +150,8 @@ class SignupPageState extends State<SignupPage> {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api  = Provider.of<ApiService>(context, listen: false);
 
-      await auth.signUp(
+      // Register user — returns the full user object including `id`
+      final userData = await auth.signUp(
         firstName:         _firstNameController.text.trim(),
         lastName:          _lastNameController.text.trim(),
         email:             email,
@@ -164,17 +166,26 @@ class SignupPageState extends State<SignupPage> {
         role:              _role,
       );
 
+      // Capture the DB user ID for use in verification callbacks
+      final registeredUserId = userData['id'] as int?;
+
       if (!mounted) return;
 
+      // ── Email OTP path ────────────────────────────────────────────────────
       if (method == 'email' && email.isNotEmpty) {
         final res = await api.sendEmailOtp(email);
-        final userId = res['user_id'] as int?;
+        final userId   = res['user_id']   as int?;
+        final emailSent = res['email_sent'] as bool? ?? true;
         if (!mounted) return;
         if (userId != null) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => OtpVerificationScreen(userId: userId, email: email),
+              builder: (_) => OtpVerificationScreen(
+                userId:    userId,
+                email:     email,
+                emailSent: emailSent,
+              ),
             ),
           );
           return;
@@ -182,49 +193,83 @@ class SignupPageState extends State<SignupPage> {
           _showError('Could not send verification code. Please try again.');
           return;
         }
-      } else if (method == 'phone' && phone.isNotEmpty) {
+      }
+
+      // ── Phone SMS path ────────────────────────────────────────────────────
+      if (method == 'phone' && phone.isNotEmpty) {
         if (kIsWeb) {
           _showError('Phone SMS verification is not supported on the web. Please use Email OTP.');
           setState(() => _isLoading = false);
           return;
         }
+
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
+          timeout: const Duration(seconds: 60),
+
+          // Auto-verification (some Android devices detect SMS instantly)
           verificationCompleted: (PhoneAuthCredential cred) async {
-            final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
-            final idToken  = await userCred.user!.getIdToken();
-            final res = await api.sendEmailOtp(email).catchError((_) => <String, dynamic>{});
-            final uid = res['user_id'] as int?;
-            if (uid != null && idToken != null) {
-              await api.verifyFirebasePhone(uid, idToken);
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Phone verified! Awaiting admin approval.'),
-                backgroundColor: _kCharcoal,
-              ));
-              Navigator.pushReplacementNamed(context, '/login');
+            try {
+              final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
+              final idToken  = await userCred.user?.getIdToken();
+              if (registeredUserId != null && idToken != null) {
+                await api.verifyFirebasePhone(registeredUserId, idToken);
+                await FirebaseAuth.instance.signOut();
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Phone auto-verified! Awaiting admin approval.'),
+                  backgroundColor: _kCharcoal,
+                ));
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            } catch (e) {
+              if (mounted) _showError('Auto-verification failed: $e');
             }
           },
+
+          // Firebase could not send / validate
           verificationFailed: (FirebaseAuthException e) {
-            if (mounted) _showError(e.message ?? 'Phone verification failed.');
-          },
-          codeSent: (String verificationId, int? _) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('SMS code sent! Application submitted — await admin approval.'),
-                backgroundColor: _kCharcoal,
-                duration: Duration(seconds: 5),
-              ));
-              Navigator.pushReplacementNamed(context, '/login');
+              final msg = switch (e.code) {
+                'invalid-phone-number' => 'Invalid phone number format. Use +639XXXXXXXXX.',
+                'too-many-requests'    => 'Too many SMS requests. Please wait and try again.',
+                'quota-exceeded'       => 'SMS quota exceeded. Please use email verification instead.',
+                'app-not-authorized'   => 'This app is not authorised for Firebase Phone Auth. '
+                    'Check SHA-1 fingerprint in the Firebase console.',
+                _                      => e.message ?? 'Phone verification failed.',
+              };
+              _showError(msg);
+              setState(() => _isLoading = false);
             }
           },
+
+          // SMS sent — navigate to the code-entry screen
+          codeSent: (String verificationId, int? resendToken) {
+            if (!mounted) return;
+            setState(() => _isLoading = false);
+            if (registeredUserId == null) {
+              _showError('Registration error: could not retrieve user ID. Please try again.');
+              return;
+            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PhoneSmsVerificationScreen(
+                  verificationId: verificationId,
+                  userId:         registeredUserId,
+                  phoneNumber:    phone,
+                ),
+              ),
+            );
+          },
+
           codeAutoRetrievalTimeout: (_) {},
         );
-        return;
+        return; // Firebase callbacks handle navigation
       }
 
-      // Fallback — no OTP triggered
+      // ── Fallback — no OTP triggered ──────────────────────────────────────
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Application submitted! An admin will review your photos for approval.'),
         backgroundColor: _kCharcoal,

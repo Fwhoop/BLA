@@ -44,7 +44,8 @@ class ApiService {
   }
 
   /// Register (signup). Photos sent as multipart; backend stores paths only.
-  Future<void> register({
+  /// Returns the created user object from the backend (includes `id`, `email`, etc.)
+  Future<Map<String, dynamic>> register({
     required String firstName,
     required String lastName,
     required String email,
@@ -102,12 +103,13 @@ class ApiService {
       final body = response.body;
       try {
         final d = json.decode(body) as Map<String, dynamic>;
-        throw Exception(d['detail'] ?? d['error'] ?? d['error'] ?? 'Registration failed: ${response.statusCode}');
+        throw Exception(d['detail'] ?? d['error'] ?? 'Registration failed: ${response.statusCode}');
       } catch (e) {
         if (e is Exception) rethrow;
         throw Exception('Registration failed: ${response.statusCode} - $body');
       }
     }
+    return json.decode(response.body) as Map<String, dynamic>;
   }
 
   Future<bool> updateProfile({
