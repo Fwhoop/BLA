@@ -94,9 +94,11 @@ class SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _pickPhoto({required void Function(Uint8List) onPicked}) async {
+    // Force camera on native for integrity — web falls back to gallery
+    // since image_picker_web does not support ImageSource.camera
     try {
       final file = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
+        source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
         maxWidth: 1600,
         maxHeight: 1600,
         imageQuality: 85,
@@ -830,8 +832,8 @@ class SignupPageState extends State<SignupPage> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : onPick,
-                  icon: Icon(bytes == null ? Icons.upload_file : Icons.swap_horiz_rounded, size: 16),
-                  label: Text(bytes == null ? 'Upload Photo' : 'Replace Photo',
+                  icon: Icon(bytes == null ? Icons.camera_alt_outlined : Icons.cameraswitch_outlined, size: 16),
+                  label: Text(bytes == null ? 'Take Photo' : 'Retake Photo',
                       style: const TextStyle(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
