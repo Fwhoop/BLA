@@ -8,11 +8,13 @@ import 'package:barangay_legal_aid/services/api_service.dart';
 class OtpVerificationScreen extends StatefulWidget {
   final int userId;
   final String email;
+  final bool emailSent;
 
   const OtpVerificationScreen({
     super.key,
     required this.userId,
     required this.email,
+    this.emailSent = true,
   });
 
   @override
@@ -131,6 +133,29 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (!widget.emailSent) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.orange[800], size: 18),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Email delivery failed. Ask your admin for the OTP code.',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   const Icon(Icons.mark_email_read, size: 72, color: Color(0xFF99272D)),
                   const SizedBox(height: 20),
                   const Text(

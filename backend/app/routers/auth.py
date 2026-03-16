@@ -434,14 +434,9 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
 
     if payload.method == "email":
         send_password_reset_email(user.email, otp)
-    else:
-        sent = send_password_reset_sms(user.phone, otp)
-        if not sent:
-            # Semaphore not configured — return error so user knows
-            raise HTTPException(
-                status_code=503,
-                detail="SMS service is not configured. Please use email reset instead.",
-            )
+    # For phone method: the Flutter client uses Firebase Phone Auth to send the SMS
+    # and verify the code.  We only need to return the user_id here so the client
+    # can call /reset-password-phone after Firebase verification completes.
 
     return {
         "message": "Reset code sent.",
