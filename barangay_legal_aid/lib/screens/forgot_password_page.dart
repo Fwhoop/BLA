@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'package:barangay_legal_aid/services/api_service.dart';
@@ -36,10 +34,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _confirmPassCtrl   = TextEditingController();
   bool  _obscureNew        = true;
   bool  _obscureConfirm    = true;
-
-  // Phone-specific Firebase state
-  ConfirmationResult? _confirmationResult;
-  String _verificationId = '';
 
   // ── Shared state ─────────────────────────────────────────────────────────
   bool    _isLoading     = false;
@@ -80,7 +74,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final identifier = _usePhone ? normalizePhPhone(raw) : raw;
 
     try {
-      // Always call backend first — gets user_id + display info
+      // Backend finds the account AND sends the OTP (email via Brevo, SMS via Semaphore)
       final result = await _api.forgotPassword(identifier, _usePhone ? 'phone' : 'email');
       final userId = result['user_id'] as int?;
 
@@ -93,36 +87,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _displayName   = result['display_name']  as String?;
       _maskedContact = result['masked_contact'] as String?;
 
-      if (_usePhone) {
-        // Trigger Firebase SMS after confirming account exists
-        if (kIsWeb) {
-          final cr = await FirebaseAuth.instance.signInWithPhoneNumber(identifier);
-          if (!mounted) return;
-          _confirmationResult = cr;
-        } else {
-          bool codeSentCalled = false;
-          await FirebaseAuth.instance.verifyPhoneNumber(
-            phoneNumber: identifier,
-            timeout: const Duration(seconds: 60),
-            verificationCompleted: (_) {},
-            verificationFailed: (e) {
-              if (mounted) _showError(_friendlyFirebaseError(e));
-            },
-            codeSent: (id, _) {
-              _verificationId = id;
-              codeSentCalled  = true;
-            },
-            codeAutoRetrievalTimeout: (_) {},
-          );
-          if (!codeSentCalled) return; // verificationFailed was called
-        }
-      }
-
       if (!mounted) return;
       setState(() => _onStep2 = true);
       _startCooldown();
-    } on FirebaseAuthException catch (e) {
-      if (mounted) _showError(_friendlyFirebaseError(e));
     } catch (e) {
       if (mounted) _showError(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -145,27 +112,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      if (_usePhone) {
-        // Firebase verify → ID token → backend reset
-        UserCredential userCred;
-        if (_confirmationResult != null) {
-          userCred = await _confirmationResult!.confirm(_codeCtrl.text.trim());
-        } else {
-          final cred = PhoneAuthProvider.credential(
-            verificationId: _verificationId,
-            smsCode: _codeCtrl.text.trim(),
-          );
-          userCred = await FirebaseAuth.instance.signInWithCredential(cred);
-        }
-        final idToken = await userCred.user?.getIdToken();
-        if (idToken == null) throw Exception('Could not get Firebase token.');
-
-        await _api.resetPasswordPhone(_userId!, idToken, _newPassCtrl.text.trim());
-        await FirebaseAuth.instance.signOut();
-      } else {
-        // Email: OTP + new password in one call
-        await _api.resetPassword(_userId!, _codeCtrl.text.trim(), _newPassCtrl.text.trim());
-      }
+      // Both email and phone now use the same backend OTP verification
+      await _api.resetPassword(_userId!, _codeCtrl.text.trim(), _newPassCtrl.text.trim());
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -174,8 +122,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         duration: Duration(seconds: 4),
       ));
       Navigator.pushReplacementNamed(context, '/login');
-    } on FirebaseAuthException catch (e) {
-      if (mounted) _showError(_friendlyFirebaseError(e));
     } catch (e) {
       if (mounted) _showError(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -184,18 +130,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-
-  String _friendlyFirebaseError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-verification-code': return 'Incorrect SMS code. Please check and try again.';
-      case 'session-expired':           return 'Code expired. Please tap Resend.';
-      case 'invalid-phone-number':      return 'Invalid phone number. Use 09XX or +63XX.';
-      case 'too-many-requests':         return 'Too many requests. Please wait a moment.';
-      case 'quota-exceeded':            return 'SMS quota exceeded. Please use email instead.';
-      case 'captcha-check-failed':      return 'reCAPTCHA failed. Please try again.';
-      default: return e.message ?? 'Verification failed. Please try again.';
-    }
-  }
 
   void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(msg), backgroundColor: _kPrimary),

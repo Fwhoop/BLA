@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     sendgrid_api_key: str | None = None
     sendgrid_from_email: str | None = None  # must be your SendGrid-verified email
 
+    # ── Semaphore SMS (Philippine SMS gateway — free tier) ────────────────────
+    # 1. Sign up free at semaphore.co.ph
+    # 2. Top-up or use trial credits (100 free SMS on sign-up)
+    # 3. Dashboard → API → copy your API key
+    # 4. Set SEMAPHORE_API_KEY in Railway env vars
+    semaphore_api_key: str | None = None
+    semaphore_sender_name: str = "BLA"  # max 11 chars, shows as sender on phone
+
     # ── SMTP (last resort — Railway blocks ports 25/465/587) ──────────────────
     smtp_host: str | None = None
     smtp_port: int = 587

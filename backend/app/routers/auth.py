@@ -14,6 +14,7 @@ from ..db import get_db
 from ..core.config import settings
 from ..utils.otp import generate_otp, hash_otp, verify_otp
 from ..utils.email import send_otp_email, send_password_reset_email
+from ..utils.sms import send_password_reset_sms
 from ..utils.firebase_init import verify_firebase_token
 from ..utils.audit import log_action
 from ..utils.phone import normalize_ph_phone
@@ -424,13 +425,23 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
 
     display_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.username or "User"
 
+    # Generate and store OTP for both email and phone resets
+    otp = generate_otp()
+    user.otp_code = hash_otp(otp)
+    user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    user.otp_attempts = 0
+    db.commit()
+
     if payload.method == "email":
-        otp = generate_otp()
-        user.otp_code = hash_otp(otp)
-        user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
-        user.otp_attempts = 0
-        db.commit()
         send_password_reset_email(user.email, otp)
+    else:
+        sent = send_password_reset_sms(user.phone, otp)
+        if not sent:
+            # Semaphore not configured — return error so user knows
+            raise HTTPException(
+                status_code=503,
+                detail="SMS service is not configured. Please use email reset instead.",
+            )
 
     return {
         "message": "Reset code sent.",
