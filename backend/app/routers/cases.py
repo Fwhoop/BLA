@@ -179,7 +179,7 @@ def update_case(
     # Enforce: cannot mark Resolved without at least one mediation record
     if updates.get("status") == "resolved":
         mediation_count = db.query(models.Mediation).filter(
-            models.Mediation.complaint_id == case_id
+            models.Mediation.case_id == case_id
         ).count()
         if mediation_count == 0:
             raise HTTPException(

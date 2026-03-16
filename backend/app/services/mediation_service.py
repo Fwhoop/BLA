@@ -17,7 +17,7 @@ import os
 import uuid
 import logging
 from datetime import date
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, status
 
@@ -98,6 +98,7 @@ def list_mediations(
 
     return (
         db.query(models.Mediation)
+        .options(joinedload(models.Mediation.mediator))
         .filter(models.Mediation.case_id == case_id)
         .order_by(models.Mediation.mediation_date.asc())
         .all()
@@ -121,10 +122,19 @@ def schedule_mediation(
     case = _get_case_or_400(db, case_id)
 
     try:
+        data = payload.model_dump(exclude_unset=True)
+        # Auto-fill mediator_name from the creating user so it's always visible
+        # in the reporter's complaint view even if the admin didn't type a name.
+        if not data.get("mediator_name"):
+            data["mediator_name"] = (
+                f"{current_user.first_name} {current_user.last_name}".strip()
+                or current_user.username
+            )
+
         mediation = models.Mediation(
             case_id=case_id,
             mediated_by=current_user.id,
-            **payload.model_dump(exclude_unset=True),
+            **data,
         )
         db.add(mediation)
 
