@@ -408,7 +408,10 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
     if payload.method == "email":
         user = db.query(models.User).filter(models.User.email == payload.identifier).first()
     else:
-        user = db.query(models.User).filter(models.User.phone == payload.identifier).first()
+        normalized = normalize_ph_phone(payload.identifier)
+        user = db.query(models.User).filter(
+            (models.User.phone == normalized) | (models.User.phone == payload.identifier)
+        ).first()
 
     if not user:
         return {"message": "No account found.", "user_id": None,
