@@ -16,6 +16,7 @@ from ..utils.otp import generate_otp, hash_otp, verify_otp
 from ..utils.email import send_otp_email, send_password_reset_email
 from ..utils.firebase_init import verify_firebase_token
 from ..utils.audit import log_action
+from ..utils.phone import normalize_ph_phone
 
 
 SECRET_KEY = settings.jwt_secret
@@ -43,11 +44,15 @@ def get_password_hash(password):
     return hashed.decode('utf-8')
 
 def authenticate_user(db: Session, identifier: str, password: str):
-    """Authenticate by email OR phone number."""
+    """Authenticate by email OR phone number (accepts 09XX or +63XX format)."""
     if "@" in identifier:
         user = db.query(models.User).filter(models.User.email == identifier).first()
     else:
-        user = db.query(models.User).filter(models.User.phone == identifier).first()
+        # Normalize so 09559952920 and +639559952920 both match the stored number
+        normalized = normalize_ph_phone(identifier)
+        user = db.query(models.User).filter(
+            (models.User.phone == normalized) | (models.User.phone == identifier)
+        ).first()
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -159,6 +164,10 @@ def register(
     db: Session = Depends(get_db),
 ):
     """Public signup endpoint for residents and barangay admin self-registration."""
+    # Normalize phone to E.164 so login works regardless of format used
+    if phone:
+        phone = normalize_ph_phone(phone)
+
     existing = db.query(models.User).filter(models.User.email == email).first()
     if existing:
         # Allow re-registration if:

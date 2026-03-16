@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
+import 'package:barangay_legal_aid/utils/phone_utils.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -34,8 +35,11 @@ class LoginPageState extends State<LoginPage> {
 
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
+      final raw = _identifierController.text.trim();
+      // Normalize phone numbers so 09XX and +63XX both work
+      final identifier = raw.contains('@') ? raw : normalizePhPhone(raw);
       final User? user = await auth.login(
-        identifier: _identifierController.text.trim(),
+        identifier: identifier,
         password: _passwordController.text.trim(),
         rememberMe: _rememberMe,
       );

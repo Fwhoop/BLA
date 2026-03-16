@@ -4,6 +4,7 @@ import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
 import 'package:barangay_legal_aid/screens/phone_sms_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/utils/phone_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -137,7 +138,10 @@ class SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = true);
 
     final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
+    // Normalize phone to E.164 (+63XXXXXXXXX) so backend lookup and Firebase both work
+    final phone = _phoneController.text.trim().isEmpty
+        ? ''
+        : normalizePhPhone(_phoneController.text.trim());
 
     // Determine verification method automatically when only one contact given
     String method = _verificationMethod;
@@ -549,7 +553,7 @@ class SignupPageState extends State<SignupPage> {
       ),
       validator: (v) {
         if (v == null || v.trim().isEmpty) return null; // optional
-        if (v.trim().length < 10) return 'Enter a valid phone number';
+        if (!isValidPhPhone(v.trim())) return 'Enter a valid PH number (09XX or +63XX)';
         return null;
       },
     );
