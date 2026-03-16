@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List
 from .. import models, schemas
 from ..db import get_db
@@ -90,7 +91,15 @@ def get_cases(
             db.query(models.Case)
             .options(_eager)
             .join(models.User, models.Case.reporter_id == models.User.id)
-            .filter(models.User.barangay_id == current_user.barangay_id)
+            .outerjoin(
+                models.ComplaintRespondent,
+                models.ComplaintRespondent.complaint_id == models.Case.id,
+            )
+            .filter(or_(
+                models.User.barangay_id == current_user.barangay_id,
+                models.ComplaintRespondent.respondent_barangay_id == current_user.barangay_id,
+            ))
+            .distinct()
             .order_by(models.Case.created_at.desc())
             .all()
         )
@@ -122,7 +131,12 @@ def get_case(
                                 detail="Not authorized to view this case")
     elif current_user.role in ("admin", "staff"):
         reporter = db.query(models.User).filter(models.User.id == case.reporter_id).first()
-        if not reporter or reporter.barangay_id != current_user.barangay_id:
+        reporter_match = reporter and reporter.barangay_id == current_user.barangay_id
+        respondent_match = db.query(models.ComplaintRespondent).filter(
+            models.ComplaintRespondent.complaint_id == case_id,
+            models.ComplaintRespondent.respondent_barangay_id == current_user.barangay_id,
+        ).first() is not None
+        if not reporter_match and not respondent_match:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Not authorized to view cases from other barangays")
 
@@ -150,7 +164,12 @@ def update_case(
         updated_case.status = None
     elif current_user.role in ("admin", "staff"):
         reporter = db.query(models.User).filter(models.User.id == case.reporter_id).first()
-        if not reporter or reporter.barangay_id != current_user.barangay_id:
+        reporter_match = reporter and reporter.barangay_id == current_user.barangay_id
+        respondent_match = db.query(models.ComplaintRespondent).filter(
+            models.ComplaintRespondent.complaint_id == case_id,
+            models.ComplaintRespondent.respondent_barangay_id == current_user.barangay_id,
+        ).first() is not None
+        if not reporter_match and not respondent_match:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Not authorized to update cases from other barangays")
 
