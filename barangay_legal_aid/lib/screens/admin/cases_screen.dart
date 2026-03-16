@@ -603,7 +603,13 @@ class _DetailSheetState extends State<_DetailSheet> {
       });
       await _loadMediations();
       widget.onRefresh();
+      // Backend auto-changes pending → reviewing when first mediation is scheduled.
+      // Reflect that immediately in the open sheet without requiring close/reopen.
+      if (widget.caseData['status'] == 'pending') {
+        widget.caseData['status'] = 'reviewing';
+      }
       if (mounted) {
+        setState(() {});
         showTopSnack(context,
           message: 'Mediation session scheduled',
           backgroundColor: const Color(0xFF10B981),
