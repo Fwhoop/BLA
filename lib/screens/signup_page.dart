@@ -1,19 +1,18 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
+import 'package:barangay_legal_aid/screens/phone_sms_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/utils/phone_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 const _kPrimary  = Color(0xFF99272D);
 const _kCharcoal = Color(0xFF36454F);
-const _psgcBase  = 'https://psgc.gitlab.io/api';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -26,60 +25,48 @@ class SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _imagePicker = ImagePicker();
 
-  // Identity
-  final TextEditingController _firstNameController       = TextEditingController();
-  final TextEditingController _lastNameController        = TextEditingController();
-
-  // Contact
-  final TextEditingController _emailController           = TextEditingController();
-  final TextEditingController _passwordController        = TextEditingController();
+  final TextEditingController _firstNameController    = TextEditingController();
+  final TextEditingController _lastNameController     = TextEditingController();
+  final TextEditingController _emailController        = TextEditingController();
+  final TextEditingController _passwordController     = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
-  final TextEditingController _phoneController           = TextEditingController();
+  final TextEditingController _phoneController        = TextEditingController();
+  final TextEditingController _addressController      = TextEditingController();
 
-  // Address text fields
-  final TextEditingController _houseNoController         = TextEditingController();
-  final TextEditingController _purokController           = TextEditingController();
-  final TextEditingController _streetController          = TextEditingController();
-  final TextEditingController _zipCodeController         = TextEditingController();
-
-  // Address dropdown selections
-  String? _selectedRegionCode;
-  String? _selectedProvinceCode;
-  String? _selectedCityCode;
   String? _selectedBarangay;
-  bool    _noProvinceRegion = false; // true for NCR / regions without provinces
-
-  bool _isLoading            = false;
-  bool _obscurePassword      = true;
+  bool _isLoading = false;
+  bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
   // Three required photos
-  Uint8List? _selfieBytes;
-  Uint8List? _idPhotoBytes;
-  Uint8List? _selfieWithIdBytes;
+  Uint8List? _selfieBytes;       // → profile_photo (selfie)
+  Uint8List? _idPhotoBytes;      // → id_photo      (valid ID)
+  Uint8List? _selfieWithIdBytes; // → selfie_with_id (selfie holding ID)
 
-  String _role               = 'user';
-  String _verificationMethod = 'email';
+  String _role = 'user';               // 'user' or 'admin'
+  String _verificationMethod = 'email'; // only shown when both email+phone are filled
 
+  // Tracks whether the fields have content (for smart verification selector)
   bool _hasEmail = false;
   bool _hasPhone = false;
 
-  // PSGC data
-  List<Map<String, dynamic>> _regions      = [];
-  List<Map<String, dynamic>> _provinces    = [];
-  List<Map<String, dynamic>> _cities       = [];
   List<Map<String, dynamic>> _barangayItems = [];
+  bool _barangaysLoading = true;
 
-  bool _regionsLoading   = false;
-  bool _provincesLoading = false;
-  bool _citiesLoading    = false;
-  bool _barangaysLoading = false;
-
-  // ── Init / Dispose ──────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    _loadRegions();
+    _loadBarangays();
+  }
+
+  Future<void> _loadBarangays() async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final items = await api.getBarangays();
+      if (mounted) setState(() { _barangayItems = items; _barangaysLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _barangaysLoading = false);
+    }
   }
 
   @override
@@ -90,123 +77,14 @@ class SignupPageState extends State<SignupPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _phoneController.dispose();
-    _houseNoController.dispose();
-    _purokController.dispose();
-    _streetController.dispose();
-    _zipCodeController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
-  // ── PSGC loaders ────────────────────────────────────────────────────────────
-  Future<void> _loadRegions() async {
-    if (mounted) setState(() => _regionsLoading = true);
-    try {
-      final resp = await http.get(Uri.parse('$_psgcBase/regions/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        final regions = list
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList()
-          ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-        if (mounted) setState(() => _regions = regions);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _regionsLoading = false);
-  }
-
-  Future<void> _onRegionChanged(String code) async {
-    setState(() {
-      _selectedRegionCode   = code;
-      _selectedProvinceCode = null;
-      _selectedCityCode     = null;
-      _selectedBarangay     = null;
-      _provinces            = [];
-      _cities               = [];
-      _barangayItems        = [];
-      _noProvinceRegion     = false;
-      _provincesLoading     = true;
-    });
-    try {
-      final resp = await http.get(Uri.parse('$_psgcBase/regions/$code/provinces/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        if (list.isEmpty) {
-          // NCR or region without provinces — load cities directly from the region
-          if (mounted) setState(() { _noProvinceRegion = true; _provincesLoading = false; _citiesLoading = true; });
-          final citiesResp = await http.get(Uri.parse('$_psgcBase/regions/$code/cities-municipalities/'));
-          if (citiesResp.statusCode == 200) {
-            final cityList = jsonDecode(citiesResp.body) as List;
-            final cities = cityList
-                .map((e) => Map<String, dynamic>.from(e as Map))
-                .toList()
-              ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-            if (mounted) setState(() => _cities = cities);
-          }
-          if (mounted) setState(() => _citiesLoading = false);
-        } else {
-          final provinces = list
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList()
-            ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-          if (mounted) setState(() { _provinces = provinces; _provincesLoading = false; });
-        }
-      } else {
-        if (mounted) setState(() => _provincesLoading = false);
-      }
-    } catch (_) {
-      if (mounted) setState(() { _provincesLoading = false; _citiesLoading = false; });
-    }
-  }
-
-  Future<void> _onProvinceChanged(String code) async {
-    setState(() {
-      _selectedProvinceCode = code;
-      _selectedCityCode     = null;
-      _selectedBarangay     = null;
-      _cities               = [];
-      _barangayItems        = [];
-      _citiesLoading        = true;
-    });
-    try {
-      final resp = await http.get(Uri.parse('$_psgcBase/provinces/$code/cities-municipalities/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        final cities = list
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList()
-          ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-        if (mounted) setState(() => _cities = cities);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _citiesLoading = false);
-  }
-
-  Future<void> _onCityChanged(String code) async {
-    setState(() {
-      _selectedCityCode  = code;
-      _selectedBarangay  = null;
-      _barangayItems     = [];
-      _barangaysLoading  = true;
-    });
-    try {
-      final resp = await http.get(Uri.parse('$_psgcBase/cities-municipalities/$code/barangays/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        final barangays = list
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList()
-          ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-        if (mounted) setState(() => _barangayItems = barangays);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _barangaysLoading = false);
-  }
-
-  // ── Camera ──────────────────────────────────────────────────────────────────
   Future<void> _pickPhoto({required void Function(Uint8List) onPicked}) async {
     try {
       final file = await _imagePicker.pickImage(
-        source: ImageSource.camera,
+        source: ImageSource.gallery,
         maxWidth: 1600,
         maxHeight: 1600,
         imageQuality: 85,
@@ -216,58 +94,24 @@ class SignupPageState extends State<SignupPage> {
         setState(() => onPicked(bytes));
       }
     } catch (e) {
-      if (mounted) _showError('Unable to open camera: $e');
+      if (mounted) _showError('Unable to pick photo: $e');
     }
   }
 
-  // ── Address builder ─────────────────────────────────────────────────────────
-  String _buildFullAddress() {
-    final parts = <String>[];
-    final houseNo = _houseNoController.text.trim();
-    final purok   = _purokController.text.trim();
-    final street  = _streetController.text.trim();
-    final zip     = _zipCodeController.text.trim();
-    if (houseNo.isNotEmpty) parts.add(houseNo);
-    if (purok.isNotEmpty)   parts.add(purok);
-    if (street.isNotEmpty)  parts.add(street);
-    if (_selectedBarangay != null) parts.add(_selectedBarangay!);
-    final cityEntry = _cities.where((c) => c['code'] == _selectedCityCode).toList();
-    if (cityEntry.isNotEmpty) parts.add(cityEntry.first['name'] as String);
-    if (!_noProvinceRegion) {
-      final provEntry = _provinces.where((p) => p['code'] == _selectedProvinceCode).toList();
-      if (provEntry.isNotEmpty) parts.add(provEntry.first['name'] as String);
-    }
-    final regEntry = _regions.where((r) => r['code'] == _selectedRegionCode).toList();
-    if (regEntry.isNotEmpty) parts.add(regEntry.first['name'] as String);
-    if (zip.isNotEmpty) parts.add(zip);
-    return parts.join(', ');
-  }
-
-  // ── Validation & Submit ─────────────────────────────────────────────────────
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
 
+    // Cross-field: at least one contact required
     if (email.isEmpty && phone.isEmpty) {
       _showError('Please provide at least an email address or phone number.');
       return;
     }
+
     if (_passwordController.text != _confirmPasswordController.text) {
       _showError('Passwords do not match.');
-      return;
-    }
-    if (_selectedRegionCode == null) {
-      _showError('Please select your region.');
-      return;
-    }
-    if (!_noProvinceRegion && _selectedProvinceCode == null) {
-      _showError('Please select your province.');
-      return;
-    }
-    if (_selectedCityCode == null) {
-      _showError('Please select your city or municipality.');
       return;
     }
     if (_selectedBarangay == null) {
@@ -275,15 +119,15 @@ class SignupPageState extends State<SignupPage> {
       return;
     }
     if (_selfieBytes == null) {
-      _showError('Please take your selfie photo.');
+      _showError('Please upload your selfie photo.');
       return;
     }
     if (_idPhotoBytes == null) {
-      _showError('Please take your valid ID photo.');
+      _showError('Please upload your valid ID photo.');
       return;
     }
     if (_selfieWithIdBytes == null) {
-      _showError('Please take your selfie holding your ID.');
+      _showError('Please upload your selfie holding your ID.');
       return;
     }
 
@@ -294,24 +138,30 @@ class SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = true);
 
     final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
+    // Normalize phone to E.164 (+63XXXXXXXXX) so backend lookup and Firebase both work
+    final phone = _phoneController.text.trim().isEmpty
+        ? ''
+        : normalizePhPhone(_phoneController.text.trim());
 
+    // Determine verification method automatically when only one contact given
     String method = _verificationMethod;
     if (email.isNotEmpty && phone.isEmpty) method = 'email';
     if (phone.isNotEmpty && email.isEmpty) method = 'phone';
 
     try {
       final idPhotoPath = 'id_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
       final auth = Provider.of<AuthService>(context, listen: false);
       final api  = Provider.of<ApiService>(context, listen: false);
 
-      await auth.signUp(
+      // Register user — returns the full user object including `id`
+      final userData = await auth.signUp(
         firstName:         _firstNameController.text.trim(),
         lastName:          _lastNameController.text.trim(),
         email:             email,
         password:          _passwordController.text,
         phone:             phone,
-        address:           _buildFullAddress(),
+        address:           _addressController.text.trim(),
         barangay:          _selectedBarangay!,
         idPhotoPath:       idPhotoPath,
         idPhotoBytes:      _idPhotoBytes,
@@ -320,63 +170,110 @@ class SignupPageState extends State<SignupPage> {
         role:              _role,
       );
 
+      // Capture the DB user ID for use in verification callbacks
+      final registeredUserId = userData['id'] as int?;
+
       if (!mounted) return;
 
+      // ── Email OTP path ────────────────────────────────────────────────────
       if (method == 'email' && email.isNotEmpty) {
         final res = await api.sendEmailOtp(email);
-        final userId = res['user_id'] as int?;
+        final userId   = res['user_id']   as int?;
+        final emailSent = res['email_sent'] as bool? ?? true;
         if (!mounted) return;
         if (userId != null) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => OtpVerificationScreen(userId: userId, email: email),
+              builder: (_) => OtpVerificationScreen(
+                userId:    userId,
+                email:     email,
+                emailSent: emailSent,
+              ),
             ),
           );
           return;
+        } else {
+          _showError('Could not send verification code. Please try again.');
+          return;
         }
-      } else if (method == 'phone' && phone.isNotEmpty) {
+      }
+
+      // ── Phone SMS path ────────────────────────────────────────────────────
+      if (method == 'phone' && phone.isNotEmpty) {
         if (kIsWeb) {
           _showError('Phone SMS verification is not supported on the web. Please use Email OTP.');
           setState(() => _isLoading = false);
           return;
         }
+
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
+          timeout: const Duration(seconds: 60),
+
+          // Auto-verification (some Android devices detect SMS instantly)
           verificationCompleted: (PhoneAuthCredential cred) async {
-            final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
-            final idToken  = await userCred.user!.getIdToken();
-            final res = await api.sendEmailOtp(email).catchError((_) => <String, dynamic>{});
-            final uid = res['user_id'] as int?;
-            if (uid != null && idToken != null) {
-              await api.verifyFirebasePhone(uid, idToken);
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Phone verified! Awaiting admin approval.'),
-                backgroundColor: _kCharcoal,
-              ));
-              Navigator.pushReplacementNamed(context, '/login');
+            try {
+              final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
+              final idToken  = await userCred.user?.getIdToken();
+              if (registeredUserId != null && idToken != null) {
+                await api.verifyFirebasePhone(registeredUserId, idToken);
+                await FirebaseAuth.instance.signOut();
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Phone auto-verified! Awaiting admin approval.'),
+                  backgroundColor: _kCharcoal,
+                ));
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            } catch (e) {
+              if (mounted) _showError('Auto-verification failed: $e');
             }
           },
+
+          // Firebase could not send / validate
           verificationFailed: (FirebaseAuthException e) {
-            if (mounted) _showError(e.message ?? 'Phone verification failed.');
-          },
-          codeSent: (String verificationId, int? _) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('SMS code sent! Application submitted — await admin approval.'),
-                backgroundColor: _kCharcoal,
-                duration: Duration(seconds: 5),
-              ));
-              Navigator.pushReplacementNamed(context, '/login');
+              final msg = switch (e.code) {
+                'invalid-phone-number' => 'Invalid phone number format. Use +639XXXXXXXXX.',
+                'too-many-requests'    => 'Too many SMS requests. Please wait and try again.',
+                'quota-exceeded'       => 'SMS quota exceeded. Please use email verification instead.',
+                'app-not-authorized'   => 'This app is not authorised for Firebase Phone Auth. '
+                    'Check SHA-1 fingerprint in the Firebase console.',
+                _                      => e.message ?? 'Phone verification failed.',
+              };
+              _showError(msg);
+              setState(() => _isLoading = false);
             }
           },
+
+          // SMS sent — navigate to the code-entry screen
+          codeSent: (String verificationId, int? resendToken) {
+            if (!mounted) return;
+            setState(() => _isLoading = false);
+            if (registeredUserId == null) {
+              _showError('Registration error: could not retrieve user ID. Please try again.');
+              return;
+            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PhoneSmsVerificationScreen(
+                  verificationId: verificationId,
+                  userId:         registeredUserId,
+                  phoneNumber:    phone,
+                ),
+              ),
+            );
+          },
+
           codeAutoRetrievalTimeout: (_) {},
         );
-        return;
+        return; // Firebase callbacks handle navigation
       }
 
+      // ── Fallback — no OTP triggered ──────────────────────────────────────
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Application submitted! An admin will review your photos for approval.'),
         backgroundColor: _kCharcoal,
@@ -460,61 +357,15 @@ class SignupPageState extends State<SignupPage> {
                     // ── Section 4: Location ──────────────────────────────
                     _sectionLabel('Location'),
                     const SizedBox(height: 10),
-                    // Optional text fields
-                    _buildTextField(
-                      controller: _houseNoController,
-                      label: 'House No. / Unit / Building',
-                      hint: 'e.g. 12, Unit 3A, Bldg. 2',
-                      icon: Icons.home_outlined,
-                      optional: true,
-                    ),
+                    _buildAddressField(),
                     const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _purokController,
-                      label: 'Purok / Sitio',
-                      hint: 'e.g. Purok 4, Sitio Mabuhay',
-                      icon: Icons.holiday_village_outlined,
-                      optional: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _streetController,
-                      label: 'Street Name',
-                      hint: 'e.g. Rizal St.',
-                      icon: Icons.edit_road_outlined,
-                      optional: true,
-                    ),
-                    const SizedBox(height: 12),
-                    // Cascading dropdowns
-                    _buildRegionDropdown(),
-                    if (_selectedRegionCode != null && !_noProvinceRegion) ...[
-                      const SizedBox(height: 12),
-                      _buildProvinceDropdown(),
-                    ],
-                    if (_selectedRegionCode != null &&
-                        (_noProvinceRegion || _selectedProvinceCode != null)) ...[
-                      const SizedBox(height: 12),
-                      _buildCityDropdown(),
-                    ],
-                    if (_selectedCityCode != null) ...[
-                      const SizedBox(height: 12),
-                      _buildBarangayDropdown(),
-                    ],
-                    const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _zipCodeController,
-                      label: 'ZIP Code',
-                      hint: 'e.g. 1000',
-                      icon: Icons.markunread_mailbox_outlined,
-                      optional: true,
-                      keyboardType: TextInputType.number,
-                    ),
+                    _buildBarangayDropdown(),
 
                     const SizedBox(height: 20),
 
                     // ── Section 5: Photo Verification ────────────────────
                     _sectionLabel('Photo Verification',
-                        sub: 'Camera is required — all three photos must be freshly taken'),
+                        sub: 'All three photos are required for identity verification'),
                     const SizedBox(height: 10),
                     _buildPhotoUploader(
                       label: 'Your Selfie',
@@ -527,7 +378,7 @@ class SignupPageState extends State<SignupPage> {
                     const SizedBox(height: 12),
                     _buildPhotoUploader(
                       label: 'Valid ID Photo',
-                      hint: "Government-issued ID: Driver's License, PhilHealth, SSS, UMID, Passport, Voter's ID, etc.",
+                      hint: 'Government-issued ID: Driver\'s License, PhilHealth, SSS, UMID, Passport, Voter\'s ID, etc.',
                       icon: Icons.badge_outlined,
                       bytes: _idPhotoBytes,
                       onPick: () => _pickPhoto(onPicked: (b) => _idPhotoBytes = b),
@@ -590,7 +441,8 @@ class SignupPageState extends State<SignupPage> {
             )),
         if (sub != null) ...[
           const SizedBox(height: 2),
-          Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(sub,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ],
         const SizedBox(height: 4),
         Container(height: 1.5, color: _kPrimary.withValues(alpha: 0.12)),
@@ -680,7 +532,7 @@ class SignupPageState extends State<SignupPage> {
         helperText: 'Optional if phone is provided',
       ),
       validator: (v) {
-        if (v == null || v.trim().isEmpty) return null;
+        if (v == null || v.trim().isEmpty) return null; // optional
         final ok = RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v.trim());
         return ok ? null : 'Enter a valid email address';
       },
@@ -700,8 +552,8 @@ class SignupPageState extends State<SignupPage> {
         helperText: 'Optional if email is provided. Use +63 format.',
       ),
       validator: (v) {
-        if (v == null || v.trim().isEmpty) return null;
-        if (v.trim().length < 10) return 'Enter a valid phone number';
+        if (v == null || v.trim().isEmpty) return null; // optional
+        if (!isValidPhPhone(v.trim())) return 'Enter a valid PH number (09XX or +63XX)';
         return null;
       },
     );
@@ -744,109 +596,42 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Generic optional text field ────────────────────────────────────────────
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    bool optional = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  // ── Address ────────────────────────────────────────────────────────────────
+  Widget _buildAddressField() {
     return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: optional ? '$label (Optional)' : label,
-        hintText: hint,
-        prefixIcon: Icon(icon),
-      ),
-    );
-  }
-
-  // ── Region dropdown ────────────────────────────────────────────────────────
-  Widget _buildRegionDropdown() {
-    if (_regionsLoading) {
-      return _loadingRow('Loading regions…');
-    }
-    if (_regions.isEmpty) {
-      return _retryRow('Could not load regions.', _loadRegions);
-    }
-    return DropdownButtonFormField<String>(
-      value: _selectedRegionCode,
-      isExpanded: true,
+      controller: _addressController,
       decoration: const InputDecoration(
-        labelText: 'Region',
-        prefixIcon: Icon(Icons.map_outlined),
+        labelText: 'Complete address',
+        prefixIcon: Icon(Icons.home_outlined),
       ),
-      items: _regions.map((r) {
-        final code = r['code'] as String? ?? '';
-        final name = r['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: code, child: Text(name));
-      }).toList(),
-      onChanged: (v) { if (v != null) _onRegionChanged(v); },
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your region' : null,
+      validator: (v) => (v == null || v.isEmpty) ? 'Please enter your address' : null,
     );
   }
 
-  // ── Province dropdown ──────────────────────────────────────────────────────
-  Widget _buildProvinceDropdown() {
-    if (_provincesLoading) return _loadingRow('Loading provinces…');
-    if (_provinces.isEmpty) return const SizedBox.shrink();
-    return DropdownButtonFormField<String>(
-      value: _selectedProvinceCode,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Province',
-        prefixIcon: Icon(Icons.location_city_outlined),
-      ),
-      items: _provinces.map((p) {
-        final code = p['code'] as String? ?? '';
-        final name = p['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: code, child: Text(name));
-      }).toList(),
-      onChanged: (v) { if (v != null) _onProvinceChanged(v); },
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your province' : null,
-    );
-  }
-
-  // ── City / Municipality dropdown ────────────────────────────────────────────
-  Widget _buildCityDropdown() {
-    if (_citiesLoading) return _loadingRow('Loading cities / municipalities…');
-    if (_cities.isEmpty) return const SizedBox.shrink();
-    return DropdownButtonFormField<String>(
-      value: _selectedCityCode,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'City / Municipality',
-        prefixIcon: Icon(Icons.location_on_outlined),
-      ),
-      items: _cities.map((c) {
-        final code = c['code'] as String? ?? '';
-        final name = c['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: code, child: Text(name));
-      }).toList(),
-      onChanged: (v) { if (v != null) _onCityChanged(v); },
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your city or municipality' : null,
-    );
-  }
-
-  // ── Barangay dropdown ───────────────────────────────────────────────────────
+  // ── Barangay ───────────────────────────────────────────────────────────────
   Widget _buildBarangayDropdown() {
-    if (_barangaysLoading) return _loadingRow('Loading barangays…');
+    if (_barangaysLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Row(children: [
+          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          SizedBox(width: 12),
+          Text('Loading barangays…', style: TextStyle(color: Colors.grey)),
+        ]),
+      );
+    }
     if (_barangayItems.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('No barangays found for the selected city.',
+        child: Text('No barangays available. Please contact your administrator.',
             style: TextStyle(color: Colors.red, fontSize: 13)),
       );
     }
     return DropdownButtonFormField<String>(
       value: _selectedBarangay,
-      isExpanded: true,
       decoration: const InputDecoration(
-        labelText: 'Barangay',
-        prefixIcon: Icon(Icons.apartment_outlined),
+        labelText: 'Select barangay',
+        prefixIcon: Icon(Icons.location_on_outlined),
       ),
       items: _barangayItems.map((b) {
         final name = b['name'] as String? ?? '';
@@ -857,30 +642,7 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Loading / retry helpers ─────────────────────────────────────────────────
-  Widget _loadingRow(String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(children: [
-        const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-        const SizedBox(width: 12),
-        Text(label, style: const TextStyle(color: Colors.grey)),
-      ]),
-    );
-  }
-
-  Widget _retryRow(String message, VoidCallback onRetry) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Text(message, style: const TextStyle(color: Colors.red, fontSize: 13)),
-        const SizedBox(width: 8),
-        TextButton(onPressed: onRetry, child: const Text('Retry')),
-      ]),
-    );
-  }
-
-  // ── Reusable camera photo uploader ─────────────────────────────────────────
+  // ── Reusable photo uploader ────────────────────────────────────────────────
   Widget _buildPhotoUploader({
     required String label,
     required String hint,
@@ -933,8 +695,8 @@ class SignupPageState extends State<SignupPage> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : onPick,
-                  icon: Icon(bytes == null ? Icons.camera_alt : Icons.camera_alt, size: 16),
-                  label: Text(bytes == null ? 'Open Camera' : 'Retake Photo',
+                  icon: Icon(bytes == null ? Icons.upload_file : Icons.swap_horiz_rounded, size: 16),
+                  label: Text(bytes == null ? 'Upload Photo' : 'Replace Photo',
                       style: const TextStyle(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
@@ -986,7 +748,7 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Verification method ────────────────────────────────────────────────────
+  // ── Verification method (only shown when both email+phone are filled) ───────
   Widget _buildVerificationMethodSelector() {
     return Row(
       children: [
