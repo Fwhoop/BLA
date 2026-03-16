@@ -39,90 +39,86 @@ app.add_middleware(
 
 # ── Migrations ────────────────────────────────────────────────────────────────
 def _run_migrations():
-    """Idempotent migrations — safe to run on every startup."""
+    """Idempotent migrations — each table uses its own transaction so one
+    failure cannot silently block the others."""
     try:
         inspector = inspect(engine)
         table_names = inspector.get_table_names()
-
-        with engine.begin() as conn:
-            # ── cases table ──────────────────────────────────────────────────
-            if "cases" in table_names:
-                existing = {c["name"] for c in inspector.get_columns("cases")}
-                for col, ddl in [
-                    ("status",                "ALTER TABLE cases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"),
-                    ("updated_at",            "ALTER TABLE cases ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-                    ("category",              "ALTER TABLE cases ADD COLUMN category VARCHAR(50) NULL"),
-                    ("urgency",               "ALTER TABLE cases ADD COLUMN urgency VARCHAR(20) DEFAULT 'medium'"),
-                    ("is_cross_barangay",     "ALTER TABLE cases ADD COLUMN is_cross_barangay BOOLEAN DEFAULT FALSE"),
-                    ("complaint_barangay_id", "ALTER TABLE cases ADD COLUMN complaint_barangay_id INT NULL"),
-                ]:
-                    if col not in existing:
-                        conn.execute(text(ddl))
-                        logger.info(f"Migration: added '{col}' to cases")
-
-            # ── users table ──────────────────────────────────────────────────
-            if "users" in table_names:
-                existing = {c["name"] for c in inspector.get_columns("users")}
-                for col, ddl in [
-                    ("id_photo_url",        "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"),
-                    ("selfie_with_id_path", "ALTER TABLE users ADD COLUMN selfie_with_id_path VARCHAR(500) NULL"),
-                    ("profile_photo_path",  "ALTER TABLE users ADD COLUMN profile_photo_path VARCHAR(500) NULL"),
-                    ("verification_status", "ALTER TABLE users ADD COLUMN verification_status VARCHAR(20) DEFAULT 'pending'"),
-                    ("verification_method", "ALTER TABLE users ADD COLUMN verification_method VARCHAR(50) NULL"),
-                    ("email_verified",      "ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE"),
-                    ("mobile_verified",     "ALTER TABLE users ADD COLUMN mobile_verified BOOLEAN DEFAULT FALSE"),
-                    ("approved_by",         "ALTER TABLE users ADD COLUMN approved_by INT NULL"),
-                    ("approved_at",         "ALTER TABLE users ADD COLUMN approved_at DATETIME NULL"),
-                    ("house_number",        "ALTER TABLE users ADD COLUMN house_number VARCHAR(50) NULL"),
-                    ("street_name",         "ALTER TABLE users ADD COLUMN street_name VARCHAR(100) NULL"),
-                    ("purok",               "ALTER TABLE users ADD COLUMN purok VARCHAR(50) NULL"),
-                    ("city",                "ALTER TABLE users ADD COLUMN city VARCHAR(100) NULL"),
-                    ("province",            "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
-                    ("zip_code",            "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
-                    ("rejected_by",         "ALTER TABLE users ADD COLUMN rejected_by INT NULL"),
-                    ("rejected_at",         "ALTER TABLE users ADD COLUMN rejected_at DATETIME NULL"),
-                    ("rejection_reason",    "ALTER TABLE users ADD COLUMN rejection_reason VARCHAR(500) NULL"),
-                    ("otp_code",            "ALTER TABLE users ADD COLUMN otp_code VARCHAR(255) NULL"),
-                    ("otp_expiry",          "ALTER TABLE users ADD COLUMN otp_expiry DATETIME NULL"),
-                    ("otp_attempts",        "ALTER TABLE users ADD COLUMN otp_attempts INT DEFAULT 0"),
-                ]:
-                    if col not in existing:
-                        conn.execute(text(ddl))
-                        logger.info(f"Migration: added '{col}' to users")
-
-                # Backfill verification_status for existing approved users
-                conn.execute(text(
-                    "UPDATE users SET verification_status='approved' "
-                    "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
-                ))
-
-            # ── requests table ───────────────────────────────────────────────
-            if "requests" in table_names:
-                existing = {c["name"] for c in inspector.get_columns("requests")}
-                for col, ddl in [
-                    ("file_url", "ALTER TABLE requests ADD COLUMN file_url VARCHAR(500) NULL"),
-                ]:
-                    if col not in existing:
-                        conn.execute(text(ddl))
-                        logger.info(f"Migration: added '{col}' to requests")
-
-            # ── mediations table ─────────────────────────────────────────────
-            if "mediations" in table_names:
-                existing = {c["name"] for c in inspector.get_columns("mediations")}
-                for col, ddl in [
-                    ("mediator_name",              "ALTER TABLE mediations ADD COLUMN mediator_name VARCHAR(200) NULL"),
-                    ("resolution_photo_path",      "ALTER TABLE mediations ADD COLUMN resolution_photo_path VARCHAR(500) NULL"),
-                    ("next_hearing_date",           "ALTER TABLE mediations ADD COLUMN next_hearing_date DATE NULL"),
-                    ("agreement_document_path",    "ALTER TABLE mediations ADD COLUMN agreement_document_path VARCHAR(500) NULL"),
-                    ("updated_at",                 "ALTER TABLE mediations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-                    ("mediated_by",                "ALTER TABLE mediations ADD COLUMN mediated_by INT NULL"),
-                ]:
-                    if col not in existing:
-                        conn.execute(text(ddl))
-                        logger.info(f"Migration: added '{col}' to mediations")
-
     except Exception as e:
-        logger.warning(f"Migration step skipped: {e}")
+        logger.warning(f"Migration: could not inspect DB: {e}")
+        return
+
+    def _add_columns(table: str, col_ddl_pairs: list):
+        """Add missing columns to *table* inside an independent transaction."""
+        if table not in table_names:
+            return
+        try:
+            existing = {c["name"] for c in inspector.get_columns(table)}
+            with engine.begin() as conn:
+                for col, ddl in col_ddl_pairs:
+                    if col not in existing:
+                        conn.execute(text(ddl))
+                        logger.info(f"Migration: added '{col}' to {table}")
+        except Exception as e:
+            logger.warning(f"Migration for '{table}' skipped: {e}")
+
+    # ── cases ──────────────────────────────────────────────────────────────────
+    _add_columns("cases", [
+        ("status",                "ALTER TABLE cases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"),
+        ("updated_at",            "ALTER TABLE cases ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+        ("category",              "ALTER TABLE cases ADD COLUMN category VARCHAR(50) NULL"),
+        ("urgency",               "ALTER TABLE cases ADD COLUMN urgency VARCHAR(20) DEFAULT 'medium'"),
+        ("is_cross_barangay",     "ALTER TABLE cases ADD COLUMN is_cross_barangay BOOLEAN DEFAULT FALSE"),
+        ("complaint_barangay_id", "ALTER TABLE cases ADD COLUMN complaint_barangay_id INT NULL"),
+    ])
+
+    # ── users ──────────────────────────────────────────────────────────────────
+    _add_columns("users", [
+        ("id_photo_url",        "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"),
+        ("selfie_with_id_path", "ALTER TABLE users ADD COLUMN selfie_with_id_path VARCHAR(500) NULL"),
+        ("profile_photo_path",  "ALTER TABLE users ADD COLUMN profile_photo_path VARCHAR(500) NULL"),
+        ("verification_status", "ALTER TABLE users ADD COLUMN verification_status VARCHAR(20) DEFAULT 'pending'"),
+        ("verification_method", "ALTER TABLE users ADD COLUMN verification_method VARCHAR(50) NULL"),
+        ("email_verified",      "ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE"),
+        ("mobile_verified",     "ALTER TABLE users ADD COLUMN mobile_verified BOOLEAN DEFAULT FALSE"),
+        ("approved_by",         "ALTER TABLE users ADD COLUMN approved_by INT NULL"),
+        ("approved_at",         "ALTER TABLE users ADD COLUMN approved_at DATETIME NULL"),
+        ("house_number",        "ALTER TABLE users ADD COLUMN house_number VARCHAR(50) NULL"),
+        ("street_name",         "ALTER TABLE users ADD COLUMN street_name VARCHAR(100) NULL"),
+        ("purok",               "ALTER TABLE users ADD COLUMN purok VARCHAR(50) NULL"),
+        ("city",                "ALTER TABLE users ADD COLUMN city VARCHAR(100) NULL"),
+        ("province",            "ALTER TABLE users ADD COLUMN province VARCHAR(100) NULL"),
+        ("zip_code",            "ALTER TABLE users ADD COLUMN zip_code VARCHAR(10) NULL"),
+        ("rejected_by",         "ALTER TABLE users ADD COLUMN rejected_by INT NULL"),
+        ("rejected_at",         "ALTER TABLE users ADD COLUMN rejected_at DATETIME NULL"),
+        ("rejection_reason",    "ALTER TABLE users ADD COLUMN rejection_reason VARCHAR(500) NULL"),
+        ("otp_code",            "ALTER TABLE users ADD COLUMN otp_code VARCHAR(255) NULL"),
+        ("otp_expiry",          "ALTER TABLE users ADD COLUMN otp_expiry DATETIME NULL"),
+        ("otp_attempts",        "ALTER TABLE users ADD COLUMN otp_attempts INT DEFAULT 0"),
+    ])
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(
+                "UPDATE users SET verification_status='approved' "
+                "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
+            ))
+    except Exception as e:
+        logger.warning(f"Migration: users backfill skipped: {e}")
+
+    # ── requests ───────────────────────────────────────────────────────────────
+    _add_columns("requests", [
+        ("file_url", "ALTER TABLE requests ADD COLUMN file_url VARCHAR(500) NULL"),
+    ])
+
+    # ── mediations ─────────────────────────────────────────────────────────────
+    _add_columns("mediations", [
+        ("mediator_name",           "ALTER TABLE mediations ADD COLUMN mediator_name VARCHAR(200) NULL"),
+        ("resolution_photo_path",   "ALTER TABLE mediations ADD COLUMN resolution_photo_path VARCHAR(500) NULL"),
+        ("next_hearing_date",       "ALTER TABLE mediations ADD COLUMN next_hearing_date DATE NULL"),
+        ("agreement_document_path", "ALTER TABLE mediations ADD COLUMN agreement_document_path VARCHAR(500) NULL"),
+        ("updated_at",              "ALTER TABLE mediations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+        ("mediated_by",             "ALTER TABLE mediations ADD COLUMN mediated_by INT NULL"),
+    ])
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────

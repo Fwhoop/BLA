@@ -538,11 +538,31 @@ class _DetailSheetState extends State<_DetailSheet> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: timeCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Time (e.g. 9:00 AM)',
-                    prefixIcon: Icon(Icons.access_time, size: 18),
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Time (optional)',
+                    hintText: 'Tap to select',
+                    prefixIcon: const Icon(Icons.access_time, size: 18),
                     isDense: true,
+                    suffixIcon: timeCtrl.text.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () => setS(() => timeCtrl.clear()),
+                            child: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                          )
+                        : null,
                   ),
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: ctx,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (t != null) {
+                      final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+                      final minute = t.minute.toString().padLeft(2, '0');
+                      final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+                      setS(() => timeCtrl.text = '$hour:$minute $period');
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
