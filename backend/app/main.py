@@ -15,6 +15,7 @@ from app.routers.auth import get_current_user
 from app.models import User
 from app.routers import auth, barangays, cases, chat, users, requests, notifications
 from app.routers import respondents, mediations, analytics
+from app.routers import ask as ask_router          # RAG chatbot router
 from app.schemas import UserRead, UserUpdate
 from app.utils.db_ready import wait_for_database
 from app.utils.schema_guard import validate_schema
@@ -68,6 +69,16 @@ async def startup():
         logger.info("Schema validation OK")
 
     await loop.run_in_executor(None, _init_db)
+
+    # Load FAISS index + chunked docs for the RAG /ask endpoint
+    try:
+        from app.rag import load_rag_resources
+        load_rag_resources()
+        logger.info("RAG resources loaded successfully")
+    except Exception as e:
+        logger.warning(f"RAG resources could not be loaded: {e}")
+        logger.warning("The /ask endpoint will be unavailable until resources are present")
+
     logger.info("=== BLA BACKEND READY ===")
 
 
@@ -89,7 +100,6 @@ import traceback
 async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
     """Return every HTTP error in consistent {success, error} shape."""
     detail = exc.detail
-    # detail may be a dict (structured) or a plain string
     if isinstance(detail, dict):
         error_msg = detail.get("error") or detail.get("detail") or str(detail)
     else:
@@ -172,6 +182,7 @@ app.include_router(notifications.router)
 app.include_router(respondents.router)
 app.include_router(mediations.router)
 app.include_router(analytics.router)
+app.include_router(ask_router.router)   # POST /ask  – RAG chatbot
 
 
 # ── Static Files (ID photos, selfies, profile photos) ────────────────────────

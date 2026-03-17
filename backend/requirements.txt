@@ -12,3 +12,9 @@ python-jose[cryptography]
 email-validator
 requests
 firebase-admin
+
+# RAG dependencies
+faiss-cpu
+sentence-transformers
+httpx
+numpy
