@@ -169,8 +169,9 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
                 logger.info("[AI_ENDPOINT] Served by HF Inference API")
                 return {"message": hf_text, "ui_action": None}
 
-        # 3 — FAQ keyword search / canned fallback
-        local = _faq_fallback(sender=chat.sender_id, message=chat.message)
+        # 3 — FAQ keyword search / canned fallback (history-aware)
+        history_dicts = [{"role": h.role, "content": h.content} for h in (chat.history or [])]
+        local = _faq_fallback(sender=chat.sender_id, message=chat.message, history=history_dicts)
         return {"message": local["response"], "ui_action": None}
 
     except Exception as e:

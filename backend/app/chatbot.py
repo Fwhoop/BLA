@@ -328,27 +328,72 @@ def _faq_search(query: str) -> Optional[str]:
     return best_answer if best_score >= 0.40 else None
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
-def chat_response(sender: int, message: str) -> dict:
+# ── Conversational context enrichment ────────────────────────────────────────
+_FOLLOWUP_SIGNALS = {
+    "how long", "how much", "paano", "what next", "then what", "after that",
+    "next step", "what if", "what happens", "ano pa", "tapos", "saan",
+    "bakit", "magkano", "gaano", "pano", "what about", "and then",
+    "can i", "do i need", "is it free", "free ba", "fee", "bayad",
+    "how do i", "where do i", "sino", "who", "when", "kailan",
+}
+
+
+def _is_followup(message: str) -> bool:
+    """Return True if message looks like a follow-up (short or contains follow-up signals)."""
+    text = message.lower().strip()
+    if len(text.split()) <= 4:
+        return True
+    return any(signal in text for signal in _FOLLOWUP_SIGNALS)
+
+
+def _enrich_with_history(message: str, history: list) -> str:
     """
-    1. Try built-in legal topic answers (structured, step-by-step)
-    2. Try FAQ JSON search
-    3. Fallback message
+    If message is a follow-up, find the last meaningful user query in history
+    and prepend its topic keywords to the current message.
+    history: list of {"role": "user"|"assistant", "content": str}
+    """
+    if not history or not _is_followup(message):
+        return message
+
+    # Walk history backwards to find the last substantial user message
+    for entry in reversed(history):
+        if entry.get("role") == "user":
+            prev = entry.get("content", "").strip()
+            if len(prev.split()) > 3 and prev.lower() != message.lower():
+                # Prepend prev topic keywords to current query
+                prev_keys = _keywords(prev)
+                if prev_keys:
+                    enriched = f"{' '.join(prev_keys)} {message}"
+                    logger.info(f"[CHATBOT] Enriched follow-up: '{message}' → '{enriched[:80]}'")
+                    return enriched
+                break
+
+    return message
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+def chat_response(sender: int, message: str, history: list | None = None) -> dict:
+    """
+    1. Enrich follow-up questions using conversation history
+    2. Try built-in legal topic answers (structured, step-by-step)
+    3. Try FAQ JSON search
+    4. Fallback message
 
     Returns: { "response": str, "sender": int }
     """
     text = message.strip()
+    enriched = _enrich_with_history(text, history or [])
 
-    # 1 — structured legal topic
-    topic_hit = _match_legal_topic(text)
+    # 1 — structured legal topic (try enriched first, then original)
+    topic_hit = _match_legal_topic(enriched) or _match_legal_topic(text)
     if topic_hit:
         logger.info(f"[CHATBOT] Matched legal topic for: {text[:60]}")
         if _should_add_cta(text, topic_hit):
             topic_hit += _CTA
         return {"response": topic_hit, "sender": sender}
 
-    # 2 — FAQ search
-    faq_hit = _faq_search(text)
+    # 2 — FAQ search (try enriched first, then original)
+    faq_hit = _faq_search(enriched) or _faq_search(text)
     if faq_hit:
         logger.info(f"[CHATBOT] Matched FAQ for: {text[:60]}")
         if _should_add_cta(text, faq_hit):
