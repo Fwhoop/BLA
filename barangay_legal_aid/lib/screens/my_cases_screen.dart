@@ -529,7 +529,7 @@ class _RespondentCard extends StatelessWidget {
             const Icon(Icons.person, size: 15, color: Color(0xFFB45309)),
             const SizedBox(width: 8),
             Text(
-              unknownName ? 'Unknown respondent' : (name?.isNotEmpty == true ? name! : 'Not provided'),
+              unknownName ? 'Unknown' : (name?.isNotEmpty == true ? name! : 'No Name Provided'),
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kCharcoal),
             ),
           ]),
