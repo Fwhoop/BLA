@@ -82,11 +82,14 @@ class Case(Base):
     urgency = Column(String(20), default="medium")
     is_cross_barangay = Column(Boolean, default=False)
     complaint_barangay_id = Column(Integer, ForeignKey("barangays.id"), nullable=True)
+    target_barangay_id    = Column(Integer, ForeignKey("barangays.id"), nullable=True)
+    attachment_path       = Column(String(500), nullable=True)
     reporter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    reporter = relationship("User", back_populates="cases")
+    reporter         = relationship("User", back_populates="cases")
+    target_barangay  = relationship("Barangay", foreign_keys=[target_barangay_id])
     respondents = relationship("ComplaintRespondent", back_populates="complaint", cascade="all, delete-orphan")
     mediations  = relationship("Mediation", back_populates="case", cascade="all, delete-orphan")
 

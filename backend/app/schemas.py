@@ -146,7 +146,7 @@ class CaseBase(BaseModel):
 
 
 class CaseCreate(CaseBase):
-    pass
+    target_barangay_id: Optional[int] = None
 
 
 class CaseUpdate(BaseModel):
@@ -162,6 +162,9 @@ class CaseRead(CaseBase):
     reporter_id: int
     status: str = "pending"
     is_cross_barangay: bool = False
+    target_barangay_id: Optional[int] = None
+    target_barangay_name: Optional[str] = None
+    attachment_path: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     reporter_name: Optional[str] = None

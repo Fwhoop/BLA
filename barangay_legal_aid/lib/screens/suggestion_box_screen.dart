@@ -1,5 +1,12 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:convert';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
+
 import 'package:barangay_legal_aid/services/api_service.dart';
 
 class SuggestionBoxScreen extends StatefulWidget {
@@ -20,9 +27,21 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
   bool _isLoading = false;
   bool _submitted = false;
 
-  static const Color _accent  = Color(0xFFF59E0B);
+  // Photo attachment
+  Uint8List? _photoBytes;
+  String? _photoFilename;
+
+  // Cross-barangay suggestion
+  bool _isCrossBarangay = false;
+  int? _targetBarangayId;
+  List<Map<String, dynamic>> _barangays = [];
+
+  static const Color _accent   = Color(0xFFF59E0B);
   static const Color _charcoal = Color(0xFF36454F);
-  static const Color _primary = Color(0xFF99272D);
+  static const Color _primary  = Color(0xFF99272D);
+
+  static const _photoStorageKey     = 'suggestion_draft_photo_data';
+  static const _photoNameStorageKey = 'suggestion_draft_photo_name';
 
   static const List<Map<String, dynamic>> _categories = [
     {'label': 'Infrastructure',    'icon': Icons.construction,        'color': Color(0xFF0277BD)},
@@ -44,22 +63,83 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
   @override
   void initState() {
     super.initState();
+    _loadPhotoFromStorage();
+    _loadBarangays();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showWelcomeDialog());
   }
 
+  Future<void> _loadBarangays() async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final list = await api.getBarangays();
+      if (mounted) setState(() => _barangays = list);
+    } catch (_) {}
+  }
+
+  // ── localStorage photo persistence ───────────────────────────────────────
+  void _loadPhotoFromStorage() {
+    try {
+      final data = html.window.localStorage[_photoStorageKey];
+      final name = html.window.localStorage[_photoNameStorageKey];
+      if (data != null && data.isNotEmpty && name != null) {
+        final bytes = base64Decode(data);
+        setState(() { _photoBytes = bytes; _photoFilename = name; });
+      }
+    } catch (_) {}
+  }
+
+  void _savePhotoToStorage(List<int> bytes, String name) {
+    try {
+      html.window.localStorage[_photoStorageKey]     = base64Encode(bytes);
+      html.window.localStorage[_photoNameStorageKey] = name;
+    } catch (_) {}
+  }
+
+  void _clearPhotoFromStorage() {
+    html.window.localStorage.remove(_photoStorageKey);
+    html.window.localStorage.remove(_photoNameStorageKey);
+  }
+
+  // ── Photo picker ──────────────────────────────────────────────────────────
+  void _pickPhoto() {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+    input.onChange.listen((_) {
+      final file = input.files?.first;
+      if (file == null) return;
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      reader.onLoad.listen((_) {
+        final bytes = Uint8List.fromList(reader.result as List<int>);
+        _savePhotoToStorage(bytes, file.name);
+        if (mounted) setState(() { _photoBytes = bytes; _photoFilename = file.name; });
+      });
+    });
+  }
+
+  void _removePhoto() {
+    _clearPhotoFromStorage();
+    setState(() { _photoBytes = null; _photoFilename = null; });
+  }
+
+  @override
+  void dispose() {
+    _subjectController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
+
   Future<void> _showWelcomeDialog() async {
-    bool tempAnonymous = _isAnonymous;
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Gradient banner
               Container(
@@ -90,20 +170,12 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
                         children: [
                           const Text(
                             'Share Your Ideas',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Your suggestions help us improve barangay services and better serve the community.',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 13,
-                              height: 1.4,
-                            ),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13, height: 1.4),
                           ),
                         ],
                       ),
@@ -111,51 +183,9 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
                   ],
                 ),
               ),
-              // Anonymous toggle
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8F9FA),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: tempAnonymous
-                          ? _accent.withValues(alpha: 0.5)
-                          : Colors.grey.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.visibility_off_outlined, size: 20, color: _charcoal),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Submit Anonymously',
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: _charcoal),
-                            ),
-                            Text(
-                              'Your name will not be shown to admins',
-                              style: TextStyle(fontSize: 12, color: _charcoal.withValues(alpha: 0.6)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: tempAnonymous,
-                        onChanged: (v) => setDialogState(() => tempAnonymous = v),
-                        activeThumbColor: _accent,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               // Close button
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -172,18 +202,9 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
               ),
             ],
           ),
-          ),
         ),
       ),
     );
-    if (mounted) setState(() => _isAnonymous = tempAnonymous);
-  }
-
-  @override
-  void dispose() {
-    _subjectController.dispose();
-    _detailsController.dispose();
-    super.dispose();
   }
 
   void _selectCategory(String label) {
@@ -212,7 +233,21 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
       final title = '[Suggestion][$_selectedCategory] ${_subjectController.text.trim()}';
       final description =
           'Impact: $_selectedImpact\nAnonymous: ${_isAnonymous ? "Yes" : "No"}\n\n${_detailsController.text.trim()}';
-      await api.createCase(title: title, description: description);
+      final newCase = await api.createCase(
+        title: title,
+        description: description,
+        targetBarangayId: _isCrossBarangay ? _targetBarangayId : null,
+      );
+
+      // Upload attachment if selected
+      if (_photoBytes != null && _photoFilename != null) {
+        final caseId = newCase['id'] as int?;
+        if (caseId != null) {
+          await api.uploadSuggestionAttachment(caseId, _photoBytes!, _photoFilename!);
+        }
+      }
+
+      _clearPhotoFromStorage();
       if (!mounted) return;
       setState(() => _submitted = true);
     } catch (e) {
@@ -240,89 +275,80 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
     );
   }
 
-  // ── Success screen ─────────────────────────────────────────────────────────
+  // ── Success screen ──────────────────────────────────────────────────────────
   Widget _buildSuccessView() {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
         child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: _accent.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lightbulb_rounded, color: _accent, size: 72),
               ),
-              child: const Icon(Icons.lightbulb_rounded, color: _accent, size: 72),
-            ),
-            const SizedBox(height: 28),
-            const Text(
-              'Suggestion Received!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: _charcoal,
+              const SizedBox(height: 28),
+              const Text(
+                'Suggestion Received!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _charcoal),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Thank you for sharing your idea. Your suggestion will be reviewed by the barangay office.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: _charcoal.withValues(alpha: 0.7),
-                height: 1.5,
+              const SizedBox(height: 12),
+              Text(
+                'Thank you for sharing your idea. Your suggestion will be reviewed by the barangay office.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, color: _charcoal.withValues(alpha: 0.7), height: 1.5),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your voice helps us serve the community better.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: _charcoal.withValues(alpha: 0.55),
+              const SizedBox(height: 8),
+              Text(
+                'Your voice helps us serve the community better.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: _charcoal.withValues(alpha: 0.55)),
               ),
-            ),
-            const SizedBox(height: 36),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Back to Services'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+              const SizedBox(height: 36),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Back to Services'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => setState(() {
-                _submitted = false;
-                _selectedCategory = null;
-                _subjectController.clear();
-                _detailsController.clear();
-                _selectedImpact = 'Medium';
-                _isAnonymous = false;
-              }),
-              child: const Text('Submit Another Suggestion',
-                  style: TextStyle(color: _accent)),
-            ),
-          ],
-        ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => setState(() {
+                  _submitted = false;
+                  _selectedCategory = null;
+                  _subjectController.clear();
+                  _detailsController.clear();
+                  _selectedImpact = 'Medium';
+                  _isAnonymous = false;
+                  _photoBytes = null;
+                  _photoFilename = null;
+                  _isCrossBarangay = false;
+                  _targetBarangayId = null;
+                }),
+                child: const Text('Submit Another Suggestion', style: TextStyle(color: _accent)),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ── Form ───────────────────────────────────────────────────────────────────
+  // ── Form ────────────────────────────────────────────────────────────────────
   Widget _buildForm() {
     return Center(
       child: ConstrainedBox(
@@ -331,31 +357,45 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
             child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionLabel('1  Select Category', required: true),
-              const SizedBox(height: 12),
-              _buildCategoryGrid(),
-              const SizedBox(height: 28),
-              _sectionLabel('2  Subject', required: true),
-              const SizedBox(height: 10),
-              _buildSubjectField(),
-              const SizedBox(height: 28),
-              _sectionLabel('3  Your Suggestion', required: true),
-              const SizedBox(height: 10),
-              _buildDetailsField(),
-              const SizedBox(height: 28),
-              _sectionLabel('4  Expected Impact'),
-              const SizedBox(height: 12),
-              _buildImpactSelector(),
-              const SizedBox(height: 32),
-              _buildSubmitButton(),
-            ],
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionLabel('1  Select Category', required: true),
+                  const SizedBox(height: 12),
+                  _buildCategoryGrid(),
+                  const SizedBox(height: 28),
+                  _sectionLabel('2  Subject', required: true),
+                  const SizedBox(height: 10),
+                  _buildSubjectField(),
+                  const SizedBox(height: 28),
+                  _sectionLabel('3  Your Suggestion', required: true),
+                  const SizedBox(height: 10),
+                  _buildDetailsField(),
+                  const SizedBox(height: 28),
+                  _sectionLabel('4  Expected Impact'),
+                  const SizedBox(height: 12),
+                  _buildImpactSelector(),
+                  const SizedBox(height: 28),
+                  _sectionLabel('5  Attach a Photo (optional)'),
+                  const SizedBox(height: 12),
+                  _buildPhotoSection(),
+                  const SizedBox(height: 28),
+                  _sectionLabel('6  Options'),
+                  const SizedBox(height: 12),
+                  _buildAnonymousToggle(),
+                  const SizedBox(height: 10),
+                  _buildCrossBarangayToggle(),
+                  if (_isCrossBarangay) ...[
+                    const SizedBox(height: 12),
+                    _buildTargetBarangayDropdown(),
+                  ],
+                  const SizedBox(height: 32),
+                  _buildSubmitButton(),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
         ),
       ),
     );
@@ -364,14 +404,7 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
   Widget _sectionLabel(String text, {bool required = false}) {
     return Row(
       children: [
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: _charcoal,
-          ),
-        ),
+        Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _charcoal)),
         if (required) ...[
           const SizedBox(width: 4),
           const Text('*', style: TextStyle(color: _primary, fontSize: 16)),
@@ -406,9 +439,7 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
                 width: isSelected ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(10),
-              boxShadow: isSelected
-                  ? [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 8)]
-                  : [],
+              boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 8)] : [],
             ),
             child: Row(
               children: [
@@ -420,8 +451,7 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
                     cat['label'],
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected ? color : _charcoal,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -452,8 +482,7 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: _accent, width: 2),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       validator: (v) {
         if (v == null || v.trim().isEmpty) return 'Please enter a subject';
@@ -469,8 +498,7 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
       maxLines: 6,
       textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(
-        hintText:
-            'Describe your suggestion in detail — what problem does it solve and how can it be implemented?',
+        hintText: 'Describe your suggestion in detail — what problem does it solve and how can it be implemented?',
         alignLabelWithHint: true,
         filled: true,
         fillColor: Colors.white,
@@ -503,9 +531,7 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
             onTap: () => setState(() => _selectedImpact = u['label']),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
-              margin: EdgeInsets.only(
-                right: u['label'] != 'High' ? 8 : 0,
-              ),
+              margin: EdgeInsets.only(right: u['label'] != 'High' ? 8 : 0),
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
@@ -517,15 +543,13 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
               ),
               child: Column(
                 children: [
-                  Icon(u['icon'] as IconData,
-                      color: isSelected ? color : Colors.grey, size: 20),
+                  Icon(u['icon'] as IconData, color: isSelected ? color : Colors.grey, size: 20),
                   const SizedBox(height: 4),
                   Text(
                     u['label'],
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected ? color : _charcoal,
                     ),
                   ),
@@ -535,6 +559,192 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  // ── Photo section ───────────────────────────────────────────────────────────
+  Widget _buildPhotoSection() {
+    if (_photoBytes != null && _photoFilename != null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFDDE3EE)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+              child: Image.memory(
+                _photoBytes!,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.image, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _photoFilename!,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _pickPhoto,
+                    icon: const Icon(Icons.edit, size: 14),
+                    label: const Text('Change', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _accent,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _removePhoto,
+                    icon: const Icon(Icons.delete_outline, size: 14),
+                    label: const Text('Remove', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _primary,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: _pickPhoto,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFDDE3EE), style: BorderStyle.solid),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _accent.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.add_a_photo_outlined, color: _accent, size: 28),
+            ),
+            const SizedBox(height: 10),
+            const Text('Tap to attach a photo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _charcoal)),
+            const SizedBox(height: 4),
+            Text('Optional — helps illustrate your suggestion', style: TextStyle(fontSize: 11, color: _charcoal.withValues(alpha: 0.55))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Anonymous toggle ────────────────────────────────────────────────────────
+  Widget _buildAnonymousToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _isAnonymous ? _accent.withValues(alpha: 0.5) : const Color(0xFFDDE3EE),
+          width: _isAnonymous ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.visibility_off_outlined, size: 20, color: _charcoal),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Submit Anonymously', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: _charcoal)),
+                Text('Your name will not be shown to admins', style: TextStyle(fontSize: 11, color: _charcoal.withValues(alpha: 0.6))),
+              ],
+            ),
+          ),
+          Switch(
+            value: _isAnonymous,
+            onChanged: (v) => setState(() => _isAnonymous = v),
+            activeThumbColor: _accent,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Cross-barangay toggle ───────────────────────────────────────────────────
+  Widget _buildCrossBarangayToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _isCrossBarangay ? _accent.withValues(alpha: 0.5) : const Color(0xFFDDE3EE),
+          width: _isCrossBarangay ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.swap_horiz, size: 20, color: _charcoal),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Send to a Different Barangay', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: _charcoal)),
+                Text('Route this suggestion to another barangay\'s admin', style: TextStyle(fontSize: 11, color: _charcoal.withValues(alpha: 0.6))),
+              ],
+            ),
+          ),
+          Switch(
+            value: _isCrossBarangay,
+            onChanged: (v) => setState(() {
+              _isCrossBarangay = v;
+              if (!v) _targetBarangayId = null;
+            }),
+            activeThumbColor: _accent,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTargetBarangayDropdown() {
+    return DropdownButtonFormField<int>(
+      initialValue: _targetBarangayId,
+      decoration: InputDecoration(
+        labelText: 'Target Barangay *',
+        prefixIcon: const Icon(Icons.location_city, size: 18),
+        filled: true,
+        fillColor: Colors.white,
+        isDense: true,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent, width: 2)),
+      ),
+      hint: const Text('Select barangay'),
+      items: _barangays.map((b) => DropdownMenuItem<int>(
+        value: b['id'] as int,
+        child: Text(b['name'] as String? ?? ''),
+      )).toList(),
+      onChanged: (v) => setState(() => _targetBarangayId = v),
+      validator: (_) => _isCrossBarangay && _targetBarangayId == null ? 'Please select a target barangay' : null,
     );
   }
 
@@ -554,18 +764,14 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
             ? const SizedBox(
                 height: 22,
                 width: 22,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5),
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
               )
             : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.send_rounded, size: 20),
                   SizedBox(width: 10),
-                  Text(
-                    'Submit Suggestion',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
+                  Text('Submit Suggestion', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 ],
               ),
       ),

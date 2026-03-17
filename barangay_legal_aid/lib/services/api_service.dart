@@ -468,17 +468,32 @@ class ApiService {
   Future<Map<String, dynamic>> createCase({
     required String title,
     required String description,
+    int? targetBarangayId,
   }) async {
     final headers = await _getHeaders();
+    final body = <String, dynamic>{'title': title, 'description': description};
+    if (targetBarangayId != null) body['target_barangay_id'] = targetBarangayId;
     final r = await http
         .post(
           Uri.parse('$_baseUrl/cases/'),
           headers: headers,
-          body: jsonEncode({'title': title, 'description': description}),
+          body: jsonEncode(body),
         )
         .timeout(_timeout);
     if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
     throw Exception('Failed to create case: ${r.body}');
+  }
+
+  Future<void> uploadSuggestionAttachment(int caseId, List<int> bytes, String filename) async {
+    final token = await _getToken();
+    final uri = Uri.parse('$_baseUrl/cases/$caseId/upload-attachment');
+    final request = http.MultipartRequest('POST', uri);
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await request.send().timeout(_timeout);
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode == 200 || streamed.statusCode == 201) return;
+    throw Exception('Failed to upload attachment: $body');
   }
 
   Future<Map<String, dynamic>> updateCase(int id, Map<String, dynamic> data) async {

@@ -88,6 +88,12 @@ REQUIRED_COLUMNS: dict[str, dict[str, str]] = {
         "complaint_barangay_id": (
             "ALTER TABLE cases ADD COLUMN complaint_barangay_id INT NULL"
         ),
+        "target_barangay_id": (
+            "ALTER TABLE cases ADD COLUMN target_barangay_id INT NULL"
+        ),
+        "attachment_path": (
+            "ALTER TABLE cases ADD COLUMN attachment_path VARCHAR(500) NULL"
+        ),
     },
     "users": {
         "id_photo_url": (
