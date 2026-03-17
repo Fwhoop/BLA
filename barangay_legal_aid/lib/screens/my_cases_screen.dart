@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
+import 'package:barangay_legal_aid/config/env_config.dart';
 
 const _kPrimary  = Color(0xFF99272D);
 const _kCharcoal = Color(0xFF36454F);
@@ -115,6 +116,7 @@ class _CaseTile extends StatelessWidget {
     final meta   = _statusMeta[status] ?? _statusMeta['pending']!;
     final title  = (caseData['title'] ?? 'Untitled') as String;
     final createdAt = caseData['created_at'] as String?;
+    final isCrossBarangay = caseData['is_cross_barangay'] == true;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -141,7 +143,23 @@ class _CaseTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kCharcoal)),
+                    Row(
+                      children: [
+                        Expanded(child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kCharcoal))),
+                        if (isCrossBarangay) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFF59E0B)),
+                            ),
+                            child: const Text('Cross-Brgy', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFFB45309))),
+                          ),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -191,21 +209,34 @@ class _UserCaseDetailSheet extends StatefulWidget {
 
 class _UserCaseDetailSheetState extends State<_UserCaseDetailSheet> {
   List<Map<String, dynamic>> _mediations = [];
+  List<Map<String, dynamic>> _respondents = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMediations();
+    _loadData();
   }
 
-  Future<void> _loadMediations() async {
+  Future<void> _loadData() async {
     final caseId = widget.caseData['id'] as int?;
-    if (caseId == null) { setState(() => _loading = false); return; }
+    if (caseId == null) {
+      setState(() => _loading = false);
+      return;
+    }
     try {
       final api = Provider.of<ApiService>(context, listen: false);
-      final list = await api.getMediations(caseId);
-      if (mounted) setState(() { _mediations = list; _loading = false; });
+      final results = await Future.wait([
+        api.getMediations(caseId),
+        api.getRespondents(caseId),
+      ]);
+      if (mounted) {
+        setState(() {
+          _mediations = results[0];
+          _respondents = results[1];
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -219,6 +250,7 @@ class _UserCaseDetailSheetState extends State<_UserCaseDetailSheet> {
     final title  = (cd['title'] ?? 'Untitled') as String;
     final description = (cd['description'] ?? '') as String;
     final createdAt = cd['created_at'] as String?;
+    final isCrossBarangay = cd['is_cross_barangay'] == true;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
@@ -241,6 +273,7 @@ class _UserCaseDetailSheetState extends State<_UserCaseDetailSheet> {
                 controller: ctrl,
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 children: [
+                  // Title + status chip
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -256,6 +289,25 @@ class _UserCaseDetailSheetState extends State<_UserCaseDetailSheet> {
                       ),
                     ],
                   ),
+                  // Cross-barangay badge
+                  if (isCrossBarangay) ...[
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFF59E0B)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.swap_horiz, size: 13, color: Color(0xFFB45309)),
+                          const SizedBox(width: 4),
+                          const Text('Cross-Barangay Complaint', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFB45309))),
+                        ]),
+                      ),
+                    ]),
+                  ],
                   if (createdAt != null) ...[
                     const SizedBox(height: 8),
                     Row(children: [
@@ -274,6 +326,32 @@ class _UserCaseDetailSheetState extends State<_UserCaseDetailSheet> {
                     child: Text(description.isEmpty ? 'No description.' : description,
                         style: TextStyle(fontSize: 14, color: _kCharcoal.withValues(alpha: 0.9), height: 1.5)),
                   ),
+
+                  // Respondent section (only for cross-barangay)
+                  if (isCrossBarangay) ...[
+                    const SizedBox(height: 24),
+                    const Row(children: [
+                      Icon(Icons.person_pin_outlined, size: 16, color: Color(0xFFB45309)),
+                      SizedBox(width: 6),
+                      Text('Respondent Info', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
+                    ]),
+                    const SizedBox(height: 10),
+                    if (_loading)
+                      const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 2)))
+                    else if (_respondents.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
+                        child: const Row(children: [
+                          Icon(Icons.info_outline, size: 15, color: Colors.grey),
+                          SizedBox(width: 8),
+                          Text('No respondent details on record.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                        ]),
+                      )
+                    else
+                      ...(_respondents.map((r) => _RespondentCard(respondent: r))),
+                  ],
+
                   const SizedBox(height: 24),
 
                   // Mediation section
@@ -336,13 +414,16 @@ class _UserMediationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date      = mediation['mediation_date'] as String?;
-    final time      = mediation['mediation_time'] as String?;
-    final location  = mediation['location'] as String?;
-    final notes     = mediation['summary_notes'] as String?;
-    final resStatus = (mediation['resolution_status'] ?? 'scheduled') as String;
+    final date        = mediation['mediation_date'] as String?;
+    final time        = mediation['mediation_time'] as String?;
+    final location    = mediation['location'] as String?;
+    final notes       = mediation['summary_notes'] as String?;
+    final mediatorName = mediation['mediator_name'] as String?;
+    final photoPath   = mediation['resolution_photo_path'] as String?;
+    final resStatus   = (mediation['resolution_status'] ?? 'scheduled') as String;
     final color = _statusColors[resStatus] ?? _statusColors['scheduled']!;
     final label = _statusLabels[resStatus] ?? resStatus;
+    final photoUrl = (photoPath != null && photoPath.isNotEmpty) ? '$apiBaseUrl$photoPath' : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -373,7 +454,30 @@ class _UserMediationCard extends StatelessWidget {
                 if (date != null)
                   _row(Icons.calendar_today, date + (time != null ? '  $time' : ''), bold: true),
                 if (location != null) _row(Icons.place_outlined, location),
+                if (mediatorName != null && mediatorName.isNotEmpty)
+                  _row(Icons.gavel, 'Mediator: $mediatorName'),
                 if (notes != null && notes.isNotEmpty) _row(Icons.notes, notes),
+                if (photoUrl != null) ...[
+                  const SizedBox(height: 10),
+                  const Text('Resolution Photo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photoUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 180,
+                      loadingBuilder: (_, child, progress) => progress == null
+                          ? child
+                          : const SizedBox(height: 180, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                        height: 60,
+                        child: Center(child: Text('Photo unavailable', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -391,6 +495,60 @@ class _UserMediationCard extends StatelessWidget {
           Icon(icon, size: 14, color: Colors.grey.shade500),
           const SizedBox(width: 8),
           Expanded(child: Text(text, style: TextStyle(fontSize: 13, color: _kCharcoal, fontWeight: bold ? FontWeight.w600 : FontWeight.normal))),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Respondent Card ──────────────────────────────────────────────────────────
+
+class _RespondentCard extends StatelessWidget {
+  final Map<String, dynamic> respondent;
+  const _RespondentCard({required this.respondent});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = respondent['respondent_name'] as String?;
+    final barangayName = respondent['respondent_barangay_name'] as String?;
+    final address = respondent['respondent_address'] as String?;
+    final unknownName = respondent['unknown_name'] == true;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.person, size: 15, color: Color(0xFFB45309)),
+            const SizedBox(width: 8),
+            Text(
+              unknownName ? 'Unknown respondent' : (name?.isNotEmpty == true ? name! : 'Not provided'),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kCharcoal),
+            ),
+          ]),
+          if (barangayName != null) ...[
+            const SizedBox(height: 6),
+            Row(children: [
+              const Icon(Icons.location_city, size: 15, color: Color(0xFFB45309)),
+              const SizedBox(width: 8),
+              Text('Brgy. $barangayName', style: TextStyle(fontSize: 13, color: _kCharcoal.withValues(alpha: 0.85))),
+            ]),
+          ],
+          if (address != null && address.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(children: [
+              const Icon(Icons.place_outlined, size: 15, color: Color(0xFFB45309)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(address, style: TextStyle(fontSize: 13, color: _kCharcoal.withValues(alpha: 0.8)))),
+            ]),
+          ],
         ],
       ),
     );

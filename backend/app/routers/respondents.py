@@ -1,10 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from .. import models, schemas
 from ..db import get_db
 from ..routers.auth import get_current_user
+
+
+def _enrich_respondent(r: models.ComplaintRespondent) -> dict:
+    d = {
+        "id": r.id,
+        "complaint_id": r.complaint_id,
+        "respondent_id": r.respondent_id,
+        "respondent_barangay_id": r.respondent_barangay_id,
+        "respondent_name": r.respondent_name,
+        "respondent_address": r.respondent_address,
+        "is_registered_user": r.is_registered_user,
+        "unknown_name": r.unknown_name,
+        "respondent_barangay_name": None,
+        "created_at": r.created_at,
+    }
+    if r.barangay:
+        d["respondent_barangay_name"] = r.barangay.name
+    return d
 
 router = APIRouter(prefix="/cases", tags=["respondents"])
 
@@ -88,9 +106,13 @@ def get_respondents(
         raise HTTPException(status_code=404, detail="Complaint not found")
     if current_user.role == "user" and case.reporter_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
-    return db.query(models.ComplaintRespondent).filter(
-        models.ComplaintRespondent.complaint_id == case_id
-    ).all()
+    respondents = (
+        db.query(models.ComplaintRespondent)
+        .options(joinedload(models.ComplaintRespondent.barangay))
+        .filter(models.ComplaintRespondent.complaint_id == case_id)
+        .all()
+    )
+    return [_enrich_respondent(r) for r in respondents]
 
 
 @router.delete("/{case_id}/respondents/{respondent_id}")

@@ -4,6 +4,8 @@ import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/request_form.dart';
 import 'package:barangay_legal_aid/screens/complaint_form_screen.dart';
 import 'package:barangay_legal_aid/screens/suggestion_box_screen.dart';
+import 'package:barangay_legal_aid/screens/my_requests_screen.dart';
+import 'package:barangay_legal_aid/screens/my_cases_screen.dart';
 import 'package:barangay_legal_aid/screens/notification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
@@ -133,59 +135,66 @@ class FormsHubPageState extends State<FormsHubPage> {
   }
 
   Widget _buildQuickActionsSection() {
+    final actions = [
+      _QuickActionItem(
+        title: 'My Profile',
+        subtitle: 'View & Edit',
+        icon: Icons.person,
+        color: const Color(0xFF99272D),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfilePage())),
+      ),
+      _QuickActionItem(
+        title: 'My Requests',
+        subtitle: 'Track & Download',
+        icon: Icons.folder_open,
+        color: const Color(0xFF1565C0),
+        onTap: () { if (_currentUser != null) Navigator.push(context, MaterialPageRoute(builder: (_) => MyRequestsScreen(currentUser: _currentUser!))); },
+      ),
+      _QuickActionItem(
+        title: 'File a Complaint',
+        subtitle: 'Submit Now',
+        icon: Icons.report_problem_rounded,
+        color: const Color(0xFFF44336),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComplaintFormScreen())),
+      ),
+      _QuickActionItem(
+        title: 'Suggestion',
+        subtitle: 'Share Ideas',
+        icon: Icons.lightbulb,
+        color: const Color(0xFFFFC107),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuggestionBoxScreen())),
+      ),
+      _QuickActionItem(
+        title: 'My Complaints',
+        subtitle: 'Track Status',
+        icon: Icons.assignment_outlined,
+        color: const Color(0xFF6A1B9A),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyCasesScreen())),
+      ),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Quick Actions',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF36454F),
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF36454F)),
         ),
-        SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionCard(
-                title: 'My Profile',
-                subtitle: 'View & Edit',
-                icon: Icons.person,
-                color: Color(0xFF99272D),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => UserProfilePage()),
-                ),
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionCard(
-                title: 'File a Complaint',
-                subtitle: 'Submit Now',
-                icon: Icons.report_problem_rounded,
-                color: Color(0xFFF44336),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ComplaintFormScreen()),
-                ),
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionCard(
-                title: 'Suggestion',
-                subtitle: 'Share Ideas',
-                icon: Icons.lightbulb,
-                color: Color(0xFFFFC107),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SuggestionBoxScreen()),
-                ),
-              ),
-            ),
-          ],
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 0.82,
+          children: actions.map((a) => _buildQuickActionCard(
+            title: a.title,
+            subtitle: a.subtitle,
+            icon: a.icon,
+            color: a.color,
+            onTap: a.onTap,
+          )).toList(),
         ),
       ],
     );
@@ -300,36 +309,41 @@ class FormsHubPageState extends State<FormsHubPage> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.all(16),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha:0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: 22),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 14,
+                style: const TextStyle(
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF36454F),
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF36454F).withValues(alpha:0.7),
+                  fontSize: 10,
+                  color: const Color(0xFF36454F).withValues(alpha: 0.65),
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -407,4 +421,19 @@ class FormsHubPageState extends State<FormsHubPage> {
     );
   }
 
+}
+
+class _QuickActionItem {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _QuickActionItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 }

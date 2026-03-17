@@ -179,6 +179,7 @@ class ComplaintRespondentCreate(BaseModel):
 class ComplaintRespondentRead(ComplaintRespondentCreate):
     id: int
     complaint_id: int
+    respondent_barangay_name: Optional[str] = None
     created_at: datetime
 
     class Config:
