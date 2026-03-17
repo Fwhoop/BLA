@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
+import 'package:barangay_legal_aid/config/env_config.dart';
 
 const _kPrimary  = Color(0xFF99272D);
 const _kCharcoal = Color(0xFF36454F);
@@ -336,13 +337,16 @@ class _UserMediationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date      = mediation['mediation_date'] as String?;
-    final time      = mediation['mediation_time'] as String?;
-    final location  = mediation['location'] as String?;
-    final notes     = mediation['summary_notes'] as String?;
-    final resStatus = (mediation['resolution_status'] ?? 'scheduled') as String;
+    final date        = mediation['mediation_date'] as String?;
+    final time        = mediation['mediation_time'] as String?;
+    final location    = mediation['location'] as String?;
+    final notes       = mediation['summary_notes'] as String?;
+    final mediatorName = mediation['mediator_name'] as String?;
+    final photoPath   = mediation['resolution_photo_path'] as String?;
+    final resStatus   = (mediation['resolution_status'] ?? 'scheduled') as String;
     final color = _statusColors[resStatus] ?? _statusColors['scheduled']!;
     final label = _statusLabels[resStatus] ?? resStatus;
+    final photoUrl = (photoPath != null && photoPath.isNotEmpty) ? '$apiBaseUrl$photoPath' : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -373,7 +377,30 @@ class _UserMediationCard extends StatelessWidget {
                 if (date != null)
                   _row(Icons.calendar_today, date + (time != null ? '  $time' : ''), bold: true),
                 if (location != null) _row(Icons.place_outlined, location),
+                if (mediatorName != null && mediatorName.isNotEmpty)
+                  _row(Icons.gavel, 'Mediator: $mediatorName'),
                 if (notes != null && notes.isNotEmpty) _row(Icons.notes, notes),
+                if (photoUrl != null) ...[
+                  const SizedBox(height: 10),
+                  const Text('Resolution Photo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photoUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 180,
+                      loadingBuilder: (_, child, progress) => progress == null
+                          ? child
+                          : const SizedBox(height: 180, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                        height: 60,
+                        child: Center(child: Text('Photo unavailable', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -20,6 +20,15 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
   bool _isLoading = false;
   bool _submitted = false;
 
+  // Cross-barangay respondent fields
+  bool _isCrossBarangay = false;
+  bool _respondentIsRegistered = false;
+  final _respondentNameCtrl = TextEditingController();
+  final _respondentAddressCtrl = TextEditingController();
+  int? _respondentBarangayId;
+  String? _respondentBarangayName;
+  List<Map<String, dynamic>> _barangays = [];
+
   static const Color _primary = Color(0xFF99272D);
   static const Color _charcoal = Color(0xFF36454F);
 
@@ -44,6 +53,24 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showWelcomeDialog());
+    _loadBarangays();
+  }
+
+  Future<void> _loadBarangays() async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final list = await api.getBarangays();
+      if (mounted) setState(() => _barangays = list);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _subjectController.dispose();
+    _descriptionController.dispose();
+    _respondentNameCtrl.dispose();
+    _respondentAddressCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _showWelcomeDialog() async {
@@ -135,13 +162,6 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _subjectController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
   void _selectCategory(String label) {
     setState(() {
       _selectedCategory = label;
@@ -179,7 +199,21 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
       final title = '[$_selectedCategory] ${_subjectController.text.trim()}';
       final description =
           'Urgency: $_selectedUrgency\n\n${_descriptionController.text.trim()}';
-      await api.createCase(title: title, description: description);
+      final newCase = await api.createCase(title: title, description: description);
+      // If cross-barangay, add respondent
+      if (_isCrossBarangay && mounted) {
+        final caseId = newCase['id'] as int?;
+        if (caseId != null) {
+          final respondentName = _respondentNameCtrl.text.trim();
+          await api.addRespondent(caseId, {
+            'is_registered_user': _respondentIsRegistered,
+            if (respondentName.isNotEmpty) 'respondent_name': respondentName,
+            if (_respondentBarangayId != null) 'respondent_barangay_id': _respondentBarangayId,
+            if (_respondentAddressCtrl.text.trim().isNotEmpty)
+              'respondent_address': _respondentAddressCtrl.text.trim(),
+          });
+        }
+      }
       if (!mounted) return;
       setState(() => _submitted = true);
     } catch (e) {
@@ -281,6 +315,12 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
                 _descriptionController.clear();
                 _declared = false;
                 _selectedUrgency = 'Medium';
+                _isCrossBarangay = false;
+                _respondentIsRegistered = false;
+                _respondentNameCtrl.clear();
+                _respondentAddressCtrl.clear();
+                _respondentBarangayId = null;
+                _respondentBarangayName = null;
               }),
               child: const Text('File Another Complaint',
                   style: TextStyle(color: _primary)),
@@ -320,6 +360,8 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
               _sectionLabel('4  Urgency Level'),
               const SizedBox(height: 12),
               _buildUrgencySelector(),
+              const SizedBox(height: 28),
+              _buildCrossBarangaySection(),
               const SizedBox(height: 28),
               _buildDeclarationBox(),
               const SizedBox(height: 32),
@@ -506,6 +548,136 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildCrossBarangaySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('5  Respondent / Person Involved'),
+        const SizedBox(height: 12),
+        // Toggle: cross-barangay
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _isCrossBarangay ? _primary.withValues(alpha: 0.5) : const Color(0xFFDDE3EE),
+              width: _isCrossBarangay ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.location_on_outlined, color: _primary, size: 20),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Cross-Barangay Complaint', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _charcoal)),
+                    Text('The person I\'m complaining about is from a different barangay', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _isCrossBarangay,
+                onChanged: (v) => setState(() => _isCrossBarangay = v),
+                activeThumbColor: _primary,
+              ),
+            ],
+          ),
+        ),
+        if (_isCrossBarangay) ...[
+          const SizedBox(height: 16),
+          // Registered in BLA toggle
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFDDE3EE)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.verified_user_outlined, color: Color(0xFF1565C0), size: 18),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text('Respondent is registered in Barangay Legal Aid',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _charcoal)),
+                ),
+                Switch(
+                  value: _respondentIsRegistered,
+                  onChanged: (v) => setState(() => _respondentIsRegistered = v),
+                  activeThumbColor: const Color(0xFF1565C0),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Respondent name
+          TextFormField(
+            controller: _respondentNameCtrl,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: 'Respondent\'s Name',
+              hintText: _respondentIsRegistered ? 'Full name (as registered in BLA)' : 'Full name (optional if unknown)',
+              prefixIcon: const Icon(Icons.person_outline, size: 18),
+              filled: true,
+              fillColor: Colors.white,
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _primary, width: 2)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Respondent's barangay dropdown
+          DropdownButtonFormField<int>(
+            value: _respondentBarangayId,
+            decoration: InputDecoration(
+              labelText: 'Respondent\'s Barangay *',
+              prefixIcon: const Icon(Icons.location_city, size: 18),
+              filled: true,
+              fillColor: Colors.white,
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _primary, width: 2)),
+            ),
+            hint: const Text('Select barangay'),
+            items: _barangays.map((b) {
+              return DropdownMenuItem<int>(
+                value: b['id'] as int,
+                child: Text(b['name'] as String? ?? ''),
+              );
+            }).toList(),
+            onChanged: (v) => setState(() {
+              _respondentBarangayId = v;
+              _respondentBarangayName = _barangays.firstWhere((b) => b['id'] == v, orElse: () => {})['name'] as String?;
+            }),
+            validator: (_) => _isCrossBarangay && _respondentBarangayId == null ? 'Please select the respondent\'s barangay' : null,
+          ),
+          const SizedBox(height: 12),
+          // Address (optional)
+          TextFormField(
+            controller: _respondentAddressCtrl,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: 'Respondent\'s Address (optional)',
+              hintText: 'e.g. 123 Rizal St., Brgy. Sample',
+              prefixIcon: const Icon(Icons.home_outlined, size: 18),
+              filled: true,
+              fillColor: Colors.white,
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _primary, width: 2)),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

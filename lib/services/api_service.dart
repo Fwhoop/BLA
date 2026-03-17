@@ -475,6 +475,77 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getMediations(int caseId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/cases/$caseId/mediations'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    throw Exception('Failed to load mediations: ${r.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> createMediation(int caseId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/cases/$caseId/mediations'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
+    throw Exception('Failed to create mediation: ${r.body}');
+  }
+
+  Future<Map<String, dynamic>> updateMediation(int mediationId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .put(
+          Uri.parse('$_baseUrl/mediations/$mediationId'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body);
+    throw Exception('Failed to update mediation: ${r.body}');
+  }
+
+  Future<void> deleteMediation(int mediationId) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .delete(Uri.parse('$_baseUrl/mediations/$mediationId'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode != 200 && r.statusCode != 204) {
+      throw Exception('Failed to delete mediation: ${r.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadResolutionPhoto(
+      int mediationId, List<int> bytes, String filename) async {
+    final token = await _getToken();
+    final uri = Uri.parse('$_baseUrl/mediations/$mediationId/upload-resolution-photo');
+    final request = http.MultipartRequest('POST', uri);
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await request.send().timeout(_timeout);
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode == 200 || streamed.statusCode == 201) return jsonDecode(body);
+    throw Exception('Failed to upload resolution photo: $body');
+  }
+
+  Future<void> addRespondent(int caseId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/cases/$caseId/respondents'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200 || r.statusCode == 201) return;
+    throw Exception('Failed to add respondent: ${r.body}');
+  }
+
   Future<List<NotificationModel>> getNotifications() async {
     final headers = await _getHeaders();
     final r = await http
