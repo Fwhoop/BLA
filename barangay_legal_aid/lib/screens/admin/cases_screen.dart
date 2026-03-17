@@ -657,11 +657,31 @@ class _DetailSheetState extends State<_DetailSheet> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: timeCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Time (e.g. 9:00 AM)',
-                    prefixIcon: Icon(Icons.access_time, size: 18),
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Time (optional)',
+                    hintText: 'Tap to select',
+                    prefixIcon: const Icon(Icons.access_time, size: 18),
                     isDense: true,
+                    suffixIcon: timeCtrl.text.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () => setS(() => timeCtrl.clear()),
+                            child: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                          )
+                        : null,
                   ),
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: ctx,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (t != null) {
+                      final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+                      final minute = t.minute.toString().padLeft(2, '0');
+                      final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+                      setS(() => timeCtrl.text = '$hour:$minute $period');
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -721,8 +741,14 @@ class _DetailSheetState extends State<_DetailSheet> {
         'resolution_status': resolutionStatus,
       });
       await _loadMediations();
+      // Backend auto-changes pending → reviewing when first mediation is scheduled.
+      // Reflect that immediately in the open sheet without requiring close/reopen.
+      if (widget.caseData['status'] == 'pending') {
+        widget.caseData['status'] = 'reviewing';
+      }
       widget.onRefresh();
       if (mounted) {
+        setState(() {});
         showTopSnack(context,
           message: 'Mediation session scheduled',
           backgroundColor: const Color(0xFF10B981),
@@ -927,6 +953,8 @@ class _DetailSheetState extends State<_DetailSheet> {
     final description = (cd['description'] ?? '') as String;
     final reporterName = cd['reporter_name'] as String?;
     final reporterEmail = cd['reporter_email'] as String?;
+    final reporterBarangay = cd['reporter_barangay'] as String?;
+    final isCrossBarangay = cd['is_cross_barangay'] == true;
     final createdAt = cd['created_at'] as String?;
 
     return DraggableScrollableSheet(
@@ -961,14 +989,26 @@ class _DetailSheetState extends State<_DetailSheet> {
                   const SizedBox(height: 16),
 
                   // Reporter info
-                  if (reporterName != null || reporterEmail != null)
+                  if (reporterName != null || reporterEmail != null || reporterBarangay != null)
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Reporter', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.8)),
+                          Row(
+                            children: [
+                              const Text('Reporter', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.8)),
+                              if (isCrossBarangay) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(4), border: Border.all(color: const Color(0xFFF59E0B))),
+                                  child: const Text('Cross-Barangay', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFB45309))),
+                                ),
+                              ],
+                            ],
+                          ),
                           const SizedBox(height: 6),
                           if (reporterName != null)
                             Row(children: [
@@ -983,6 +1023,10 @@ class _DetailSheetState extends State<_DetailSheet> {
                                 child: Text(reporterName, style: const TextStyle(color: _kPrimary, fontWeight: FontWeight.w500, decoration: TextDecoration.underline, decorationColor: _kPrimary)),
                               ),
                             ]),
+                          if (reporterBarangay != null) ...[
+                            const SizedBox(height: 4),
+                            Row(children: [const Icon(Icons.location_city, size: 16, color: _kCharcoal), const SizedBox(width: 8), Text('Brgy. $reporterBarangay', style: TextStyle(color: _kCharcoal.withValues(alpha: 0.85), fontWeight: FontWeight.w500))]),
+                          ],
                           if (reporterEmail != null) ...[
                             const SizedBox(height: 4),
                             Row(children: [const Icon(Icons.email_outlined, size: 16, color: _kCharcoal), const SizedBox(width: 8), Text(reporterEmail, style: TextStyle(color: _kCharcoal.withValues(alpha: 0.8)))]),
