@@ -100,6 +100,11 @@ class UserSearchResult(BaseModel):
     barangay_name: Optional[str] = None
 
 
+class ComplaintTypeStat(BaseModel):
+    category: str
+    count: int
+
+
 class ComplaintStatusBreakdown(BaseModel):
     pending: int = 0
     reviewing: int = 0
@@ -354,11 +359,6 @@ class UnreadCountRead(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # ANALYTICS SCHEMAS
 # ─────────────────────────────────────────────────────────────────────────────
-
-class ComplaintTypeStat(BaseModel):
-    category: str
-    count: int
-
 
 class RespondentStat(BaseModel):
     respondent_name: str
