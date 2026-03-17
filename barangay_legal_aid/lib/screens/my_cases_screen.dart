@@ -336,20 +336,13 @@ class _UserMediationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date         = mediation['mediation_date'] as String?;
-    final time         = mediation['mediation_time'] as String?;
-    final location     = mediation['location'] as String?;
-    final notes        = mediation['summary_notes'] as String?;
-    final mediatorName = mediation['mediator_name'] as String?;
-    final photoPath    = mediation['resolution_photo_path'] as String?;
-    final resStatus    = (mediation['resolution_status'] ?? 'scheduled') as String;
+    final date      = mediation['mediation_date'] as String?;
+    final time      = mediation['mediation_time'] as String?;
+    final location  = mediation['location'] as String?;
+    final notes     = mediation['summary_notes'] as String?;
+    final resStatus = (mediation['resolution_status'] ?? 'scheduled') as String;
     final color = _statusColors[resStatus] ?? _statusColors['scheduled']!;
     final label = _statusLabels[resStatus] ?? resStatus;
-
-    final baseUrl = Provider.of<ApiService>(context, listen: false).baseUrl;
-    final photoUrl = (photoPath != null && photoPath.isNotEmpty)
-        ? '$baseUrl$photoPath'
-        : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -359,9 +352,7 @@ class _UserMediationCard extends StatelessWidget {
         color: Colors.white,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Status header ────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
@@ -374,8 +365,6 @@ class _UserMediationCard extends StatelessWidget {
               Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
             ]),
           ),
-
-          // ── Details ──────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
             child: Column(
@@ -384,53 +373,7 @@ class _UserMediationCard extends StatelessWidget {
                 if (date != null)
                   _row(Icons.calendar_today, date + (time != null ? '  $time' : ''), bold: true),
                 if (location != null) _row(Icons.place_outlined, location),
-                if (mediatorName != null && mediatorName.isNotEmpty)
-                  _row(Icons.person_outline, 'Mediator: $mediatorName'),
                 if (notes != null && notes.isNotEmpty) _row(Icons.notes, notes),
-
-                // ── Resolution photo ─────────────────────────────────
-                if (photoUrl != null) ...[
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Proof of Resolution',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      photoUrl,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (_, child, progress) => progress == null
-                          ? child
-                          : Container(
-                              height: 120,
-                              color: Colors.grey.shade100,
-                              child: const Center(
-                                child: CircularProgressIndicator(strokeWidth: 2, color: _kPrimary),
-                              ),
-                            ),
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.broken_image_outlined, size: 18, color: Colors.grey),
-                              SizedBox(width: 6),
-                              Text('Photo unavailable', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +17,7 @@ const _kCharcoal = Color(0xFF36454F);
 /// `POST /auth/verify-firebase-phone` to mark [userId] as phone-verified.
 class PhoneSmsVerificationScreen extends StatefulWidget {
   /// The `verificationId` returned by `FirebaseAuth.verifyPhoneNumber → codeSent`.
+  /// Not used on web — pass empty string when providing [webConfirmationResult].
   final String verificationId;
 
   /// Backend user ID created during registration — used to link the verified
@@ -25,11 +27,17 @@ class PhoneSmsVerificationScreen extends StatefulWidget {
   /// E.164 phone number (e.g. +639XXXXXXXXX) shown on screen for clarity.
   final String phoneNumber;
 
+  /// Web-only: result from `FirebaseAuth.signInWithPhoneNumber`.
+  /// When set, code verification uses `confirmationResult.confirm()` instead of
+  /// `PhoneAuthProvider.credential`.
+  final ConfirmationResult? webConfirmationResult;
+
   const PhoneSmsVerificationScreen({
     super.key,
     required this.verificationId,
     required this.userId,
     required this.phoneNumber,
+    this.webConfirmationResult,
   });
 
   @override
@@ -49,13 +57,16 @@ class _PhoneSmsVerificationScreenState extends State<PhoneSmsVerificationScreen>
   int _resendCooldown = 60;
   Timer? _cooldownTimer;
 
-  // Resend tracking — Firebase may give us a new verificationId
+  // Resend tracking — Firebase may give us a new verificationId (native)
+  // or a new ConfirmationResult (web)
   String _currentVerificationId = '';
+  ConfirmationResult? _currentWebConfirmationResult;
 
   @override
   void initState() {
     super.initState();
     _currentVerificationId = widget.verificationId;
+    _currentWebConfirmationResult = widget.webConfirmationResult;
     _startExpiryTimer();
     _startCooldownTimer();
   }
@@ -109,14 +120,20 @@ class _PhoneSmsVerificationScreenState extends State<PhoneSmsVerificationScreen>
     }
     setState(() => _isVerifying = true);
     try {
-      // 1. Build Firebase credential from verificationId + user-entered code
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _currentVerificationId,
-        smsCode: code,
-      );
+      // 1. Get a Firebase UserCredential — web uses ConfirmationResult.confirm(),
+      //    native uses PhoneAuthProvider.credential + signInWithCredential.
+      UserCredential userCred;
+      if (kIsWeb && _currentWebConfirmationResult != null) {
+        userCred = await _currentWebConfirmationResult!.confirm(code);
+      } else {
+        final credential = PhoneAuthProvider.credential(
+          verificationId: _currentVerificationId,
+          smsCode: code,
+        );
+        userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      }
 
-      // 2. Sign in with the credential to get a Firebase ID token
-      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      // 2. Get Firebase ID token
       final idToken = await userCred.user?.getIdToken();
       if (idToken == null) {
         throw Exception('Could not retrieve Firebase ID token. Please try again.');
@@ -159,6 +176,28 @@ class _PhoneSmsVerificationScreenState extends State<PhoneSmsVerificationScreen>
     if (_isResending || _resendCooldown > 0) return;
     setState(() => _isResending = true);
     try {
+      // Web: re-send via signInWithPhoneNumber + invisible reCAPTCHA
+      if (kIsWeb) {
+        final result = await FirebaseAuth.instance
+            .signInWithPhoneNumber(widget.phoneNumber);
+        if (mounted) {
+          setState(() {
+            _currentWebConfirmationResult = result;
+            _resendCooldown = 60;
+          });
+          _startExpiryTimer();
+          _startCooldownTimer();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('A new SMS code has been sent.'),
+              backgroundColor: _kCharcoal,
+            ),
+          );
+        }
+        setState(() => _isResending = false);
+        return;
+      }
+
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: widget.phoneNumber,
         verificationCompleted: (PhoneAuthCredential cred) async {

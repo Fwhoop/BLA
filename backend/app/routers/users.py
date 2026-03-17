@@ -248,6 +248,82 @@ def get_audit_logs_top(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# USER STATS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _compute_user_stats(user_id: int, db: Session) -> schemas.UserStatsRead:
+    """Compute complaint and request stats for a given user."""
+    from sqlalchemy import func as sqlfunc
+
+    # Complaints filed by this user (Case.reporter_id)
+    filed_rows = (
+        db.query(models.Case.status, sqlfunc.count(models.Case.id))
+        .filter(models.Case.reporter_id == user_id)
+        .group_by(models.Case.status)
+        .all()
+    )
+    filed_by_status: dict = {row[0]: row[1] for row in filed_rows}
+    complaints_filed = sum(filed_by_status.values())
+
+    # Complaints filed AGAINST this user (ComplaintRespondent.respondent_id)
+    against_count = (
+        db.query(sqlfunc.count(models.ComplaintRespondent.id))
+        .filter(models.ComplaintRespondent.respondent_id == user_id)
+        .scalar()
+    ) or 0
+
+    # Document requests by this user
+    req_rows = (
+        db.query(models.Request.status, sqlfunc.count(models.Request.id))
+        .filter(models.Request.requester_id == user_id)
+        .group_by(models.Request.status)
+        .all()
+    )
+    req_by_status: dict = {row[0]: row[1] for row in req_rows}
+
+    return schemas.UserStatsRead(
+        complaints_filed_count=complaints_filed,
+        complaints_by_status=schemas.ComplaintStatusBreakdown(
+            pending=filed_by_status.get("pending", 0),
+            reviewing=filed_by_status.get("reviewing", 0),
+            resolved=filed_by_status.get("resolved", 0),
+            dismissed=filed_by_status.get("dismissed", 0),
+        ),
+        complaints_filed_against_count=against_count,
+        requests_total=sum(req_by_status.values()),
+        requests_by_status=schemas.RequestStatusBreakdown(
+            pending=req_by_status.get("pending", 0),
+            approved=req_by_status.get("approved", 0),
+            rejected=req_by_status.get("rejected", 0),
+        ),
+    )
+
+
+@router.get("/me/stats", response_model=schemas.UserStatsRead)
+def get_my_stats(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return complaint and request stats for the currently logged-in user."""
+    return _compute_user_stats(current_user.id, db)
+
+
+@router.get("/{user_id}/stats", response_model=schemas.UserStatsRead)
+def get_user_stats(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return stats for a specific user. Admins can view any user; regular users only their own."""
+    if current_user.role == "user" and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this user's stats.")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _compute_user_stats(user_id, db)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GET SINGLE USER
 # ─────────────────────────────────────────────────────────────────────────────
 

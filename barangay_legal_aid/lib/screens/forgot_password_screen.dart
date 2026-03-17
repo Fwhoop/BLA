@@ -28,6 +28,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   // Firebase phone flow
   String? _verificationId;
+  String? _autoVerifiedIdToken;        // set when Firebase auto-verifies on Android
+  ConfirmationResult? _webConfirmationResult; // set on web after signInWithPhoneNumber
 
   @override
   void dispose() {
@@ -47,19 +49,42 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _userId = res['user_id'] as int?;
 
       if (_method == 'phone') {
+        final phone = _identifierCtrl.text.trim();
+
+        // Web: use signInWithPhoneNumber (reCAPTCHA flow)
         if (kIsWeb) {
-          _showError('Phone SMS reset is not supported on the web version. Please use Email OTP.');
-          setState(() => _isLoading = false);
+          final result = await FirebaseAuth.instance.signInWithPhoneNumber(phone);
+          if (mounted) {
+            setState(() {
+              _webConfirmationResult = result;
+              _step = 2;
+              _isLoading = false;
+            });
+          }
           return;
         }
-        // Trigger Firebase phone OTP
-        final phone = _identifierCtrl.text.trim();
+
+        // Native: use verifyPhoneNumber (SMS auto-retrieval)
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
           verificationCompleted: (PhoneAuthCredential cred) async {
-            final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
-            final idToken = await userCred.user!.getIdToken();
-            if (mounted) _onPhoneVerified(idToken!);
+            try {
+              final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
+              final idToken = await userCred.user?.getIdToken();
+              await FirebaseAuth.instance.signOut();
+              if (mounted && idToken != null) {
+                setState(() {
+                  _autoVerifiedIdToken = idToken;
+                  _step = 2;
+                  _isLoading = false;
+                });
+              }
+            } catch (e) {
+              if (mounted) {
+                _showError('Auto-verification failed: $e');
+                setState(() => _isLoading = false);
+              }
+            }
           },
           verificationFailed: (FirebaseAuthException e) {
             if (mounted) {
@@ -107,14 +132,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (_method == 'email') {
         await api.resetPassword(_userId!, _otpCtrl.text.trim(), _newPasswordCtrl.text);
       } else {
-        // Verify the SMS code with Firebase and get ID token
-        final credential = PhoneAuthProvider.credential(
-          verificationId: _verificationId!,
-          smsCode: _otpCtrl.text.trim(),
-        );
-        final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
-        final idToken = await userCred.user!.getIdToken();
-        await api.resetPasswordPhone(_userId!, idToken!, _newPasswordCtrl.text);
+        // Use auto-verified token, web confirmation, or manual SMS code
+        String idToken;
+        if (_autoVerifiedIdToken != null) {
+          idToken = _autoVerifiedIdToken!;
+        } else if (kIsWeb && _webConfirmationResult != null) {
+          final userCred = await _webConfirmationResult!.confirm(_otpCtrl.text.trim());
+          idToken = await userCred.user!.getIdToken() ?? '';
+          await FirebaseAuth.instance.signOut();
+        } else {
+          final credential = PhoneAuthProvider.credential(
+            verificationId: _verificationId!,
+            smsCode: _otpCtrl.text.trim(),
+          );
+          final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+          idToken = await userCred.user!.getIdToken() ?? '';
+          await FirebaseAuth.instance.signOut();
+        }
+        await api.resetPasswordPhone(_userId!, idToken, _newPasswordCtrl.text);
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,21 +164,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _showError(e.toString().replaceFirst('Exception: ', ''));
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  void _onPhoneVerified(String idToken) async {
-    if (_userId == null) return;
-    setState(() => _isLoading = true);
-    try {
-      // Need password fields — go to step 2 with idToken stored
-      // In auto-verification we skip OTP entry, so just show new password fields
-      setState(() {
-        _step = 2;
-        _isLoading = false;
-      });
-    } catch (_) {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -248,22 +268,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const Icon(Icons.verified_user, size: 64, color: Color(0xFF99272D)),
         const SizedBox(height: 16),
         Text(
-          _method == 'email' ? 'Enter the code sent to your email' : 'Enter the SMS code',
+          _autoVerifiedIdToken != null
+              ? 'Phone auto-verified! Set your new password.'
+              : (_method == 'email' ? 'Enter the code sent to your email' : 'Enter the SMS code'),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF36454F)),
         ),
         const SizedBox(height: 24),
-        TextFormField(
-          controller: _otpCtrl,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(
-            labelText: '6-digit Code',
-            prefixIcon: Icon(Icons.pin_outlined),
+        if (_autoVerifiedIdToken == null) ...[
+          TextFormField(
+            controller: _otpCtrl,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            decoration: const InputDecoration(
+              labelText: '6-digit Code',
+              prefixIcon: Icon(Icons.pin_outlined),
+            ),
+            validator: (v) {
+              if (_autoVerifiedIdToken != null) return null;
+              return (v == null || v.length < 6) ? 'Enter the 6-digit code' : null;
+            },
           ),
-          validator: (v) => (v == null || v.length < 6) ? 'Enter the 6-digit code' : null,
-        ),
-        const SizedBox(height: 16),
+        ],
         TextFormField(
           controller: _newPasswordCtrl,
           obscureText: _obscureNew,

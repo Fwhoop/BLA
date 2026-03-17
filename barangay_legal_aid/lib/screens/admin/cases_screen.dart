@@ -5,6 +5,7 @@ import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:barangay_legal_aid/config/env_config.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/top_snack.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
@@ -303,6 +304,117 @@ class AdminCasesScreenState extends State<AdminCasesScreen> {
   }
 }
 
+// ─── User Stats Popup ─────────────────────────────────────────────────────────
+
+void _showUserStatsPopup(BuildContext context, int? userId, String userName, ApiService api) {
+  if (userId == null) return;
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (_) => _UserStatsDialog(userId: userId, userName: userName, api: api),
+  );
+}
+
+class _UserStatsDialog extends StatefulWidget {
+  final int userId;
+  final String userName;
+  final ApiService api;
+  const _UserStatsDialog({required this.userId, required this.userName, required this.api});
+
+  @override
+  State<_UserStatsDialog> createState() => _UserStatsDialogState();
+}
+
+class _UserStatsDialogState extends State<_UserStatsDialog> {
+  Map<String, dynamic>? _stats;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final stats = await widget.api.getUserStats(widget.userId);
+      if (mounted) setState(() { _stats = stats; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 420),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.all(24),
+        child: _loading
+            ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: _kPrimary)))
+            : _error != null
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.error_outline, color: _kPrimary, size: 36),
+                    const SizedBox(height: 12),
+                    Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: _kCharcoal)),
+                    const SizedBox(height: 16),
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                  ])
+                : _buildContent(),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    final s = _stats!;
+    final byStatus = (s['complaints_by_status'] as Map<String, dynamic>?) ?? {};
+    final reqByStatus = (s['requests_by_status'] as Map<String, dynamic>?) ?? {};
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          const Icon(Icons.person, color: _kPrimary),
+          const SizedBox(width: 8),
+          Expanded(child: Text(widget.userName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _kCharcoal))),
+          IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+        ]),
+        const Divider(height: 24),
+        Text('Complaints Filed: ${s['complaints_filed_count'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: _kCharcoal)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 4, children: [
+          _chip('Pending', byStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
+          _chip('Reviewing', byStatus['reviewing'] ?? 0, const Color(0xFF3B82F6)),
+          _chip('Resolved', byStatus['resolved'] ?? 0, const Color(0xFF10B981)),
+          _chip('Dismissed', byStatus['dismissed'] ?? 0, const Color(0xFF6B7280)),
+        ]),
+        const SizedBox(height: 12),
+        Text('Complaints Against: ${s['complaints_filed_against_count'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: _kCharcoal)),
+        const Divider(height: 20),
+        Text('Document Requests: ${s['requests_total'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: _kCharcoal)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 4, children: [
+          _chip('Pending', reqByStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
+          _chip('Approved', reqByStatus['approved'] ?? 0, const Color(0xFF10B981)),
+          _chip('Rejected', reqByStatus['rejected'] ?? 0, _kPrimary),
+        ]),
+      ],
+    );
+  }
+
+  Widget _chip(String label, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withValues(alpha: 0.4))),
+      child: Text('$label: $count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
 // ─── Case Card ───────────────────────────────────────────────────────────────
 
 class _CaseCard extends StatelessWidget {
@@ -370,10 +482,17 @@ class _CaseCard extends StatelessWidget {
                     Icon(Icons.person_outline, size: 14, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: Text(
-                        reporterName,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                        overflow: TextOverflow.ellipsis,
+                      child: GestureDetector(
+                        onTap: () {
+                          final userId = caseData['reporter_id'] as int?;
+                          final api = Provider.of<ApiService>(context, listen: false);
+                          _showUserStatsPopup(context, userId, reporterName, api);
+                        },
+                        child: Text(
+                          reporterName,
+                          style: const TextStyle(fontSize: 12, color: _kPrimary, decoration: TextDecoration.underline, decorationColor: _kPrimary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ],
@@ -538,31 +657,11 @@ class _DetailSheetState extends State<_DetailSheet> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: timeCtrl,
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'Time (optional)',
-                    hintText: 'Tap to select',
-                    prefixIcon: const Icon(Icons.access_time, size: 18),
+                  decoration: const InputDecoration(
+                    labelText: 'Time (e.g. 9:00 AM)',
+                    prefixIcon: Icon(Icons.access_time, size: 18),
                     isDense: true,
-                    suffixIcon: timeCtrl.text.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () => setS(() => timeCtrl.clear()),
-                            child: const Icon(Icons.clear, size: 18, color: Colors.grey),
-                          )
-                        : null,
                   ),
-                  onTap: () async {
-                    final t = await showTimePicker(
-                      context: ctx,
-                      initialTime: TimeOfDay.now(),
-                    );
-                    if (t != null) {
-                      final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-                      final minute = t.minute.toString().padLeft(2, '0');
-                      final period = t.period == DayPeriod.am ? 'AM' : 'PM';
-                      setS(() => timeCtrl.text = '$hour:$minute $period');
-                    }
-                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -623,13 +722,7 @@ class _DetailSheetState extends State<_DetailSheet> {
       });
       await _loadMediations();
       widget.onRefresh();
-      // Backend auto-changes pending → reviewing when first mediation is scheduled.
-      // Reflect that immediately in the open sheet without requiring close/reopen.
-      if (widget.caseData['status'] == 'pending') {
-        widget.caseData['status'] = 'reviewing';
-      }
       if (mounted) {
-        setState(() {});
         showTopSnack(context,
           message: 'Mediation session scheduled',
           backgroundColor: const Color(0xFF10B981),
@@ -834,8 +927,6 @@ class _DetailSheetState extends State<_DetailSheet> {
     final description = (cd['description'] ?? '') as String;
     final reporterName = cd['reporter_name'] as String?;
     final reporterEmail = cd['reporter_email'] as String?;
-    final reporterBarangay = cd['reporter_barangay'] as String?;
-    final isCrossBarangay = cd['is_cross_barangay'] == true;
     final createdAt = cd['created_at'] as String?;
 
     return DraggableScrollableSheet(
@@ -870,33 +961,28 @@ class _DetailSheetState extends State<_DetailSheet> {
                   const SizedBox(height: 16),
 
                   // Reporter info
-                  if (reporterName != null || reporterEmail != null || reporterBarangay != null)
+                  if (reporterName != null || reporterEmail != null)
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              const Text('Reporter', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.8)),
-                              if (isCrossBarangay) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(4), border: Border.all(color: const Color(0xFFF59E0B))),
-                                  child: const Text('Cross-Barangay', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFB45309))),
-                                ),
-                              ],
-                            ],
-                          ),
+                          const Text('Reporter', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.8)),
                           const SizedBox(height: 6),
                           if (reporterName != null)
-                            Row(children: [const Icon(Icons.person, size: 16, color: _kCharcoal), const SizedBox(width: 8), Text(reporterName, style: const TextStyle(color: _kCharcoal, fontWeight: FontWeight.w500))]),
-                          if (reporterBarangay != null) ...[
-                            const SizedBox(height: 4),
-                            Row(children: [const Icon(Icons.location_city, size: 16, color: _kCharcoal), const SizedBox(width: 8), Text('Brgy. $reporterBarangay', style: TextStyle(color: _kCharcoal.withValues(alpha: 0.85), fontWeight: FontWeight.w500))]),
-                          ],
+                            Row(children: [
+                              const Icon(Icons.person, size: 16, color: _kCharcoal),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  final userId = cd['reporter_id'] as int?;
+                                  final api = Provider.of<ApiService>(context, listen: false);
+                                  _showUserStatsPopup(context, userId, reporterName, api);
+                                },
+                                child: Text(reporterName, style: const TextStyle(color: _kPrimary, fontWeight: FontWeight.w500, decoration: TextDecoration.underline, decorationColor: _kPrimary)),
+                              ),
+                            ]),
                           if (reporterEmail != null) ...[
                             const SizedBox(height: 4),
                             Row(children: [const Icon(Icons.email_outlined, size: 16, color: _kCharcoal), const SizedBox(width: 8), Text(reporterEmail, style: TextStyle(color: _kCharcoal.withValues(alpha: 0.8)))]),
@@ -1137,8 +1223,55 @@ class _MediationTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     GestureDetector(
                       onTap: () {
-                        const baseUrl = 'https://bla-production-441d.up.railway.app';
-                        html.window.open('$baseUrl$photoPath', '_blank');
+                        showDialog(
+                          context: context,
+                          builder: (_) => Dialog(
+                            backgroundColor: Colors.transparent,
+                            insetPadding: const EdgeInsets.all(16),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+                                  decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(16)),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          child: Row(
+                                            children: [
+                                              const Text('Resolution Photo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                              const Spacer(),
+                                              IconButton(
+                                                icon: const Icon(Icons.close, color: Colors.white),
+                                                onPressed: () => Navigator.pop(context),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: InteractiveViewer(
+                                            child: Image.network(
+                                              '$apiBaseUrl$photoPath',
+                                              fit: BoxFit.contain,
+                                              loadingBuilder: (_, child, p) => p == null ? child
+                                                  : const Center(child: CircularProgressIndicator(color: Colors.white)),
+                                              errorBuilder: (_, __, ___) => const Center(
+                                                child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
                       },
                       child: Row(children: [
                         const Icon(Icons.photo, size: 13, color: Color(0xFF10B981)),

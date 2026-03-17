@@ -3,7 +3,7 @@ FROM ghcr.io/cirruslabs/flutter:3.35.3 AS builder
 
 WORKDIR /app
 
-ARG API_URL=https://bla-production-a186.up.railway.app
+ARG API_URL=https://bla-production-441d.up.railway.app
 
 RUN echo "API_URL=${API_URL}" > .env
 

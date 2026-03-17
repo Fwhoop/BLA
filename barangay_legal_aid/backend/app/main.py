@@ -1,22 +1,26 @@
 from dotenv import load_dotenv
-load_dotenv()  # Must run before any app imports that read env vars
+load_dotenv()
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-import os
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import inspect, text
+from sqlalchemy import text
+import os
 import logging
 
-from app.db import Base, engine
+from app.db import Base, engine, get_db
 from app import models
 from app.routers.auth import get_current_user
 from app.models import User
 from app.routers import auth, barangays, cases, chat, users, requests, notifications
-from app.schemas import UserRead
+from app.routers import respondents, mediations, analytics
+from app.schemas import UserRead, UserUpdate
+from app.utils.db_ready import wait_for_database
+from app.utils.schema_guard import validate_schema
+from sqlalchemy.orm import Session
 
-
-# ----------------- Logging -----------------
+# ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -24,118 +28,140 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logging.getLogger('python_multipart').setLevel(logging.WARNING)
 
-# ----------------- App -----------------
-app = FastAPI(title="Barangay Legal Aid API", version="0.1.0")
-load_dotenv()
+# ── App ───────────────────────────────────────────────────────────────────────
+app = FastAPI(title="Barangay Legal Aid API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict this in production
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ----------------- Migrations -----------------
-def _run_migrations():
-    """
-    Add missing columns if they don’t exist (safe to run on every startup).
-    """
-    try:
-        inspector = inspect(engine)
-        with engine.begin() as conn:  # BEGIN ensures auto-commit on DDL
-            # --- Cases table ---
-            if "cases" in inspector.get_table_names():
-                existing_cases = {c["name"] for c in inspector.get_columns("cases")}
-                if "status" not in existing_cases:
-                    conn.execute(text(
-                        "ALTER TABLE cases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'"
-                    ))
-                    logger.info("Migration: added 'status' column to cases")
-                if "updated_at" not in existing_cases:
-                    conn.execute(text(
-                        "ALTER TABLE cases ADD COLUMN updated_at DATETIME "
-                        "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                    ))
-                    logger.info("Migration: added 'updated_at' column to cases")
 
-            # --- Users table ---
-            if "users" in inspector.get_table_names():
-                existing_users = {c["name"] for c in inspector.get_columns("users")}
-                if "id_photo_url" not in existing_users:
-                    conn.execute(text(
-                        "ALTER TABLE users ADD COLUMN id_photo_url VARCHAR(500) NULL"
-                    ))
-                    logger.info("Migration: added 'id_photo_url' column to users")
-
-    except Exception as e:
-        logger.warning(f"Migration step skipped: {e}")
-
-# ----------------- Startup Event -----------------
+# ── Startup ───────────────────────────────────────────────────────────────────
 @app.on_event("startup")
-async def create_tables():
-    """
-    Ensure all tables exist and run migrations.
-    This runs every time the app starts (Railway or local).
-    """
-    try:
-        # This will create all tables that don’t exist yet
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created/verified successfully")
-        _run_migrations()
-        logger.info("Migrations complete")
-    except Exception as e:
-        logger.warning(f"Could not create database tables: {e}")
-        logger.warning("Server will continue, but database operations may fail until connection is fixed")
+async def startup():
+    logger.info("=== BLA BACKEND STARTING ===")
+    import asyncio
+    loop = asyncio.get_event_loop()
 
-# ----------------- One-time Reset Endpoint (REMOVE AFTER USE) -----------------
-@app.get("/reset-bla-xk9q2")
-def reset_all_users():
-    """Wipe all users and create a fresh superadmin. DELETE THIS AFTER USE."""
-    import bcrypt
-    from datetime import datetime, timezone
-    from app.db import SessionLocal
-    from app.models import User, Notification, Chat, Case, Request
+    def _init_db():
+        # Step 1 — wait for DB to accept connections
+        wait_for_database(max_retries=30, delay=2.0)
 
-    db = SessionLocal()
-    try:
-        db.query(Notification).delete()
-        db.query(Chat).delete()
-        db.query(Case).delete()
-        db.query(Request).delete()
-        db.query(User).delete()
-        pw = bcrypt.hashpw(b"SuperAdmin@2024", bcrypt.gensalt()).decode("utf-8")
-        db.add(User(
-            email="superadmin@bla.com",
-            username="superadmin",
-            hashed_password=pw,
-            first_name="Super",
-            last_name="Admin",
-            role="superadmin",
-            barangay_id=None,
-            is_active=True,
-            created_at=datetime.now(timezone.utc),
+        # Step 2 — create any tables that don't exist yet
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables OK")
+        except Exception as e:
+            logger.warning(f"create_all skipped: {e}")
+
+        # Step 3 — idempotent column migrations + schema drift repair
+        try:
+            _backfill_users()
+        except Exception as e:
+            logger.warning(f"Users backfill skipped: {e}")
+
+        validate_schema()
+        logger.info("Schema validation OK")
+
+    await loop.run_in_executor(None, _init_db)
+    logger.info("=== BLA BACKEND READY ===")
+
+
+def _backfill_users():
+    """One-time data fix: mark all previously active users as approved."""
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE users SET verification_status='approved' "
+            "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
         ))
-        db.commit()
-        return {
-            "status": "done",
-            "email": "superadmin@bla.com",
-            "password": "SuperAdmin@2024",
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
 
-# ----------------- Auth Route -----------------
+
+# ── Global exception handlers ─────────────────────────────────────────────────
+from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException as FastAPIHTTPException
+import traceback
+
+@app.exception_handler(FastAPIHTTPException)
+async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
+    """Return every HTTP error in consistent {success, error} shape."""
+    detail = exc.detail
+    # detail may be a dict (structured) or a plain string
+    if isinstance(detail, dict):
+        error_msg = detail.get("error") or detail.get("detail") or str(detail)
+    else:
+        error_msg = str(detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "error": error_msg},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Pydantic validation failures → 422 with consistent shape."""
+    errors = [
+        f"{' → '.join(str(l) for l in e['loc'])}: {e['msg']}"
+        for e in exc.errors()
+    ]
+    logger.warning(f"Validation error on {request.url}: {errors}")
+    return JSONResponse(
+        status_code=422,
+        content={"success": False, "error": "Validation failed", "fields": errors},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """
+    Catch-all for unhandled exceptions.
+    Logs the full stack trace server-side; returns a safe message to the client.
+    """
+    logger.error(
+        f"Unhandled exception on {request.method} {request.url}:\n"
+        + traceback.format_exc()
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "error": "An unexpected server error occurred."},
+    )
+
+
+# ── Health ────────────────────────────────────────────────────────────────────
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "BLA Backend"}
+
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "Barangay Legal Aid API"}
+
+
+# ── Auth/Me Routes ────────────────────────────────────────────────────────────
 @app.get("/auth/me", response_model=UserRead)
 async def me(current: User = Depends(get_current_user)):
     if current.is_active is None:
         current.is_active = True
     return current
 
-# ----------------- Routers -----------------
+@app.put("/auth/me", response_model=UserRead)
+async def update_me(
+    payload: UserUpdate,
+    current: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(current, field, value)
+    db.commit()
+    db.refresh(current)
+    return current
+
+
+# ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(barangays.router)
@@ -143,7 +169,15 @@ app.include_router(cases.router)
 app.include_router(chat.router)
 app.include_router(requests.router)
 app.include_router(notifications.router)
+app.include_router(respondents.router)
+app.include_router(mediations.router)
+app.include_router(analytics.router)
 
-# ----------------- Static Files -----------------
-os.makedirs("uploads/id_photos", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# ── Static Files (ID photos, selfies, profile photos) ────────────────────────
+try:
+    for _dir in ["uploads/id_photos", "uploads/documents", "uploads/resolution_photos"]:
+        os.makedirs(_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+except Exception as e:
+    logger.warning(f"Static files not mounted: {e}")

@@ -42,14 +42,34 @@ def load_faq_data() -> Optional[dict]:
     return _faq_cache
 
 
+_STOP_WORDS = {
+    "a", "an", "the", "is", "it", "in", "on", "at", "to", "for", "of", "and",
+    "or", "but", "how", "do", "i", "my", "me", "you", "we", "can", "what",
+    "when", "where", "who", "which", "are", "was", "be", "been", "being",
+    "have", "has", "had", "will", "would", "could", "should", "may", "might",
+    "this", "that", "these", "those", "get", "give", "make", "go", "want",
+    "need", "please", "tell", "about", "with", "from", "by",
+}
+
+
+def _keywords(text: str) -> set:
+    """Extract meaningful words from text (strip stop words)."""
+    words = re.sub(r"[^\w\s]", "", text.lower()).split()
+    return {w for w in words if w not in _STOP_WORDS and len(w) > 2}
+
+
 def _faq_search(query: str) -> Optional[str]:
-    """Simple keyword search over the FAQ JSON. Returns best answer or None."""
+    """Keyword search over FAQ JSON using meaningful-word overlap. Returns best answer or None."""
     data = load_faq_data()
     if not data:
         return None
 
-    q_lower = re.sub(r"[^\w\s]", "", query.lower())
-    q_words  = set(q_lower.split())
+    q_lower   = re.sub(r"[^\w\s]", "", query.lower())
+    q_keys    = _keywords(query)
+
+    # Need at least one meaningful keyword to search
+    if not q_keys:
+        return None
 
     best_answer = None
     best_score  = 0.0
@@ -57,17 +77,18 @@ def _faq_search(query: str) -> Optional[str]:
     for cat in data.get("categories", []):
         for item in cat.get("questions", []):
             candidate = re.sub(r"[^\w\s]", "", item.get("question", "").lower())
-            c_words   = set(candidate.split())
-            if not c_words:
+            c_keys    = _keywords(candidate)
+            if not c_keys:
                 continue
-            overlap = len(q_words & c_words) / max(len(q_words), len(c_words))
-            if candidate and q_lower in candidate:
+            overlap = len(q_keys & c_keys) / max(len(q_keys), len(c_keys))
+            # Exact substring bonus
+            if q_lower in candidate:
                 overlap = max(overlap, 0.9)
             if overlap > best_score:
                 best_score  = overlap
                 best_answer = item.get("answer", "") or None
 
-    return best_answer if best_score >= 0.35 else None
+    return best_answer if best_score >= 0.45 else None
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

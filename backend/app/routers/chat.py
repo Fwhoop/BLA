@@ -13,9 +13,10 @@ from requests import RequestException
 
 logger = logging.getLogger(__name__)
 
-_HF_API_TOKEN = os.environ.get("HF_API_TOKEN", "")
-_HF_MODEL_ID  = os.environ.get("HF_MODEL_ID", "fwhoop/bla_model")
-_HF_ENDPOINT  = f"https://api-inference.huggingface.co/models/{_HF_MODEL_ID}"
+_HF_API_TOKEN        = os.environ.get("HF_API_TOKEN", "")
+_HF_MODEL_ID         = os.environ.get("HF_MODEL_ID", "fwhoop/bla_model")
+_HF_ENDPOINT         = f"https://api-inference.huggingface.co/models/{_HF_MODEL_ID}"
+_CHATBOT_SERVICE_URL = os.environ.get("CHATBOT_SERVICE_URL", "")
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -115,6 +116,30 @@ def _call_hf_model(message: str) -> Optional[str]:
     return None
 
 
+def _call_chatbot_service(message: str, history=None) -> Optional[str]:
+    """Call bla-chatbot-railway service with conversation history. Returns reply or None."""
+    if not _CHATBOT_SERVICE_URL:
+        return None
+    history_payload = [
+        {"role": h.role, "content": h.content}
+        for h in (history or [])
+    ]
+    try:
+        resp = requests.post(
+            f"{_CHATBOT_SERVICE_URL}/chat",
+            json={"message": message, "history": history_payload},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return (data.get("reply") or "").strip() or None
+    except RequestException as e:
+        logger.error(f"Chatbot service request failed: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected chatbot service error: {e}")
+    return None
+
+
 @router.post("/ai", response_model=dict)
 def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     """
@@ -130,14 +155,21 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     logger.info(f"[AI_ENDPOINT] sender={chat.sender_id} message={chat.message!r}")
 
     try:
-        # 1 — Try online HF model
+        # 1 — bla-chatbot-railway (primary AI, conversational)
+        if _CHATBOT_SERVICE_URL:
+            service_text = _call_chatbot_service(chat.message, chat.history)
+            if service_text:
+                logger.info("[AI_ENDPOINT] Served by chatbot service")
+                return {"message": service_text, "ui_action": None}
+
+        # 2 — HuggingFace Inference API (secondary fallback)
         if _HF_API_TOKEN:
             hf_text = _call_hf_model(chat.message)
             if hf_text:
                 logger.info("[AI_ENDPOINT] Served by HF Inference API")
                 return {"message": hf_text, "ui_action": None}
 
-        # 2 — FAQ / canned fallback
+        # 3 — FAQ keyword search / canned fallback
         local = _faq_fallback(sender=chat.sender_id, message=chat.message)
         return {"message": local["response"], "ui_action": None}
 
