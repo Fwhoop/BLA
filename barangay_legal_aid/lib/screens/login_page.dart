@@ -34,7 +34,7 @@ class LoginPageState extends State<LoginPage> {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final User? user = await auth.login(
-        email: _emailController.text.trim(),
+        identifier: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         rememberMe: _rememberMe,
       );
