@@ -16,23 +16,24 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from sqlalchemy import text
 from app.db import SessionLocal
-from app.models import (
-    User, Barangay, Case, ComplaintRespondent,
-    Mediation, Chat, Request, Notification, AuditLog,
-)
 
 
 def reset_for_testing():
     db = SessionLocal()
     try:
-        # ── 1. Find the superadmin — we keep this account ────────────────────
-        superadmin = db.query(User).filter(User.role == "superadmin").first()
-        if not superadmin:
+        # ── 1. Find the superadmin via raw SQL — we keep this account ──────────
+        row = db.execute(
+            text("SELECT id, email FROM users WHERE role = 'superadmin' LIMIT 1")
+        ).fetchone()
+
+        if not row:
             print("❌ No superadmin account found. Aborting — nothing was deleted.")
             return
 
-        print(f"✅ Superadmin found: {superadmin.email} — this account will be kept.\n")
+        superadmin_id, superadmin_email = row[0], row[1]
+        print(f"✅ Superadmin found: {superadmin_email} — this account will be kept.\n")
 
         confirm = input(
             "⚠️  This will DELETE all barangays, admins, users, complaints, "
@@ -43,28 +44,24 @@ def reset_for_testing():
             print("Aborted. Nothing was changed.")
             return
 
-        superadmin_id = superadmin.id
-
-        # ── 2. Delete dependent records first (FK order) ──────────────────────
+        # ── 2. Delete via raw SQL to avoid model/schema mismatch errors ─────────
         deleted = {}
 
-        deleted["audit_logs"]            = db.query(AuditLog).delete(synchronize_session=False)
-        deleted["notifications"]          = db.query(Notification).delete(synchronize_session=False)
-        deleted["chats"]                  = db.query(Chat).delete(synchronize_session=False)
-        deleted["mediations"]             = db.query(Mediation).delete(synchronize_session=False)
-        deleted["complaint_respondents"]  = db.query(ComplaintRespondent).delete(synchronize_session=False)
-        deleted["cases"]                  = db.query(Case).delete(synchronize_session=False)
-        deleted["requests"]               = db.query(Request).delete(synchronize_session=False)
+        statements = [
+            ("audit_logs",           "DELETE FROM audit_logs"),
+            ("notifications",        "DELETE FROM notifications"),
+            ("chats",                "DELETE FROM chats"),
+            ("mediations",           "DELETE FROM mediations"),
+            ("complaint_respondents","DELETE FROM complaint_respondents"),
+            ("cases",                "DELETE FROM cases"),
+            ("requests",             "DELETE FROM requests"),
+            ("users",                f"DELETE FROM users WHERE id != {superadmin_id}"),
+            ("barangays",            "DELETE FROM barangays"),
+        ]
 
-        # ── 3. Delete all users EXCEPT superadmin ─────────────────────────────
-        deleted["users"] = (
-            db.query(User)
-            .filter(User.id != superadmin_id)
-            .delete(synchronize_session=False)
-        )
-
-        # ── 4. Delete all barangays ───────────────────────────────────────────
-        deleted["barangays"] = db.query(Barangay).delete(synchronize_session=False)
+        for label, sql in statements:
+            result = db.execute(text(sql))
+            deleted[label] = result.rowcount
 
         db.commit()
 
@@ -73,7 +70,7 @@ def reset_for_testing():
         for table, count in deleted.items():
             print(f"   {table:<30} {count:>4} row(s) deleted")
 
-        print(f"\n🔑 Superadmin kept: {superadmin.email}")
+        print(f"\n🔑 Superadmin kept: {superadmin_email}")
         print("\nNext steps:")
         print("  1. Log in as superadmin")
         print("  2. Create barangays via the SuperAdmin Dashboard")
