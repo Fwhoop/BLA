@@ -48,6 +48,27 @@ FALLBACK_REPLY = (
     "Please visit your barangay hall for legal assistance."
 )
 
+_CTA = (
+    "\n\n---\n"
+    "💡 **File online through the BLA App**\n"
+    "You can file a complaint or request a mediation/summon schedule directly "
+    "through the **Barangay Legal Aid app**. Tap **Forms Hub** from the home screen to get started."
+)
+
+_CTA_TRIGGERS = {
+    "complaint", "complain", "file", "report", "blotter", "mediation",
+    "summon", "summoning", "schedule", "case", "dispute", "kp", "lupon",
+    "debt", "utang", "vawc", "abuse", "violence", "neighbor", "neighbour",
+    "boundary", "property", "assault", "threat", "harassment",
+}
+
+
+def _should_add_cta(query: str, answer: str) -> bool:
+    import re
+    combined = (query + " " + answer).lower()
+    words = set(re.sub(r"[^\w\s]", "", combined).split())
+    return bool(words & _CTA_TRIGGERS)
+
 # ── Request schema ─────────────────────────────────────────────────────────────
 class HistoryEntry(BaseModel):
     role: str
@@ -128,6 +149,8 @@ def chat(req: ChatRequest):
         if not reply:
             logger.warning("Model generated empty reply")
             reply = FALLBACK_REPLY
+        elif _should_add_cta(req.message, reply):
+            reply += _CTA
 
         logger.info(f"Reply ({len(reply)} chars): {reply[:80]}...")
         return {"reply": reply}

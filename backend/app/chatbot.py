@@ -273,6 +273,30 @@ def _match_legal_topic(query: str) -> Optional[str]:
     return best_answer
 
 
+# ── Call-to-action (Forms Hub) ────────────────────────────────────────────────
+_CTA = (
+    "\n\n---\n"
+    "💡 **File online through the BLA App**\n"
+    "You can file a complaint or request a mediation/summon schedule directly "
+    "through the **Barangay Legal Aid app**. Tap **Forms Hub** from the home screen to get started."
+)
+
+# Keywords in the query OR answer that trigger the CTA
+_CTA_TRIGGERS = {
+    "complaint", "complain", "file", "report", "blotter", "mediation",
+    "summon", "summoning", "schedule", "case", "dispute", "kp", "lupon",
+    "debt", "utang", "vawc", "abuse", "violence", "neighbor", "neighbour",
+    "boundary", "property", "assault", "threat", "harassment",
+}
+
+
+def _should_add_cta(query: str, answer: str) -> bool:
+    """Return True if the query or answer involves actionable complaints/reports."""
+    combined = (query + " " + answer).lower()
+    words = set(re.sub(r"[^\w\s]", "", combined).split())
+    return bool(words & _CTA_TRIGGERS)
+
+
 def _faq_search(query: str) -> Optional[str]:
     """Keyword search over FAQ JSON. Returns best answer or None."""
     data = load_faq_data()
@@ -319,12 +343,16 @@ def chat_response(sender: int, message: str) -> dict:
     topic_hit = _match_legal_topic(text)
     if topic_hit:
         logger.info(f"[CHATBOT] Matched legal topic for: {text[:60]}")
+        if _should_add_cta(text, topic_hit):
+            topic_hit += _CTA
         return {"response": topic_hit, "sender": sender}
 
     # 2 — FAQ search
     faq_hit = _faq_search(text)
     if faq_hit:
         logger.info(f"[CHATBOT] Matched FAQ for: {text[:60]}")
+        if _should_add_cta(text, faq_hit):
+            faq_hit += _CTA
         return {"response": faq_hit, "sender": sender}
 
     # 3 — fallback
