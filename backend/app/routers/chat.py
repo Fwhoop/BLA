@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 from .. import models, schemas
 from ..db import get_db
-from ..chatbot import load_faq_data, chat_response as _faq_fallback
+from ..chatbot import load_faq_data, chat_response as _faq_fallback, get_local_answer as _local_answer
 
 import os
 import logging
@@ -155,22 +155,30 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     logger.info(f"[AI_ENDPOINT] sender={chat.sender_id} message={chat.message!r}")
 
     try:
-        # 1 — bla-chatbot-railway (primary AI, conversational)
+        history_dicts = [{"role": h.role, "content": h.content} for h in (chat.history or [])]
+
+        # 1 — Local structured answers (greetings, legal topics, FAQ)
+        #     Always runs first so model service can't override known topics
+        local_text = _local_answer(chat.message, history_dicts)
+        if local_text:
+            logger.info("[AI_ENDPOINT] Served by local knowledge base")
+            return {"message": local_text, "ui_action": None}
+
+        # 2 — bla-chatbot-railway (AI model, for queries without local answers)
         if _CHATBOT_SERVICE_URL:
             service_text = _call_chatbot_service(chat.message, chat.history)
             if service_text:
                 logger.info("[AI_ENDPOINT] Served by chatbot service")
                 return {"message": service_text, "ui_action": None}
 
-        # 2 — HuggingFace Inference API (secondary fallback)
+        # 3 — HuggingFace Inference API (secondary fallback)
         if _HF_API_TOKEN:
             hf_text = _call_hf_model(chat.message)
             if hf_text:
                 logger.info("[AI_ENDPOINT] Served by HF Inference API")
                 return {"message": hf_text, "ui_action": None}
 
-        # 3 — FAQ keyword search / canned fallback (history-aware)
-        history_dicts = [{"role": h.role, "content": h.content} for h in (chat.history or [])]
+        # 4 — Generic fallback
         local = _faq_fallback(sender=chat.sender_id, message=chat.message, history=history_dicts)
         return {"message": local["response"], "ui_action": None}
 

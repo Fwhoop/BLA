@@ -287,16 +287,17 @@ _LEGAL_TOPICS = [
 def _match_legal_topic(query: str) -> Optional[str]:
     """Return a structured answer if the query matches a known legal topic."""
     q_keys = _keywords(query)
-    if not q_keys:
-        return None
+    # Also include short but meaningful words (vawc, kp, etc.) even if len <= 2
+    q_keys_raw = set(re.sub(r"[^\w\s]", "", query.lower()).split())
 
     best_answer = None
     best_overlap = 0
 
     for topic in _LEGAL_TOPICS:
-        overlap = len(q_keys & topic["triggers"])
-        # Match if 1 strong keyword OR 2+ overlapping keywords
-        strong = any(len(k) >= 6 for k in (q_keys & topic["triggers"]))
+        matched = (q_keys | q_keys_raw) & topic["triggers"]
+        overlap = len(matched)
+        # Match if: 2+ overlapping keywords, OR 1 keyword with len >= 4
+        strong = any(len(k) >= 4 for k in matched)
         if (overlap >= 2 or (overlap >= 1 and strong)) and overlap > best_overlap:
             best_overlap = overlap
             best_answer = topic["answer"]
@@ -359,6 +360,41 @@ def _faq_search(query: str) -> Optional[str]:
     return best_answer if best_score >= 0.40 else None
 
 
+# ── Greeting detection & response ────────────────────────────────────────────
+_GREETING_WORDS = {
+    "hello", "hi", "hey", "good morning", "good afternoon", "good evening",
+    "kamusta", "kumusta", "magandang umaga", "magandang hapon", "magandang gabi",
+    "musta", "sup", "yo", "greetings", "howdy", "helo", "hellow", "ello",
+    "good day", "maayong buntag", "maayong hapon", "maayong gabii",
+}
+
+_GREETING_RESPONSE = (
+    "Hello! Welcome to the **Barangay Legal Aid (BLA) Assistant**. 👋\n\n"
+    "I'm here to help you with barangay-level legal concerns. "
+    "What can I assist you with today?\n\n"
+    "Here are some things you can ask me about:\n\n"
+    "• 📋 **Barangay Clearance** — How to get one, requirements, fees\n"
+    "• ⚖️ **Mediation & Summoning** — KP process, how disputes are resolved\n"
+    "• 💸 **Debt / Collection** — Neighbour refuses to pay, what to do\n"
+    "• 🏠 **Property Disputes** — Boundary issues, encroachment\n"
+    "• 🚨 **VAWC / Abuse** — Violence against women and children, protection orders\n"
+    "• 📝 **Blotter Report** — How to file an incident report\n"
+    "• 🔇 **Noise & Disturbance** — Curfew violations, noise ordinances\n"
+    "• 👴 **Senior / PWD / Solo Parent** — Benefits and discounts\n\n"
+    "Just type your question and I'll guide you step by step!"
+)
+
+
+def _is_greeting(message: str) -> bool:
+    """Return True if the message is a greeting with no legal content."""
+    text = message.lower().strip()
+    # Remove punctuation
+    text = re.sub(r"[^\w\s]", "", text)
+    words = set(text.split())
+    # Greeting if any greeting word matches AND message is short (≤6 words)
+    return bool(words & _GREETING_WORDS) and len(text.split()) <= 6
+
+
 # ── Conversational context enrichment ────────────────────────────────────────
 _FOLLOWUP_SIGNALS = {
     "how long", "how much", "paano", "what next", "then what", "after that",
@@ -403,35 +439,53 @@ def _enrich_with_history(message: str, history: list) -> str:
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
-def chat_response(sender: int, message: str, history: list | None = None) -> dict:
-    """
-    1. Enrich follow-up questions using conversation history
-    2. Try built-in legal topic answers (structured, step-by-step)
-    3. Try FAQ JSON search
-    4. Fallback message
 
-    Returns: { "response": str, "sender": int }
+def get_local_answer(message: str, history: list | None = None) -> Optional[str]:
+    """
+    Returns a local answer string if we have one, or None to let the
+    chatbot service / HF API handle it.
+
+    Priority:
+      1. Greeting
+      2. Built-in legal topic
+      3. FAQ search
     """
     text = message.strip()
     enriched = _enrich_with_history(text, history or [])
 
-    # 1 — structured legal topic (try enriched first, then original)
+    # 1 — greeting
+    if _is_greeting(text):
+        logger.info(f"[CHATBOT] Greeting detected: {text[:40]}")
+        return _GREETING_RESPONSE
+
+    # 2 — structured legal topic
     topic_hit = _match_legal_topic(enriched) or _match_legal_topic(text)
     if topic_hit:
         logger.info(f"[CHATBOT] Matched legal topic for: {text[:60]}")
         if _should_add_cta(text, topic_hit):
             topic_hit += _CTA
-        return {"response": topic_hit, "sender": sender}
+        return topic_hit
 
-    # 2 — FAQ search (try enriched first, then original)
+    # 3 — FAQ search
     faq_hit = _faq_search(enriched) or _faq_search(text)
     if faq_hit:
         logger.info(f"[CHATBOT] Matched FAQ for: {text[:60]}")
         if _should_add_cta(text, faq_hit):
             faq_hit += _CTA
-        return {"response": faq_hit, "sender": sender}
+        return faq_hit
 
-    # 3 — fallback
+    return None
+
+
+def chat_response(sender: int, message: str, history: list | None = None) -> dict:
+    """
+    Full fallback pipeline when chatbot service and HF API are unavailable.
+    Returns: { "response": str, "sender": int }
+    """
+    answer = get_local_answer(message, history)
+    if answer:
+        return {"response": answer, "sender": sender}
+
     return {
         "response": (
             "I don't have a specific answer for that right now. "
