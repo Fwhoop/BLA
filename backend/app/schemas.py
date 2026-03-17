@@ -91,6 +91,15 @@ class UserSummaryRead(BaseModel):
     inactive: int
 
 
+class UserSearchResult(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+    barangay_id: Optional[int] = None
+    barangay_name: Optional[str] = None
+
+
 class ComplaintStatusBreakdown(BaseModel):
     pending: int = 0
     reviewing: int = 0

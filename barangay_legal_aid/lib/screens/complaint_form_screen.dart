@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +29,14 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
   int? _respondentBarangayId;
   String? _respondentBarangayName;
   List<Map<String, dynamic>> _barangays = [];
+
+  // Registered-user search fields
+  final _userSearchCtrl = TextEditingController();
+  List<Map<String, dynamic>> _userSearchResults = [];
+  bool _isSearchingUsers = false;
+  int? _selectedUserId;
+  String? _selectedUserDisplay;
+  Timer? _searchDebounce;
 
   static const Color _primary = Color(0xFF99272D);
   static const Color _charcoal = Color(0xFF36454F);
@@ -70,7 +79,54 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
     _descriptionController.dispose();
     _respondentNameCtrl.dispose();
     _respondentAddressCtrl.dispose();
+    _userSearchCtrl.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onUserSearch(String query) {
+    _searchDebounce?.cancel();
+    if (query.trim().length < 2) {
+      setState(() { _userSearchResults = []; _isSearchingUsers = false; });
+      return;
+    }
+    setState(() => _isSearchingUsers = true);
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () async {
+      final api = Provider.of<ApiService>(context, listen: false);
+      try {
+        final results = await api.searchUsers(query);
+        if (mounted) setState(() { _userSearchResults = results; _isSearchingUsers = false; });
+      } catch (_) {
+        if (mounted) setState(() { _userSearchResults = []; _isSearchingUsers = false; });
+      }
+    });
+  }
+
+  void _selectUser(Map<String, dynamic> user) {
+    final display = '${user['first_name']} ${user['last_name']}'.trim();
+    setState(() {
+      _selectedUserId = user['id'] as int?;
+      _selectedUserDisplay = display;
+      _respondentNameCtrl.text = display;
+      _userSearchCtrl.text = display;
+      _userSearchResults = [];
+      _isSearchingUsers = false;
+      if (user['barangay_id'] != null) {
+        _respondentBarangayId = user['barangay_id'] as int?;
+        _respondentBarangayName = user['barangay_name'] as String?;
+      }
+    });
+  }
+
+  void _clearSelectedUser() {
+    setState(() {
+      _selectedUserId = null;
+      _selectedUserDisplay = null;
+      _respondentNameCtrl.clear();
+      _userSearchCtrl.clear();
+      _userSearchResults = [];
+      _isSearchingUsers = false;
+    });
   }
 
   Future<void> _showWelcomeDialog() async {
@@ -207,6 +263,7 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
           final respondentName = _respondentNameCtrl.text.trim();
           await api.addRespondent(caseId, {
             'is_registered_user': _respondentIsRegistered,
+            if (_respondentIsRegistered && _selectedUserId != null) 'respondent_id': _selectedUserId,
             if (respondentName.isNotEmpty) 'respondent_name': respondentName,
             if (_respondentBarangayId != null) 'respondent_barangay_id': _respondentBarangayId,
             if (_respondentAddressCtrl.text.trim().isNotEmpty)
@@ -321,6 +378,11 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
                 _respondentAddressCtrl.clear();
                 _respondentBarangayId = null;
                 _respondentBarangayName = null;
+                _userSearchCtrl.clear();
+                _userSearchResults = [];
+                _isSearchingUsers = false;
+                _selectedUserId = null;
+                _selectedUserDisplay = null;
               }),
               child: const Text('File Another Complaint',
                   style: TextStyle(color: _primary)),
@@ -609,33 +671,47 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
                 ),
                 Switch(
                   value: _respondentIsRegistered,
-                  onChanged: (v) => setState(() => _respondentIsRegistered = v),
+                  onChanged: (v) => setState(() {
+                    _respondentIsRegistered = v;
+                    if (!v) {
+                      _userSearchCtrl.clear();
+                      _userSearchResults = [];
+                      _isSearchingUsers = false;
+                      _selectedUserId = null;
+                      _selectedUserDisplay = null;
+                      _respondentNameCtrl.clear();
+                    }
+                  }),
                   activeThumbColor: const Color(0xFF1565C0),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          // Respondent name
-          TextFormField(
-            controller: _respondentNameCtrl,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              labelText: 'Respondent\'s Name',
-              hintText: _respondentIsRegistered ? 'Full name (as registered in BLA)' : 'Full name (optional if unknown)',
-              prefixIcon: const Icon(Icons.person_outline, size: 18),
-              filled: true,
-              fillColor: Colors.white,
-              isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _primary, width: 2)),
+          // Respondent name — search when registered, plain text when not
+          if (_respondentIsRegistered) ...[
+            _buildUserSearchField(),
+          ] else ...[
+            TextFormField(
+              controller: _respondentNameCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: 'Respondent\'s Name',
+                hintText: 'Full name (optional if unknown)',
+                prefixIcon: const Icon(Icons.person_outline, size: 18),
+                filled: true,
+                fillColor: Colors.white,
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _primary, width: 2)),
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
           // Respondent's barangay dropdown
           DropdownButtonFormField<int>(
-            value: _respondentBarangayId,
+            initialValue: _respondentBarangayId,
             decoration: InputDecoration(
               labelText: 'Respondent\'s Barangay *',
               prefixIcon: const Icon(Icons.location_city, size: 18),
@@ -675,6 +751,133 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _primary, width: 2)),
             ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildUserSearchField() {
+    // If a user is already selected, show a chip with a clear button
+    if (_selectedUserDisplay != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF43A047).withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF43A047), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_selectedUserDisplay!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF36454F))),
+                  if (_respondentBarangayName != null)
+                    Text('Brgy. $_respondentBarangayName', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+              tooltip: 'Clear selection',
+              onPressed: _clearSelectedUser,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Otherwise show the search field + results
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _userSearchCtrl,
+          onChanged: _onUserSearch,
+          decoration: InputDecoration(
+            labelText: 'Search Respondent',
+            hintText: 'Type name or email...',
+            prefixIcon: const Icon(Icons.search, size: 18),
+            suffixIcon: _isSearchingUsers
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                : _userSearchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: _clearSelectedUser,
+                      )
+                    : null,
+            filled: true,
+            fillColor: Colors.white,
+            isDense: true,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _primary, width: 2)),
+          ),
+        ),
+        if (_userSearchResults.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFDDE3EE)),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
+            ),
+            child: Column(
+              children: _userSearchResults.map((user) {
+                final name = '${user['first_name']} ${user['last_name']}'.trim();
+                final email = user['email'] as String? ?? '';
+                final barangay = user['barangay_name'] as String?;
+                return InkWell(
+                  onTap: () => _selectUser(user),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: _primary.withValues(alpha: 0.12),
+                          child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _primary)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF36454F))),
+                              Text(
+                                [email, if (barangay != null) 'Brgy. $barangay'].join(' · '),
+                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ] else if (!_isSearchingUsers && _userSearchCtrl.text.trim().length >= 2) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text('No registered users found for "${_userSearchCtrl.text.trim()}"',
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ),
         ],
       ],

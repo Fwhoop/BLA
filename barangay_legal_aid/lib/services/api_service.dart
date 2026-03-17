@@ -254,6 +254,16 @@ class ApiService {
     throw Exception('Failed to load user summary: ${r.statusCode}');
   }
 
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    if (query.trim().length < 2) return [];
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$_baseUrl/users/search')
+        .replace(queryParameters: {'q': query.trim(), 'limit': '10'});
+    final r = await http.get(uri, headers: headers).timeout(_timeout);
+    if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
+    return [];
+  }
+
   Future<List<Map<String, dynamic>>> getAdmins() async {
     final users = await getUsers();
     return users.where((u) => u['role'] == 'admin' || u['role'] == 'superadmin').toList();

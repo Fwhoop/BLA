@@ -192,6 +192,49 @@ def read_users(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# USER SEARCH — minimal public info, available to all authenticated users
+# Used by the complaint form to find registered respondents
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/search", response_model=List[schemas.UserSearchResult])
+def search_users(
+    q: str = Query(..., min_length=2, description="Search by first name, last name, or email"),
+    limit: int = Query(10, ge=1, le=30),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return minimal user info matching the query. Available to all authenticated users."""
+    term = f"%{q}%"
+    users = (
+        db.query(models.User)
+        .outerjoin(models.Barangay, models.User.barangay_id == models.Barangay.id)
+        .filter(
+            models.User.role == "user",
+            models.User.is_active == True,
+            models.User.id != current_user.id,
+            or_(
+                models.User.first_name.ilike(term),
+                models.User.last_name.ilike(term),
+                models.User.email.ilike(term),
+            ),
+        )
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": u.id,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "email": u.email,
+            "barangay_id": u.barangay_id,
+            "barangay_name": u.barangay.name if u.barangay else None,
+        }
+        for u in users
+    ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # STATIC ROUTES — must be before /{user_id} to avoid FastAPI routing conflicts
 # ─────────────────────────────────────────────────────────────────────────────
 
