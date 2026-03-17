@@ -77,13 +77,14 @@ class AuthService {
         .timeout(const Duration(seconds: 15));
 
     if (response.statusCode != 200) {
-      final body = response.body;
-      try {
-        final data = _decodeJson(body);
-        throw Exception(data['detail'] ?? 'Login failed: ${response.statusCode}');
-      } catch (e) {
-        if (e is Exception) rethrow;
-        throw Exception('Login failed: ${response.statusCode} - $body');
+      final data = _decodeJson(response.body);
+      final detail = data['detail'] as String?;
+      if (response.statusCode == 401) {
+        throw Exception('Incorrect email/phone or password. Please try again.');
+      } else if (response.statusCode == 403) {
+        throw Exception(detail ?? 'Your account is pending approval.');
+      } else {
+        throw Exception(detail ?? 'Login failed. Please try again.');
       }
     }
 

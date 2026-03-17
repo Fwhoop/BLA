@@ -14,6 +14,7 @@ from ..db import get_db
 from ..core.config import settings
 from ..utils.otp import generate_otp, hash_otp, verify_otp
 from ..utils.email import send_otp_email, send_password_reset_email
+from ..utils.sms import send_password_reset_sms
 from ..utils.firebase_init import verify_firebase_token
 from ..utils.audit import log_action
 from ..utils.phone import normalize_ph_phone
@@ -407,23 +408,45 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
     if payload.method == "email":
         user = db.query(models.User).filter(models.User.email == payload.identifier).first()
     else:
-        user = db.query(models.User).filter(models.User.phone == payload.identifier).first()
+        normalized = normalize_ph_phone(payload.identifier)
+        user = db.query(models.User).filter(
+            (models.User.phone == normalized) | (models.User.phone == payload.identifier)
+        ).first()
 
     if not user:
-        # Return success to prevent user enumeration
-        return {"message": "If the account exists, a reset code has been sent.", "user_id": None}
+        return {"message": "No account found.", "user_id": None,
+                "display_name": None, "masked_contact": None}
+
+    # Build masked contact for display (user already knows their own identifier)
+    if payload.method == "email":
+        em = user.email or ""
+        local, _, domain = em.partition("@")
+        masked_contact = local[:2] + "***@" + domain if len(local) > 2 else "***@" + domain
+    else:
+        ph = user.phone or ""
+        masked_contact = ph[:4] + "****" + ph[-3:] if len(ph) >= 7 else ph
+
+    display_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.username or "User"
+
+    # Generate and store OTP for both email and phone resets
+    otp = generate_otp()
+    user.otp_code = hash_otp(otp)
+    user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    user.otp_attempts = 0
+    db.commit()
 
     if payload.method == "email":
-        otp = generate_otp()
-        user.otp_code = hash_otp(otp)
-        user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
-        user.otp_attempts = 0
-        db.commit()
         send_password_reset_email(user.email, otp)
+    # For phone method: the Flutter client uses Firebase Phone Auth to send the SMS
+    # and verify the code.  We only need to return the user_id here so the client
+    # can call /reset-password-phone after Firebase verification completes.
 
-    # For phone method: client will trigger Firebase OTP directly.
-    # We just return the user_id so the client can call reset-password-phone after Firebase verifies.
-    return {"message": "If the account exists, a reset code has been sent.", "user_id": user.id}
+    return {
+        "message": "Reset code sent.",
+        "user_id": user.id,
+        "display_name": display_name,
+        "masked_contact": masked_contact,
+    }
 
 
 @router.post("/reset-password")

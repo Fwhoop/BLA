@@ -352,9 +352,34 @@ class SignupPageState extends State<SignupPage> {
 
       // ── Phone SMS path ────────────────────────────────────────────────────
       if (method == 'phone' && phone.isNotEmpty) {
+        // Web: use signInWithPhoneNumber (reCAPTCHA flow)
         if (kIsWeb) {
-          _showError('Phone SMS verification is not supported on the web. Please use Email OTP.');
-          setState(() => _isLoading = false);
+          try {
+            final confirmationResult =
+                await FirebaseAuth.instance.signInWithPhoneNumber(phone);
+            if (!mounted) return;
+            setState(() => _isLoading = false);
+            if (registeredUserId == null) {
+              _showError('Registration error: could not retrieve user ID.');
+              return;
+            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PhoneSmsVerificationScreen(
+                  verificationId: '',
+                  userId: registeredUserId,
+                  phoneNumber: phone,
+                  webConfirmationResult: confirmationResult,
+                ),
+              ),
+            );
+          } catch (e) {
+            if (mounted) {
+              _showError(e.toString().replaceFirst('Exception: ', ''));
+              setState(() => _isLoading = false);
+            }
+          }
           return;
         }
 

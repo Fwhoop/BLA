@@ -91,6 +91,27 @@ class UserSummaryRead(BaseModel):
     inactive: int
 
 
+class ComplaintStatusBreakdown(BaseModel):
+    pending: int = 0
+    reviewing: int = 0
+    resolved: int = 0
+    dismissed: int = 0
+
+
+class RequestStatusBreakdown(BaseModel):
+    pending: int = 0
+    approved: int = 0
+    rejected: int = 0
+
+
+class UserStatsRead(BaseModel):
+    complaints_filed_count: int
+    complaints_filed_against_count: int
+    complaints_by_status: ComplaintStatusBreakdown
+    requests_total: int
+    requests_by_status: RequestStatusBreakdown
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # AUTH SCHEMAS
 # ─────────────────────────────────────────────────────────────────────────────

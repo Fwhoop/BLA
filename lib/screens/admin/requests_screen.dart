@@ -291,6 +291,117 @@ class AdminRequestsScreenState extends State<AdminRequestsScreen> {
   }
 }
 
+// ─── User Stats Popup ─────────────────────────────────────────────────────────
+
+void _showUserStatsPopup(BuildContext context, int? userId, String userName, ApiService api) {
+  if (userId == null) return;
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (_) => _UserStatsDialog(userId: userId, userName: userName, api: api),
+  );
+}
+
+class _UserStatsDialog extends StatefulWidget {
+  final int userId;
+  final String userName;
+  final ApiService api;
+  const _UserStatsDialog({required this.userId, required this.userName, required this.api});
+
+  @override
+  State<_UserStatsDialog> createState() => _UserStatsDialogState();
+}
+
+class _UserStatsDialogState extends State<_UserStatsDialog> {
+  Map<String, dynamic>? _stats;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final stats = await widget.api.getUserStats(widget.userId);
+      if (mounted) setState(() { _stats = stats; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 420),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.all(24),
+        child: _loading
+            ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: _kPrimary)))
+            : _error != null
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.error_outline, color: _kPrimary, size: 36),
+                    const SizedBox(height: 12),
+                    Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: _kCharcoal)),
+                    const SizedBox(height: 16),
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                  ])
+                : _buildContent(),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    final s = _stats!;
+    final byStatus = (s['complaints_by_status'] as Map<String, dynamic>?) ?? {};
+    final reqByStatus = (s['requests_by_status'] as Map<String, dynamic>?) ?? {};
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          const Icon(Icons.person, color: _kPrimary),
+          const SizedBox(width: 8),
+          Expanded(child: Text(widget.userName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _kCharcoal))),
+          IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+        ]),
+        const Divider(height: 24),
+        Text('Complaints Filed: ${s['complaints_filed_count'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: _kCharcoal)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 4, children: [
+          _chip('Pending', byStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
+          _chip('Reviewing', byStatus['reviewing'] ?? 0, const Color(0xFF3B82F6)),
+          _chip('Resolved', byStatus['resolved'] ?? 0, const Color(0xFF10B981)),
+          _chip('Dismissed', byStatus['dismissed'] ?? 0, const Color(0xFF6B7280)),
+        ]),
+        const SizedBox(height: 12),
+        Text('Complaints Against: ${s['complaints_filed_against_count'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: _kCharcoal)),
+        const Divider(height: 20),
+        Text('Document Requests: ${s['requests_total'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: _kCharcoal)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 4, children: [
+          _chip('Pending', reqByStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
+          _chip('Approved', reqByStatus['approved'] ?? 0, const Color(0xFF10B981)),
+          _chip('Rejected', reqByStatus['rejected'] ?? 0, _kPrimary),
+        ]),
+      ],
+    );
+  }
+
+  Widget _chip(String label, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withValues(alpha: 0.4))),
+      child: Text('$label: $count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
 class _RequestCard extends StatelessWidget {
@@ -434,10 +545,17 @@ class _RequestCard extends StatelessWidget {
                     Icon(Icons.person_outline, size: 14, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: Text(
-                        requesterName,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                        overflow: TextOverflow.ellipsis,
+                      child: GestureDetector(
+                        onTap: () {
+                          final userId = request['requester_id'] as int?;
+                          final api = Provider.of<ApiService>(context, listen: false);
+                          _showUserStatsPopup(context, userId, requesterName, api);
+                        },
+                        child: Text(
+                          requesterName,
+                          style: const TextStyle(fontSize: 12, color: _kPrimary, decoration: TextDecoration.underline, decorationColor: _kPrimary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ] else
@@ -679,7 +797,21 @@ class _RequestDetailSheetState extends State<_RequestDetailSheet> {
                   if (requesterName != null || requesterEmail != null)
                     _infoBox('Requester', [
                       if (requesterName != null)
-                        _infoRow(Icons.person, requesterName),
+                        GestureDetector(
+                          onTap: () {
+                            final userId = widget.request['requester_id'] as int?;
+                            final api = Provider.of<ApiService>(context, listen: false);
+                            _showUserStatsPopup(context, userId, requesterName, api);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(children: [
+                              const Icon(Icons.person, size: 16, color: _kCharcoal),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(requesterName, style: const TextStyle(color: _kPrimary, fontWeight: FontWeight.w500, decoration: TextDecoration.underline, decorationColor: _kPrimary))),
+                            ]),
+                          ),
+                        ),
                       if (requesterEmail != null)
                         _infoRow(Icons.email_outlined, requesterEmail),
                     ]),

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
@@ -6,16 +5,15 @@ import 'package:barangay_legal_aid/screens/phone_sms_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/phone_utils.dart';
+import 'package:barangay_legal_aid/data/ph_locations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 const _kPrimary  = Color(0xFF99272D);
 const _kCharcoal = Color(0xFF36454F);
-const _psgcBase  = 'https://psgc.gitlab.io/api';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -28,159 +26,56 @@ class SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _imagePicker = ImagePicker();
 
-  final TextEditingController _firstNameController       = TextEditingController();
-  final TextEditingController _lastNameController        = TextEditingController();
-  final TextEditingController _emailController           = TextEditingController();
-  final TextEditingController _passwordController        = TextEditingController();
+  final TextEditingController _firstNameController    = TextEditingController();
+  final TextEditingController _lastNameController     = TextEditingController();
+  final TextEditingController _emailController        = TextEditingController();
+  final TextEditingController _passwordController     = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
-  final TextEditingController _phoneController           = TextEditingController();
+  final TextEditingController _phoneController        = TextEditingController();
 
-  // Address text fields
-  final TextEditingController _houseNoController         = TextEditingController();
-  final TextEditingController _purokController           = TextEditingController();
-  final TextEditingController _streetController          = TextEditingController();
-  final TextEditingController _zipCodeController         = TextEditingController();
+  // Address fields
+  final TextEditingController _houseNoController  = TextEditingController();
+  final TextEditingController _purokController    = TextEditingController();
+  final TextEditingController _streetController   = TextEditingController();
+  final TextEditingController _zipController      = TextEditingController();
+  String? _selectedRegion;
+  String? _selectedProvince;
+  String? _selectedCity;
 
-  // Address dropdown selections
-  String? _selectedRegionCode;
-  String? _selectedProvinceCode;
-  String? _selectedCityCode;
-  String? _selectedBarangay;
-  bool    _noProvinceRegion = false; // true for NCR / regions without provinces
-
-  bool _isLoading            = false;
-  bool _obscurePassword      = true;
+  String? _selectedBarangay; // service barangay (from backend)
+  bool _isLoading = false;
+  bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
   // Three required photos
-  Uint8List? _selfieBytes;
-  Uint8List? _idPhotoBytes;
-  Uint8List? _selfieWithIdBytes;
+  Uint8List? _selfieBytes;       // → profile_photo (selfie)
+  Uint8List? _idPhotoBytes;      // → id_photo      (valid ID)
+  Uint8List? _selfieWithIdBytes; // → selfie_with_id (selfie holding ID)
 
-  String _role               = 'user';
-  String _verificationMethod = 'email';
+  String _role = 'user';               // 'user' or 'admin'
+  String _verificationMethod = 'email'; // only shown when both email+phone are filled
 
+  // Tracks whether the fields have content (for smart verification selector)
   bool _hasEmail = false;
   bool _hasPhone = false;
 
-  // PSGC data
-  List<Map<String, dynamic>> _regions      = [];
-  List<Map<String, dynamic>> _provinces    = [];
-  List<Map<String, dynamic>> _cities       = [];
   List<Map<String, dynamic>> _barangayItems = [];
-
-  bool _regionsLoading   = false;
-  bool _provincesLoading = false;
-  bool _citiesLoading    = false;
-  bool _barangaysLoading = false;
+  bool _barangaysLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadRegions();
+    _loadBarangays();
   }
 
-  Future<void> _loadRegions() async {
-    if (mounted) setState(() => _regionsLoading = true);
+  Future<void> _loadBarangays() async {
     try {
-      final resp = await http.get(Uri.parse('$_psgcBase/regions/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        final regions = list
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList()
-          ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-        if (mounted) setState(() => _regions = regions);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _regionsLoading = false);
-  }
-
-  Future<void> _onRegionChanged(String code) async {
-    setState(() {
-      _selectedRegionCode   = code;
-      _selectedProvinceCode = null;
-      _selectedCityCode     = null;
-      _selectedBarangay     = null;
-      _provinces            = [];
-      _cities               = [];
-      _barangayItems        = [];
-      _noProvinceRegion     = false;
-      _provincesLoading     = true;
-    });
-    try {
-      final resp = await http.get(Uri.parse('$_psgcBase/regions/$code/provinces/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        if (list.isEmpty) {
-          if (mounted) setState(() { _noProvinceRegion = true; _provincesLoading = false; _citiesLoading = true; });
-          final citiesResp = await http.get(Uri.parse('$_psgcBase/regions/$code/cities-municipalities/'));
-          if (citiesResp.statusCode == 200) {
-            final cityList = jsonDecode(citiesResp.body) as List;
-            final cities = cityList
-                .map((e) => Map<String, dynamic>.from(e as Map))
-                .toList()
-              ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-            if (mounted) setState(() => _cities = cities);
-          }
-          if (mounted) setState(() => _citiesLoading = false);
-        } else {
-          final provinces = list
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList()
-            ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-          if (mounted) setState(() { _provinces = provinces; _provincesLoading = false; });
-        }
-      } else {
-        if (mounted) setState(() => _provincesLoading = false);
-      }
+      final api = Provider.of<ApiService>(context, listen: false);
+      final items = await api.getBarangays();
+      if (mounted) setState(() { _barangayItems = items; _barangaysLoading = false; });
     } catch (_) {
-      if (mounted) setState(() { _provincesLoading = false; _citiesLoading = false; });
+      if (mounted) setState(() => _barangaysLoading = false);
     }
-  }
-
-  Future<void> _onProvinceChanged(String code) async {
-    setState(() {
-      _selectedProvinceCode = code;
-      _selectedCityCode     = null;
-      _selectedBarangay     = null;
-      _cities               = [];
-      _barangayItems        = [];
-      _citiesLoading        = true;
-    });
-    try {
-      final resp = await http.get(Uri.parse('$_psgcBase/provinces/$code/cities-municipalities/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        final cities = list
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList()
-          ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-        if (mounted) setState(() => _cities = cities);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _citiesLoading = false);
-  }
-
-  Future<void> _onCityChanged(String code) async {
-    setState(() {
-      _selectedCityCode  = code;
-      _selectedBarangay  = null;
-      _barangayItems     = [];
-      _barangaysLoading  = true;
-    });
-    try {
-      final resp = await http.get(Uri.parse('$_psgcBase/cities-municipalities/$code/barangays/'));
-      if (resp.statusCode == 200) {
-        final list = jsonDecode(resp.body) as List;
-        final barangays = list
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList()
-          ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-        if (mounted) setState(() => _barangayItems = barangays);
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _barangaysLoading = false);
   }
 
   @override
@@ -194,36 +89,16 @@ class SignupPageState extends State<SignupPage> {
     _houseNoController.dispose();
     _purokController.dispose();
     _streetController.dispose();
-    _zipCodeController.dispose();
+    _zipController.dispose();
     super.dispose();
   }
 
-  String _buildFullAddress() {
-    final parts = <String>[];
-    final houseNo = _houseNoController.text.trim();
-    final purok   = _purokController.text.trim();
-    final street  = _streetController.text.trim();
-    final zip     = _zipCodeController.text.trim();
-    if (houseNo.isNotEmpty) parts.add(houseNo);
-    if (purok.isNotEmpty)   parts.add(purok);
-    if (street.isNotEmpty)  parts.add(street);
-    if (_selectedBarangay != null) parts.add(_selectedBarangay!);
-    final cityEntry = _cities.where((c) => c['code'] == _selectedCityCode).toList();
-    if (cityEntry.isNotEmpty) parts.add(cityEntry.first['name'] as String);
-    if (!_noProvinceRegion) {
-      final provEntry = _provinces.where((p) => p['code'] == _selectedProvinceCode).toList();
-      if (provEntry.isNotEmpty) parts.add(provEntry.first['name'] as String);
-    }
-    final regEntry = _regions.where((r) => r['code'] == _selectedRegionCode).toList();
-    if (regEntry.isNotEmpty) parts.add(regEntry.first['name'] as String);
-    if (zip.isNotEmpty) parts.add(zip);
-    return parts.join(', ');
-  }
-
   Future<void> _pickPhoto({required void Function(Uint8List) onPicked}) async {
+    // Force camera on native for integrity — web falls back to gallery
+    // since image_picker_web does not support ImageSource.camera
     try {
       final file = await _imagePicker.pickImage(
-        source: ImageSource.camera,
+        source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
         maxWidth: 1600,
         maxHeight: 1600,
         imageQuality: 85,
@@ -233,7 +108,7 @@ class SignupPageState extends State<SignupPage> {
         setState(() => onPicked(bytes));
       }
     } catch (e) {
-      if (mounted) _showError('Unable to open camera: $e');
+      if (mounted) _showError('Unable to pick photo: $e');
     }
   }
 
@@ -253,32 +128,20 @@ class SignupPageState extends State<SignupPage> {
       _showError('Passwords do not match.');
       return;
     }
-    if (_selectedRegionCode == null) {
-      _showError('Please select your region.');
-      return;
-    }
-    if (!_noProvinceRegion && _selectedProvinceCode == null) {
-      _showError('Please select your province.');
-      return;
-    }
-    if (_selectedCityCode == null) {
-      _showError('Please select your city or municipality.');
-      return;
-    }
     if (_selectedBarangay == null) {
       _showError('Please select your barangay.');
       return;
     }
     if (_selfieBytes == null) {
-      _showError('Please take your selfie photo.');
+      _showError('Please upload your selfie photo.');
       return;
     }
     if (_idPhotoBytes == null) {
-      _showError('Please take your valid ID photo.');
+      _showError('Please upload your valid ID photo.');
       return;
     }
     if (_selfieWithIdBytes == null) {
-      _showError('Please take your selfie holding your ID.');
+      _showError('Please upload your selfie holding your ID.');
       return;
     }
 
@@ -306,13 +169,26 @@ class SignupPageState extends State<SignupPage> {
       final api  = Provider.of<ApiService>(context, listen: false);
 
       // Register user — returns the full user object including `id`
+      // Build full address string from individual fields
+      final addressParts = [
+        if (_houseNoController.text.trim().isNotEmpty) _houseNoController.text.trim(),
+        if (_purokController.text.trim().isNotEmpty)   _purokController.text.trim(),
+        if (_streetController.text.trim().isNotEmpty)  _streetController.text.trim(),
+        if (_selectedBarangay != null)                 'Brgy. $_selectedBarangay',
+        if (_selectedCity != null)                     _selectedCity!,
+        if (_selectedProvince != null)                 _selectedProvince!,
+        if (_selectedRegion != null)                   _selectedRegion!,
+        if (_zipController.text.trim().isNotEmpty)     _zipController.text.trim(),
+      ];
+      final fullAddress = addressParts.join(', ');
+
       final userData = await auth.signUp(
         firstName:         _firstNameController.text.trim(),
         lastName:          _lastNameController.text.trim(),
         email:             email,
         password:          _passwordController.text,
         phone:             phone,
-        address:           _buildFullAddress(),
+        address:           fullAddress,
         barangay:          _selectedBarangay!,
         idPhotoPath:       idPhotoPath,
         idPhotoBytes:      _idPhotoBytes,
@@ -352,37 +228,39 @@ class SignupPageState extends State<SignupPage> {
 
       // ── Phone SMS path ────────────────────────────────────────────────────
       if (method == 'phone' && phone.isNotEmpty) {
-        // Web: use signInWithPhoneNumber (reCAPTCHA flow)
+        if (registeredUserId == null) {
+          _showError('Registration error: could not retrieve user ID. Please try again.');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // ── Web: signInWithPhoneNumber + invisible reCAPTCHA ──────────────
         if (kIsWeb) {
           try {
             final confirmationResult =
                 await FirebaseAuth.instance.signInWithPhoneNumber(phone);
             if (!mounted) return;
             setState(() => _isLoading = false);
-            if (registeredUserId == null) {
-              _showError('Registration error: could not retrieve user ID.');
-              return;
-            }
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (_) => PhoneSmsVerificationScreen(
-                  verificationId: '',
-                  userId: registeredUserId,
-                  phoneNumber: phone,
-                  webConfirmationResult: confirmationResult,
+                  confirmationResult: confirmationResult,
+                  userId:             registeredUserId,
+                  phoneNumber:        phone,
                 ),
               ),
             );
-          } catch (e) {
+          } on FirebaseAuthException catch (e) {
             if (mounted) {
-              _showError(e.toString().replaceFirst('Exception: ', ''));
+              _showError(_webPhoneError(e));
               setState(() => _isLoading = false);
             }
           }
           return;
         }
 
+        // ── Native: verifyPhoneNumber ─────────────────────────────────────
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
           timeout: const Duration(seconds: 60),
@@ -428,10 +306,6 @@ class SignupPageState extends State<SignupPage> {
           codeSent: (String verificationId, int? resendToken) {
             if (!mounted) return;
             setState(() => _isLoading = false);
-            if (registeredUserId == null) {
-              _showError('Registration error: could not retrieve user ID. Please try again.');
-              return;
-            }
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -473,6 +347,21 @@ class SignupPageState extends State<SignupPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: _kPrimary),
     );
+  }
+
+  String _webPhoneError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-phone-number':
+        return 'Invalid phone number. Use +639XXXXXXXXX or 09XXXXXXXXX.';
+      case 'too-many-requests':
+        return 'Too many SMS requests. Please wait and try again.';
+      case 'quota-exceeded':
+        return 'SMS quota exceeded. Please use Email OTP instead.';
+      case 'captcha-check-failed':
+        return 'reCAPTCHA verification failed. Please try again.';
+      default:
+        return e.message ?? 'Phone verification failed. Please try again.';
+    }
   }
 
   // ── Build ───────────────────────────────────────────────────────────────────
@@ -533,33 +422,13 @@ class SignupPageState extends State<SignupPage> {
                     // ── Section 4: Location ──────────────────────────────
                     _sectionLabel('Location'),
                     const SizedBox(height: 10),
-                    _buildTextField(controller: _houseNoController, label: 'House No. / Unit / Building', hint: 'e.g. 12, Unit 3A', icon: Icons.home_outlined, optional: true),
-                    const SizedBox(height: 12),
-                    _buildTextField(controller: _purokController, label: 'Purok / Sitio', hint: 'e.g. Purok 4, Sitio Mabuhay', icon: Icons.holiday_village_outlined, optional: true),
-                    const SizedBox(height: 12),
-                    _buildTextField(controller: _streetController, label: 'Street Name', hint: 'e.g. Rizal St.', icon: Icons.edit_road_outlined, optional: true),
-                    const SizedBox(height: 12),
-                    _buildRegionDropdown(),
-                    if (_selectedRegionCode != null && !_noProvinceRegion) ...[
-                      const SizedBox(height: 12),
-                      _buildProvinceDropdown(),
-                    ],
-                    if (_selectedRegionCode != null && (_noProvinceRegion || _selectedProvinceCode != null)) ...[
-                      const SizedBox(height: 12),
-                      _buildCityDropdown(),
-                    ],
-                    if (_selectedCityCode != null) ...[
-                      const SizedBox(height: 12),
-                      _buildBarangayDropdown(),
-                    ],
-                    const SizedBox(height: 12),
-                    _buildTextField(controller: _zipCodeController, label: 'ZIP Code', hint: 'e.g. 1000', icon: Icons.markunread_mailbox_outlined, optional: true, keyboardType: TextInputType.number),
+                    _buildLocationFields(),
 
                     const SizedBox(height: 20),
 
                     // ── Section 5: Photo Verification ────────────────────
                     _sectionLabel('Photo Verification',
-                        sub: 'Camera required — all three photos must be freshly taken'),
+                        sub: 'All three photos are required for identity verification'),
                     const SizedBox(height: 10),
                     _buildPhotoUploader(
                       label: 'Your Selfie',
@@ -790,116 +659,161 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Generic optional text field ────────────────────────────────────────────
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    bool optional = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: optional ? '$label (Optional)' : label,
-        hintText: hint,
-        prefixIcon: Icon(icon),
-      ),
-    );
-  }
+  // ── Location (cascading PH address) ───────────────────────────────────────
+  Widget _buildLocationFields() {
+    final provinces = _selectedRegion != null
+        ? (kRegionProvinces[_selectedRegion] ?? <String>[])
+        : <String>[];
+    final cities = _selectedProvince != null
+        ? (kProvinceCities[_selectedProvince] ?? <String>[])
+        : <String>[];
 
-  // ── Region dropdown ────────────────────────────────────────────────────────
-  Widget _buildRegionDropdown() {
-    if (_regionsLoading) return _loadingRow('Loading regions…');
-    if (_regions.isEmpty) return _retryRow('Could not load regions.', _loadRegions);
-    return DropdownButtonFormField<String>(
-      value: _selectedRegionCode,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Region', prefixIcon: Icon(Icons.map_outlined)),
-      items: _regions.map((r) {
-        return DropdownMenuItem<String>(value: r['code'] as String, child: Text(r['name'] as String));
-      }).toList(),
-      onChanged: (v) { if (v != null) _onRegionChanged(v); },
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your region' : null,
-    );
-  }
+    return Column(
+      children: [
+        // House No. / Unit / Building (optional)
+        TextFormField(
+          controller: _houseNoController,
+          decoration: const InputDecoration(
+            labelText: 'House No. / Unit / Building',
+            hintText: 'e.g. 12B, Unit 3, Bldg. 5 (optional)',
+            prefixIcon: Icon(Icons.home_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
 
-  // ── Province dropdown ──────────────────────────────────────────────────────
-  Widget _buildProvinceDropdown() {
-    if (_provincesLoading) return _loadingRow('Loading provinces…');
-    if (_provinces.isEmpty) return const SizedBox.shrink();
-    return DropdownButtonFormField<String>(
-      value: _selectedProvinceCode,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Province', prefixIcon: Icon(Icons.location_city_outlined)),
-      items: _provinces.map((p) {
-        return DropdownMenuItem<String>(value: p['code'] as String, child: Text(p['name'] as String));
-      }).toList(),
-      onChanged: (v) { if (v != null) _onProvinceChanged(v); },
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your province' : null,
-    );
-  }
+        // Purok / Sitio (optional)
+        TextFormField(
+          controller: _purokController,
+          decoration: const InputDecoration(
+            labelText: 'Purok / Sitio',
+            hintText: 'e.g. Purok 3, Sitio Malaya (optional)',
+            prefixIcon: Icon(Icons.landscape_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
 
-  // ── City / Municipality dropdown ───────────────────────────────────────────
-  Widget _buildCityDropdown() {
-    if (_citiesLoading) return _loadingRow('Loading cities / municipalities…');
-    if (_cities.isEmpty) return const SizedBox.shrink();
-    return DropdownButtonFormField<String>(
-      value: _selectedCityCode,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'City / Municipality', prefixIcon: Icon(Icons.location_on_outlined)),
-      items: _cities.map((c) {
-        return DropdownMenuItem<String>(value: c['code'] as String, child: Text(c['name'] as String));
-      }).toList(),
-      onChanged: (v) { if (v != null) _onCityChanged(v); },
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your city or municipality' : null,
-    );
-  }
+        // Street Name (optional)
+        TextFormField(
+          controller: _streetController,
+          decoration: const InputDecoration(
+            labelText: 'Street Name',
+            hintText: 'e.g. Rizal Street (optional)',
+            prefixIcon: Icon(Icons.add_road_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
 
-  // ── Barangay dropdown ──────────────────────────────────────────────────────
-  Widget _buildBarangayDropdown() {
-    if (_barangaysLoading) return _loadingRow('Loading barangays…');
-    if (_barangayItems.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('No barangays found for the selected city.',
-            style: TextStyle(color: Colors.red, fontSize: 13)),
-      );
-    }
-    return DropdownButtonFormField<String>(
-      value: _selectedBarangay,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Barangay', prefixIcon: Icon(Icons.apartment_outlined)),
-      items: _barangayItems.map((b) {
-        final name = b['name'] as String? ?? '';
-        return DropdownMenuItem<String>(value: name, child: Text(name));
-      }).toList(),
-      onChanged: (v) => setState(() => _selectedBarangay = v),
-      validator: (v) => (v == null || v.isEmpty) ? 'Please select your barangay' : null,
-    );
-  }
+        // Region
+        DropdownButtonFormField<String>(
+          value: _selectedRegion,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Region',
+            prefixIcon: Icon(Icons.map_outlined),
+          ),
+          items: kPhRegions
+              .map((r) => DropdownMenuItem(value: r, child: Text(r, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: (v) => setState(() {
+            _selectedRegion   = v;
+            _selectedProvince = null;
+            _selectedCity     = null;
+            _selectedBarangay = null;
+          }),
+          validator: (v) => (v == null) ? 'Please select a region' : null,
+        ),
+        const SizedBox(height: 12),
 
-  Widget _loadingRow(String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(children: [
-        const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-        const SizedBox(width: 12),
-        Text(label, style: const TextStyle(color: Colors.grey)),
-      ]),
-    );
-  }
+        // Province (filtered by region)
+        DropdownButtonFormField<String>(
+          value: _selectedProvince,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Province',
+            prefixIcon: const Icon(Icons.location_city_outlined),
+            enabled: _selectedRegion != null,
+          ),
+          items: provinces
+              .map((p) => DropdownMenuItem(value: p, child: Text(p, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: _selectedRegion == null ? null : (v) => setState(() {
+            _selectedProvince = v;
+            _selectedCity     = null;
+            _selectedBarangay = null;
+          }),
+          validator: (v) => (v == null) ? 'Please select a province' : null,
+        ),
+        const SizedBox(height: 12),
 
-  Widget _retryRow(String message, VoidCallback onRetry) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Text(message, style: const TextStyle(color: Colors.red, fontSize: 13)),
-        const SizedBox(width: 8),
-        TextButton(onPressed: onRetry, child: const Text('Retry')),
-      ]),
+        // City / Municipality (filtered by province)
+        DropdownButtonFormField<String>(
+          value: _selectedCity,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'City / Municipality',
+            prefixIcon: const Icon(Icons.location_on_outlined),
+            enabled: _selectedProvince != null,
+          ),
+          items: cities
+              .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: _selectedProvince == null ? null : (v) => setState(() {
+            _selectedCity     = v;
+            _selectedBarangay = null;
+          }),
+          validator: (v) => (v == null) ? 'Please select a city/municipality' : null,
+        ),
+        const SizedBox(height: 12),
+
+        // Barangay (service barangay from backend, required)
+        if (_barangaysLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Row(children: [
+              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(width: 12),
+              Text('Loading barangays…', style: TextStyle(color: Colors.grey)),
+            ]),
+          )
+        else if (_barangayItems.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('No barangays available. Please contact your administrator.',
+                style: TextStyle(color: Colors.red, fontSize: 13)),
+          )
+        else
+          DropdownButtonFormField<String>(
+            value: _selectedBarangay,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Barangay',
+              prefixIcon: Icon(Icons.holiday_village_outlined),
+            ),
+            items: _barangayItems.map((b) {
+              final name = b['name'] as String? ?? '';
+              return DropdownMenuItem<String>(value: name, child: Text(name, overflow: TextOverflow.ellipsis));
+            }).toList(),
+            onChanged: (v) => setState(() => _selectedBarangay = v),
+            validator: (v) => (v == null || v.isEmpty) ? 'Please select your barangay' : null,
+          ),
+        const SizedBox(height: 12),
+
+        // ZIP Code (optional)
+        TextFormField(
+          controller: _zipController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'ZIP Code',
+            hintText: 'e.g. 1000 (optional)',
+            prefixIcon: Icon(Icons.markunread_mailbox_outlined),
+          ),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return null;
+            if (!RegExp(r'^\d{4}$').hasMatch(v.trim())) return 'Enter a valid 4-digit ZIP code';
+            return null;
+          },
+        ),
+      ],
     );
   }
 
@@ -956,8 +870,8 @@ class SignupPageState extends State<SignupPage> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : onPick,
-                  icon: const Icon(Icons.camera_alt, size: 16),
-                  label: Text(bytes == null ? 'Open Camera' : 'Retake Photo',
+                  icon: Icon(bytes == null ? Icons.camera_alt_outlined : Icons.cameraswitch_outlined, size: 16),
+                  label: Text(bytes == null ? 'Take Photo' : 'Retake Photo',
                       style: const TextStyle(fontSize: 13)),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
