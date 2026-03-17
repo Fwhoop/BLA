@@ -91,7 +91,7 @@ _LEGAL_TOPICS = [
         "triggers": {"debt", "utang", "bayad", "bayaran", "owe", "owes", "refuses", "pay", "collection", "borrow", "borrowed", "lending", "loan"},
         "answer": (
             "**Neighbour Refuses to Pay Debt — What You Can Do**\n\n"
-            "Here is the step-by-step process:\n\n"
+            "We understand how frustrating this situation can be. Here is the step-by-step process to resolve it:\n\n"
             "**Step 1 — Send a demand**\n"
             "First, send a written demand letter asking your neighbour to pay. "
             "Keep a copy. Give them a reasonable deadline (7–15 days).\n\n"
@@ -159,9 +159,38 @@ _LEGAL_TOPICS = [
         ),
     },
     {
-        "triggers": {"vawc", "violence", "abuse", "domestic", "battered", "rape", "harassment", "stalking", "women", "children"},
+        "triggers": {"affair", "kabit", "infidelity", "cheating", "husband", "wife", "asawa", "marital", "selingkuh"},
+        "answer": (
+            "**Reporting a Marital Affair / Infidelity**\n\n"
+            "We understand this is a painful situation, and we're here to help you understand your rights. "
+            "Here is what you can do:\n\n"
+            "**Step 1 — Understand barangay jurisdiction**\n"
+            "Marital infidelity (affair) is not directly a barangay-level offense. "
+            "However, the barangay can help if the affair involves psychological abuse, "
+            "threats, or abandonment under RA 9262 (VAWC).\n\n"
+            "**Step 2 — Go to the Barangay VAWC Desk**\n"
+            "Visit your Barangay Hall and speak with the VAWC Desk Officer. "
+            "Explain your situation. They will assess if RA 9262 applies "
+            "(e.g., emotional/psychological abuse caused by the affair).\n\n"
+            "**Step 3 — Request a Barangay Protection Order (BPO) if needed**\n"
+            "If you feel threatened or emotionally harmed, "
+            "the Punong Barangay can issue a BPO on the same day.\n\n"
+            "**Step 4 — For legal separation or annulment**\n"
+            "These are handled by the Family Court, not the barangay. "
+            "You may consult the Public Attorney's Office (PAO) for free legal advice.\n\n"
+            "**Step 5 — File a criminal case (if applicable)**\n"
+            "Concubinage (husband) or adultery (wife) are criminal offenses under the Revised Penal Code. "
+            "These must be filed in regular courts. Consult PAO or a private lawyer.\n\n"
+            "📋 **Legal Basis:** RA 9262 (Anti-VAWC Act) — psychological abuse; "
+            "Revised Penal Code, Articles 333–334 — Adultery and Concubinage; "
+            "RA 7160, Section 389 — Barangay VAWC Desk"
+        ),
+    },
+    {
+        "triggers": {"vawc", "violence", "abuse", "domestic", "battered", "rape", "harassment", "stalking", "women", "children", "psychological"},
         "answer": (
             "**Violence Against Women and Children (VAWC)**\n\n"
+            "We hear you, and you are not alone. Your safety is the priority. "
             "Here is what to do:\n\n"
             "**Step 1 — Seek safety first**\n"
             "If you are in immediate danger, call the police (911) or go to the nearest barangay. "
@@ -185,7 +214,8 @@ _LEGAL_TOPICS = [
         "triggers": {"blotter", "police", "report", "incident", "crime", "assault", "fight", "mauling", "threat", "threatening"},
         "answer": (
             "**How to File a Barangay Blotter Report**\n\n"
-            "Here is the step-by-step process:\n\n"
+            "We're sorry to hear you've been through a difficult situation. "
+            "Here is how to file a blotter report at your barangay:\n\n"
             "**Step 1 — Go to the Barangay Hall**\n"
             "Visit the Barangay Hall and ask for the Barangay Secretary or duty tanod. "
             "You can file a blotter anytime — barangays are required to accept reports.\n\n"
@@ -207,7 +237,8 @@ _LEGAL_TOPICS = [
         "triggers": {"property", "land", "boundary", "encroachment", "trespassing", "fence", "wall", "easement"},
         "answer": (
             "**Property Boundary Dispute at the Barangay Level**\n\n"
-            "Here is the step-by-step process:\n\n"
+            "We understand property disputes can be stressful. "
+            "Here is the step-by-step process to resolve it through the barangay:\n\n"
             "**Step 1 — Gather your documents**\n"
             "Collect your land title (TCT or OCT), tax declaration, and any survey plans. "
             "These will be key evidence during mediation.\n\n"
