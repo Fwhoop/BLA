@@ -112,10 +112,8 @@ def chat(req: ChatRequest):
         with torch.no_grad():
             output_ids = model.generate(
                 input_ids,
-                max_new_tokens=256,
-                do_sample=True,
-                temperature=0.7,
-                top_p=0.9,
+                max_new_tokens=100,
+                do_sample=False,
                 repetition_penalty=1.1,
                 pad_token_id=tokenizer.eos_token_id if tokenizer.eos_token_id else 1,
             )

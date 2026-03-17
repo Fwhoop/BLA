@@ -128,7 +128,7 @@ def _call_chatbot_service(message: str, history=None) -> Optional[str]:
         resp = requests.post(
             f"{_CHATBOT_SERVICE_URL}/chat",
             json={"message": message, "history": history_payload},
-            timeout=60,
+            timeout=25,
         )
         resp.raise_for_status()
         data = resp.json()
