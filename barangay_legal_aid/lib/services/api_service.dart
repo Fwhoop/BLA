@@ -224,15 +224,34 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getUsers() async {
+  Future<List<Map<String, dynamic>>> getUsers({
+    String? search,
+    String? status,
+    int page = 1,
+    int limit = 50,
+  }) async {
     final headers = await _getHeaders();
-    final r = await http
-        .get(Uri.parse('$_baseUrl/users/'), headers: headers)
-        .timeout(_timeout);
+    final params = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (status != null) 'status': status,
+    };
+    final uri = Uri.parse('$_baseUrl/users/').replace(queryParameters: params);
+    final r = await http.get(uri, headers: headers).timeout(_timeout);
     if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body));
     if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
     if (r.statusCode == 403) throw Exception('You do not have permission to access users.');
     throw Exception('Failed to load users: ${r.statusCode} - ${r.body}');
+  }
+
+  Future<Map<String, dynamic>> getUserSummary() async {
+    final headers = await _getHeaders();
+    final r = await http
+        .get(Uri.parse('$_baseUrl/users/summary'), headers: headers)
+        .timeout(_timeout);
+    if (r.statusCode == 200) return Map<String, dynamic>.from(jsonDecode(r.body));
+    throw Exception('Failed to load user summary: ${r.statusCode}');
   }
 
   Future<List<Map<String, dynamic>>> getAdmins() async {
@@ -531,6 +550,19 @@ class ApiService {
     final body = await streamed.stream.bytesToString();
     if (streamed.statusCode == 200 || streamed.statusCode == 201) return jsonDecode(body);
     throw Exception('Failed to upload resolution photo: $body');
+  }
+
+  Future<Map<String, dynamic>> uploadRequestDocument(
+      int requestId, List<int> bytes, String filename) async {
+    final token = await _getToken();
+    final uri = Uri.parse('$_baseUrl/requests/$requestId/upload-document');
+    final request = http.MultipartRequest('POST', uri);
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await request.send().timeout(_timeout);
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode == 200 || streamed.statusCode == 201) return jsonDecode(body);
+    throw Exception('Failed to upload document: $body');
   }
 
   Future<void> addRespondent(int caseId, Map<String, dynamic> data) async {
