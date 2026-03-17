@@ -119,12 +119,10 @@ class _AvatarButton extends StatelessWidget {
   }
 
   void _showMenu(BuildContext context) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _ProfileSheet(
+      barrierColor: Colors.black38,
+      builder: (_) => _ProfileDialog(
         initials: initials,
         photoUrl: photoUrl,
         displayName: displayName,
@@ -134,13 +132,13 @@ class _AvatarButton extends StatelessWidget {
   }
 }
 
-class _ProfileSheet extends StatelessWidget {
+class _ProfileDialog extends StatelessWidget {
   final String initials;
   final String? photoUrl;
   final String displayName;
   final String role;
 
-  const _ProfileSheet({
+  const _ProfileDialog({
     required this.initials,
     this.photoUrl,
     required this.displayName,
@@ -149,84 +147,167 @@ class _ProfileSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
+    return Align(
+      // Anchor to top-right, just below the AppBar
+      alignment: Alignment.topRight,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.only(top: 56, right: 12),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 280,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header strip with avatar + close button
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 12, 16),
+                  decoration: BoxDecoration(
+                    color: _kPrimary.withValues(alpha: 0.06),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: _kPrimary.withValues(alpha: 0.14),
+                        backgroundImage: photoUrl != null ? NetworkImage(photoUrl!) : null,
+                        child: photoUrl == null
+                            ? Text(initials,
+                                style: const TextStyle(
+                                  color: _kPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ))
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text(
+                              displayName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Color(0xFF36454F),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _kPrimary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                role,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _kPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Close button
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(Icons.close, size: 18, color: Colors.grey.shade500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+
+                // View Profile
+                _MenuItem(
+                  icon: Icons.person_outline_rounded,
+                  label: 'View Profile',
+                  iconColor: _kPrimary,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/profile');
+                  },
+                ),
+
+                const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+
+                // Logout
+                _MenuItem(
+                  icon: Icons.logout_rounded,
+                  label: 'Logout',
+                  iconColor: Colors.red,
+                  labelColor: Colors.red,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final nav = Navigator.of(context);
+                    await AuthService().logout();
+                    nav.pushNamedAndRemoveUntil('/login', (_) => false);
+                  },
+                ),
+
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color iconColor;
+  final Color labelColor;
+  final VoidCallback onTap;
+
+  const _MenuItem({
+    required this.icon,
+    required this.label,
+    required this.iconColor,
+    this.labelColor = const Color(0xFF36454F),
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
           children: [
-            // Drag handle
-            Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            // Avatar + name
-            CircleAvatar(
-              radius: 34,
-              backgroundColor: _kPrimary.withValues(alpha: 0.12),
-              backgroundImage: photoUrl != null ? NetworkImage(photoUrl!) : null,
-              child: photoUrl == null
-                  ? Text(initials,
-                      style: const TextStyle(
-                        color: _kPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22,
-                      ))
-                  : null,
-            ),
-            const SizedBox(height: 10),
-            Text(displayName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                )),
-            const SizedBox(height: 2),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: _kPrimary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(role,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: _kPrimary,
-                    fontWeight: FontWeight.w600,
-                  )),
-            ),
-            const SizedBox(height: 20),
-            const Divider(height: 1),
-            const SizedBox(height: 8),
-
-            // View Profile
-            ListTile(
-              leading: const Icon(Icons.person_outline_rounded, color: _kPrimary),
-              title: const Text('View Profile'),
-              contentPadding: EdgeInsets.zero,
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/profile');
-              },
-            ),
-
-            // Logout
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red)),
-              contentPadding: EdgeInsets.zero,
-              onTap: () async {
-                Navigator.pop(context);
-                final nav = Navigator.of(context);
-                await AuthService().logout();
-                nav.pushNamedAndRemoveUntil('/login', (_) => false);
-              },
-            ),
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: 14),
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: labelColor)),
+            const Spacer(),
+            Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade400),
           ],
         ),
       ),

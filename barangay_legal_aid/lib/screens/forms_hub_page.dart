@@ -10,6 +10,7 @@ import 'package:barangay_legal_aid/screens/notification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
+import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 class FormsHubPage extends StatefulWidget {
   const FormsHubPage({super.key});
@@ -46,24 +47,27 @@ class FormsHubPageState extends State<FormsHubPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Forms & Services'),
-        backgroundColor: const Color(0xFF99272D),
-        foregroundColor: Colors.white,
-        actions: [
-          NotificationBell(
-            count: _unreadCount,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => NotificationScreen(
-                  userRole: 'user',
-                  currentUser: _currentUser,
-                ),
+      appBar: BlaAppBar(
+        title: 'Forms & Services',
+        user: _currentUser == null ? null : {
+          'first_name': _currentUser!.firstName,
+          'last_name':  _currentUser!.lastName,
+          'role':       _currentUser!.role.toString().split('.').last,
+          'email':      _currentUser!.email,
+          'profile_photo_path': '',
+        },
+        notificationBell: NotificationBell(
+          count: _unreadCount,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => NotificationScreen(
+                userRole: 'user',
+                currentUser: _currentUser,
               ),
             ),
           ),
-        ],
+        ),
       ),
       body: Container(
         color: Color(0xFFFFFFFF),
