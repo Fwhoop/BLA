@@ -315,6 +315,24 @@ def _compute_user_stats(user_id: int, db: Session) -> schemas.UserStatsRead:
         .scalar()
     ) or 0
 
+    # Category breakdown of complaints against this user
+    against_cat_rows = (
+        db.query(models.Case.category, sqlfunc.count(models.Case.id))
+        .join(models.ComplaintRespondent,
+              models.ComplaintRespondent.complaint_id == models.Case.id)
+        .filter(
+            models.ComplaintRespondent.respondent_id == user_id,
+            models.Case.category.isnot(None),
+        )
+        .group_by(models.Case.category)
+        .order_by(sqlfunc.count(models.Case.id).desc())
+        .all()
+    )
+    against_by_category = [
+        schemas.ComplaintTypeStat(category=row[0], count=row[1])
+        for row in against_cat_rows
+    ]
+
     # Document requests by this user
     req_rows = (
         db.query(models.Request.status, sqlfunc.count(models.Request.id))
@@ -333,6 +351,7 @@ def _compute_user_stats(user_id: int, db: Session) -> schemas.UserStatsRead:
             dismissed=filed_by_status.get("dismissed", 0),
         ),
         complaints_filed_against_count=against_count,
+        complaints_against_by_category=against_by_category,
         requests_total=sum(req_by_status.values()),
         requests_by_status=schemas.RequestStatusBreakdown(
             pending=req_by_status.get("pending", 0),

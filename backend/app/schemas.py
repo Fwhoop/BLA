@@ -117,6 +117,7 @@ class UserStatsRead(BaseModel):
     complaints_filed_count: int
     complaints_filed_against_count: int
     complaints_by_status: ComplaintStatusBreakdown
+    complaints_against_by_category: List[ComplaintTypeStat] = []
     requests_total: int
     requests_by_status: RequestStatusBreakdown
 

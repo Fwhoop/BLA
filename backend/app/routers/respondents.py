@@ -92,6 +92,25 @@ def add_respondent(
 
     db.commit()
     db.refresh(new_respondent)
+
+    # Notify the registered respondent that they've been named in a complaint
+    if respondent.is_registered_user and respondent.respondent_id:
+        try:
+            case_title = case.title or "a complaint"
+            db.add(models.Notification(
+                user_id=respondent.respondent_id,
+                title="You Have Been Named in a Complaint",
+                message=(
+                    f"You have been named as a respondent in the complaint: "
+                    f"'{case_title[:60]}'. The barangay office will be in touch."
+                ),
+                notif_type="case_update",
+                reference_id=case_id,
+            ))
+            db.commit()
+        except Exception:
+            pass
+
     return new_respondent
 
 

@@ -166,11 +166,13 @@ def schedule_mediation(
             detail="Database error while scheduling mediation — please try again.",
         )
 
-    # Notification is best-effort: failure does not roll back the mediation
+    # Notifications are best-effort: failure does not roll back the mediation
     try:
+        date_str = str(payload.mediation_date)
+        notifications = []
+        # Notify the reporter
         if case.reporter_id:
-            date_str = str(payload.mediation_date)
-            db.add(models.Notification(
+            notifications.append(models.Notification(
                 user_id=case.reporter_id,
                 title="Mediation Scheduled",
                 message=(
@@ -180,6 +182,25 @@ def schedule_mediation(
                 notif_type="case_update",
                 reference_id=case_id,
             ))
+        # Notify registered respondents
+        respondents = db.query(models.ComplaintRespondent).filter(
+            models.ComplaintRespondent.complaint_id == case_id,
+            models.ComplaintRespondent.respondent_id.isnot(None),
+        ).all()
+        for resp in respondents:
+            notifications.append(models.Notification(
+                user_id=resp.respondent_id,
+                title="Mediation Scheduled",
+                message=(
+                    f"A mediation session has been scheduled for case "
+                    f"'{case.title[:60]}' on {date_str}. Please be present."
+                ),
+                notif_type="case_update",
+                reference_id=case_id,
+            ))
+        for n in notifications:
+            db.add(n)
+        if notifications:
             db.commit()
     except SQLAlchemyError as exc:
         db.rollback()
