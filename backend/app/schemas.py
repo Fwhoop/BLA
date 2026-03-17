@@ -429,31 +429,6 @@ class PendingAdminRead(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# USER STATS SCHEMAS
-# ─────────────────────────────────────────────────────────────────────────────
-
-class ComplaintStatusBreakdown(BaseModel):
-    pending: int = 0
-    reviewing: int = 0
-    resolved: int = 0
-    dismissed: int = 0
-
-
-class RequestStatusBreakdown(BaseModel):
-    pending: int = 0
-    approved: int = 0
-    rejected: int = 0
-
-
-class UserStatsRead(BaseModel):
-    complaints_filed_count: int = 0
-    complaints_by_status: ComplaintStatusBreakdown = ComplaintStatusBreakdown()
-    complaints_filed_against_count: int = 0
-    requests_total: int = 0
-    requests_by_status: RequestStatusBreakdown = RequestStatusBreakdown()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # AUDIT LOG SCHEMAS
 # ─────────────────────────────────────────────────────────────────────────────
 
