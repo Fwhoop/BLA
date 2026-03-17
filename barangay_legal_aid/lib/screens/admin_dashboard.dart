@@ -9,7 +9,6 @@ import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/cases_screen.dart';
-import 'package:barangay_legal_aid/screens/admin/chats_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/settings_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/requests_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/staff_management_screen.dart';
@@ -717,13 +716,7 @@ class AdminDashboardState extends State<AdminDashboard>
                 _kCharcoal,
                 AdminUsersScreen(),
               ),
-              _Nav(
-                'Chats',
-                'Monitor conversations',
-                Icons.chat_bubble_outline_rounded,
-                const Color(0xFF00897B),
-                AdminChatsScreen(),
-              ),
+
               _Nav(
                 'Settings',
                 'Barangay config',
