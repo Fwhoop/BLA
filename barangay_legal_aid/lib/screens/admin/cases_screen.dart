@@ -524,7 +524,8 @@ class _CaseCard extends StatelessWidget {
 
   String _formatDate(String raw) {
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      final utc = raw.endsWith('Z') || raw.contains('+') ? raw : '${raw}Z';
+      final dt = DateTime.parse(utc).toLocal();
       final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
       final m = dt.minute.toString().padLeft(2, '0');
@@ -1157,7 +1158,8 @@ class _DetailSheetState extends State<_DetailSheet> {
 
   String _formatDate(String raw) {
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      final utc = raw.endsWith('Z') || raw.contains('+') ? raw : '${raw}Z';
+      final dt = DateTime.parse(utc).toLocal();
       final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
       final m = dt.minute.toString().padLeft(2, '0');

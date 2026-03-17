@@ -536,7 +536,9 @@ class _UserCard extends StatelessWidget {
   String _formatDate(dynamic raw) {
     if (raw == null) return '';
     try {
-      final dt = DateTime.parse(raw.toString()).toLocal();
+      final s = raw.toString();
+      final utc = s.endsWith('Z') || s.contains('+') ? s : '${s}Z';
+      final dt = DateTime.parse(utc).toLocal();
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       return 'Joined ${months[dt.month - 1]} ${dt.day}, ${dt.year}';
     } catch (_) { return ''; }

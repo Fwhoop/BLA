@@ -433,7 +433,8 @@ class _RequestCard extends StatelessWidget {
   String _formatDate(String? raw) {
     if (raw == null) return '';
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      final utc = raw.endsWith('Z') || raw.contains('+') ? raw : '${raw}Z';
+      final dt = DateTime.parse(utc).toLocal();
       final m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1];
       final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
       final min = dt.minute.toString().padLeft(2, '0');
@@ -663,7 +664,8 @@ class _RequestDetailSheetState extends State<_RequestDetailSheet> {
   String _formatDate(String? raw) {
     if (raw == null) return 'N/A';
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      final utc = raw.endsWith('Z') || raw.contains('+') ? raw : '${raw}Z';
+      final dt = DateTime.parse(utc).toLocal();
       final m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1];
       final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
       final min = dt.minute.toString().padLeft(2, '0');

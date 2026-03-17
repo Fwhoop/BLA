@@ -190,7 +190,8 @@ class _CaseTile extends StatelessWidget {
 
   String _fmt(String raw) {
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      final utc = raw.endsWith('Z') || raw.contains('+') ? raw : '${raw}Z';
+      final dt = DateTime.parse(utc).toLocal();
       final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
     } catch (_) { return raw; }
@@ -386,7 +387,8 @@ class _UserCaseDetailSheetState extends State<_UserCaseDetailSheet> {
 
   String _fmt(String raw) {
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      final utc = raw.endsWith('Z') || raw.contains('+') ? raw : '${raw}Z';
+      final dt = DateTime.parse(utc).toLocal();
       final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
     } catch (_) { return raw; }

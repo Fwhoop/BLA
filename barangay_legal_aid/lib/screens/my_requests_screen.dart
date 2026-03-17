@@ -259,7 +259,8 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   String _formatDate(String? iso) {
     if (iso == null) return '—';
     try {
-      final dt = DateTime.parse(iso).toLocal();
+      final utc = iso.endsWith('Z') || iso.contains('+') ? iso : '${iso}Z';
+      final dt = DateTime.parse(utc).toLocal();
       return DateFormat('MMM d, yyyy – h:mm a').format(dt);
     } catch (_) {
       return iso;

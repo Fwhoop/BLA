@@ -19,6 +19,11 @@ class NotificationModel {
     required this.createdAt,
   });
 
+  static DateTime _parseUtc(String s) {
+    if (!s.endsWith('Z') && !s.contains('+')) s = '${s}Z';
+    return DateTime.parse(s).toLocal();
+  }
+
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
       id: json['id'] as int,
@@ -29,7 +34,7 @@ class NotificationModel {
       referenceId: json['reference_id'] as int?,
       isRead: json['is_read'] as bool? ?? false,
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+          ? _parseUtc(json['created_at'] as String)
           : DateTime.now(),
     );
   }
