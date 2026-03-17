@@ -54,6 +54,29 @@ def _keywords(text: str) -> set:
     return {w for w in words if w not in _STOP_WORDS and len(w) > 2}
 
 
+# ── Language detection ────────────────────────────────────────────────────────
+_TAGALOG_INDICATORS = {
+    "ako", "ko", "ka", "mo", "siya", "niya", "kami", "tayo", "kayo", "sila",
+    "ang", "ng", "mga", "sa", "na", "at", "ay", "hindi", "oo", "po", "ho",
+    "yung", "yun", "iyon", "ito", "dito", "doon", "nandito", "nandoon",
+    "gusto", "ayaw", "kailangan", "pwede", "maaari", "dapat", "sana",
+    "paano", "bakit", "saan", "sino", "kailan", "magkano", "gaano",
+    "ito", "iyon", "ganito", "ganyan", "ganoon", "kaya", "pero", "dahil",
+    "kapag", "kung", "para", "din", "rin", "lang", "naman", "talaga",
+    "ngayon", "bukas", "kahapon", "minsan", "palagi", "lagi",
+    "ayaw", "magbayad", "kapitbahay", "kapit", "bahay", "ingay",
+    "maingay", "away", "reklamo", "ireklamo", "magreklamo",
+    "kumuha", "makakuha", "humingi", "pumunta", "magpunta",
+}
+
+
+def _is_tagalog(text: str) -> bool:
+    """Return True if the message appears to be primarily Tagalog."""
+    words = set(re.sub(r"[^\w\s]", "", text.lower()).split())
+    tagalog_hits = len(words & _TAGALOG_INDICATORS)
+    return tagalog_hits >= 2 or (tagalog_hits == 1 and len(words) <= 5)
+
+
 # ── Tagalog → English keyword expansion ──────────────────────────────────────
 _TAGALOG_MAP = {
     # Actions
@@ -239,6 +262,31 @@ _LEGAL_TOPICS = [
             "📋 **Legal Basis:** RA 7160, Sections 399–422 (KP Law); "
             "Rule of Procedure for Small Claims Cases (A.M. No. 08-8-7-SC, as amended)"
         ),
+        "answer_tl": (
+            "**Kapitbahay Ayaw Magbayad ng Utang — Ano ang Dapat Gawin**\n\n"
+            "Naiintindihan namin kung gaano ito kafrustrating. Narito ang hakbang-hakbang na proseso:\n\n"
+            "**Hakbang 1 — Magpadala ng demand letter**\n"
+            "Magpadala ng nakasulat na liham na humihingi sa iyong kapitbahay na magbayad. "
+            "Magtago ng kopya. Bigyan sila ng makatwirang deadline (7–15 araw).\n\n"
+            "**Hakbang 2 — Magreklamo sa Barangay**\n"
+            "Kung hindi sila sumasagot, pumunta sa Barangay Hall at mag-file ng reklamo. "
+            "Magdala ng patunay ng utang (kasulatan, resibo, mensahe, mga saksi).\n\n"
+            "**Hakbang 3 — Pagpapamagitan sa Barangay**\n"
+            "Ipapatawag ng Punong Barangay ang iyong kapitbahay para sa mediation. "
+            "Magbibigay ng pagkakataon sa magkabilang panig na magsalita. "
+            "Sisikaping maabot ang mapayapang kasunduan.\n\n"
+            "**Hakbang 4 — Kasunduan**\n"
+            "Kung sumasang-ayon ang kapitbahay na magbayad, isusulat ang kasunduan sa harap ng barangay. "
+            "Ito ay may bisa ng panghuling hatol ng korte at maipapatupad.\n\n"
+            "**Hakbang 5 — Certificate to File Action**\n"
+            "Kung tumatanggi ang kapitbahay sa mediation o hindi sumusunod sa kasunduan, "
+            "maglalabas ang barangay ng Certificate to File Action (CFA). "
+            "Maaari ka nang mag-file ng kaso sa Municipal Trial Court.\n\n"
+            "💡 **Tandaan:** Para sa utang na ≤ ₱400,000, maaari kang mag-file ng Small Claims case — "
+            "hindi na kailangan ng abogado.\n\n"
+            "📋 **Legal na Batayan:** RA 7160, Mga Seksyon 399–422 (KP Law); "
+            "Rule of Procedure for Small Claims Cases (A.M. No. 08-8-7-SC)"
+        ),
     },
     {
         "triggers": {"clearance", "certificate", "residency", "cedula", "katibayan", "pahintulot", "pagpapatunay", "sertipiko"},
@@ -260,6 +308,25 @@ _LEGAL_TOPICS = [
             "It is valid for 6 months to 1 year depending on the barangay.\n\n"
             "📋 **Legal Basis:** RA 7160 (Local Government Code), Section 389 — "
             "Powers and Duties of the Punong Barangay"
+        ),
+        "answer_tl": (
+            "**Paano Kumuha ng Barangay Clearance**\n\n"
+            "Narito ang hakbang-hakbang na proseso:\n\n"
+            "**Hakbang 1 — Pumunta sa Barangay Hall**\n"
+            "Bisitahin ang inyong lokal na Barangay Hall sa oras ng opisina (karaniwan ay 8AM–5PM, Lunes–Biyernes).\n\n"
+            "**Hakbang 2 — Magdala ng mga kinakailangan**\n"
+            "- Valid na government ID\n"
+            "- Patunay ng tirahan (utility bill, kontrata sa upa, o deklarasyon mula sa kapitbahay)\n"
+            "- Cedula (Community Tax Certificate) — makukuha sa parehong barangay o City Hall\n\n"
+            "**Hakbang 3 — Punan ang form**\n"
+            "Humingi at punan ang application form para sa Barangay Clearance sa counter.\n\n"
+            "**Hakbang 4 — Bayaran ang bayarin**\n"
+            "Bayaran ang processing fee (karaniwang ₱50–₱200, depende sa barangay).\n\n"
+            "**Hakbang 5 — Tanggapin ang clearance**\n"
+            "Ang clearance ay karaniwang inilalabas sa parehong araw o sa loob ng 1–3 araw ng trabaho. "
+            "Ito ay may bisa na 6 na buwan hanggang 1 taon depende sa barangay.\n\n"
+            "📋 **Legal na Batayan:** RA 7160 (Local Government Code), Seksyon 389 — "
+            "Mga Kapangyarihan at Tungkulin ng Punong Barangay"
         ),
     },
     {
@@ -410,25 +477,28 @@ _LEGAL_TOPICS = [
 ]
 
 
-def _match_legal_topic(query: str) -> Optional[str]:
+def _match_legal_topic(query: str, tagalog: bool = False) -> Optional[str]:
     """Return a structured answer if the query matches a known legal topic."""
     q_keys = _keywords(query)
     # Also include short but meaningful words (vawc, kp, etc.) even if len <= 2
     q_keys_raw = set(re.sub(r"[^\w\s]", "", query.lower()).split())
 
-    best_answer = None
+    best_topic = None
     best_overlap = 0
 
     for topic in _LEGAL_TOPICS:
         matched = (q_keys | q_keys_raw) & topic["triggers"]
         overlap = len(matched)
-        # Match if: 2+ overlapping keywords, OR 1 keyword with len >= 4
         strong = any(len(k) >= 4 for k in matched)
         if (overlap >= 2 or (overlap >= 1 and strong)) and overlap > best_overlap:
             best_overlap = overlap
-            best_answer = topic["answer"]
+            best_topic = topic
 
-    return best_answer
+    if best_topic is None:
+        return None
+    if tagalog and best_topic.get("answer_tl"):
+        return best_topic["answer_tl"]
+    return best_topic["answer"]
 
 
 # ── Call-to-action (Forms Hub) ────────────────────────────────────────────────
@@ -578,6 +648,7 @@ def get_local_answer(message: str, history: list | None = None) -> Optional[str]
       4. FAQ search
     """
     text = message.strip()
+    tl = _is_tagalog(text)
     expanded = _expand_tagalog(text)
     enriched = _enrich_with_history(expanded, history or [])
 
@@ -591,11 +662,11 @@ def get_local_answer(message: str, history: list | None = None) -> Optional[str]
         logger.info(f"[CHATBOT] Vague query, asking for clarification: {text[:60]}")
         return _CLARIFICATION_RESPONSE
 
-    # 3 — structured legal topic (try all variants)
+    # 3 — structured legal topic (try all variants, respect detected language)
     topic_hit = (
-        _match_legal_topic(enriched)
-        or _match_legal_topic(expanded)
-        or _match_legal_topic(text)
+        _match_legal_topic(enriched, tagalog=tl)
+        or _match_legal_topic(expanded, tagalog=tl)
+        or _match_legal_topic(text, tagalog=tl)
     )
     if topic_hit:
         logger.info(f"[CHATBOT] Matched legal topic for: {text[:60]}")

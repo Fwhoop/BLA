@@ -7,6 +7,9 @@ class ChatProvider with ChangeNotifier {
   List<ChatSession> _chatSessions = [];
   ChatSession? _currentSession;
   final ApiService? _apiService;
+  bool _isBotTyping = false;
+
+  bool get isBotTyping => _isBotTyping;
 
   List<ChatSession> get chatSessions => _chatSessions;
   ChatSession? get currentSession => _currentSession;
@@ -109,17 +112,37 @@ class ChatProvider with ChangeNotifier {
       addMessage('Chat service not available. Please sign in again.', false);
       return;
     }
+
+    // Show typing indicator
+    _isBotTyping = true;
+    notifyListeners();
+
     try {
       final history = _buildHistory();
+      final stopwatch = Stopwatch()..start();
+
       final result = await _apiService.sendChatMessage(
         content,
         currentUser.id,
         history: history,
       );
+
+      stopwatch.stop();
+
+      // If response came back in under 3 seconds it was served locally —
+      // add artificial delay up to 8 seconds so it feels like generation.
+      const minDisplayMs = 8000;
+      final elapsed = stopwatch.elapsedMilliseconds;
+      if (elapsed < minDisplayMs) {
+        await Future.delayed(Duration(milliseconds: minDisplayMs - elapsed));
+      }
+
       final message = result['message'] as String? ?? "Sorry, I couldn't process that.";
       final uiAction = result['ui_action'] as String?;
+      _isBotTyping = false;
       addMessage(message, false, uiAction: uiAction);
     } catch (e) {
+      _isBotTyping = false;
       final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Unable to reach chatbot. Please try again.';
       addMessage(msg, false);
     }

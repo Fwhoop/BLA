@@ -120,8 +120,13 @@ class ChatScreenState extends State<ChatScreen> {
                 : ListView.builder(
                     controller: _scrollController,
                     padding: EdgeInsets.all(16),
-                    itemCount: currentSession.messages.length,
+                    itemCount: currentSession.messages.length +
+                        (widget.chatProvider.isBotTyping ? 1 : 0),
                     itemBuilder: (context, index) {
+                      if (index == currentSession.messages.length &&
+                          widget.chatProvider.isBotTyping) {
+                        return _TypingIndicator();
+                      }
                       final message = currentSession.messages[index];
                       return ChatBubble(message: message);
                     },
@@ -249,6 +254,80 @@ class ChatBubble extends StatelessWidget {
               backgroundColor: Color(0xFF99272D),
               child: Text('YOU', style: TextStyle(color: Colors.white, fontSize: 10)),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TypingIndicator extends StatefulWidget {
+  const _TypingIndicator();
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const CircleAvatar(
+            backgroundColor: Color(0xFF99272D),
+            child: Text('BOT', style: TextStyle(color: Colors.white, fontSize: 10)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF36454F),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (_, __) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (i) {
+                    final delay = i / 3;
+                    final value = ((_controller.value - delay) % 1.0).clamp(0.0, 1.0);
+                    final opacity = (value < 0.5 ? value * 2 : (1 - value) * 2).clamp(0.3, 1.0);
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Opacity(
+                        opacity: opacity,
+                        child: const CircleAvatar(
+                          radius: 4,
+                          backgroundColor: Colors.white,
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
