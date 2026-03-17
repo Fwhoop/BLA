@@ -54,13 +54,139 @@ def _keywords(text: str) -> set:
     return {w for w in words if w not in _STOP_WORDS and len(w) > 2}
 
 
+# ── Tagalog → English keyword expansion ──────────────────────────────────────
+_TAGALOG_MAP = {
+    # Actions
+    "kumuha": "get clearance certificate document",
+    "makakuha": "get clearance certificate document",
+    "magsampa": "file complaint report blotter",
+    "magreklamo": "complaint report file blotter",
+    "ireklamo": "complaint report file blotter",
+    "idemanda": "file case complaint",
+    "magfile": "file complaint",
+    "iulat": "report blotter",
+    "ipaalam": "report inform",
+    "humingi": "request get",
+    "magpunta": "go visit barangay",
+    "pumunta": "go visit barangay",
+    "makipag-usap": "mediation talk",
+    "makiusap": "mediation",
+    "ipahinto": "stop report complaint",
+    # Topics
+    "reklamo": "complaint report",
+    "dokumento": "document certificate clearance",
+    "sertipiko": "certificate clearance",
+    "requirements": "requirements clearance document",
+    "patunay": "certificate proof document",
+    "pahintulot": "clearance permit",
+    "pagpapatunay": "certificate clearance",
+    "ingay": "noise disturbance",
+    "away": "dispute fight complaint",
+    "basag": "broken damage complaint",
+    "utang": "debt",
+    "pautang": "debt loan",
+    "bayad": "payment debt",
+    "bayaran": "pay debt",
+    "pera": "money debt",
+    "lupa": "land property boundary",
+    "lupain": "land property boundary",
+    "bakod": "fence boundary property",
+    "hangganan": "boundary property land",
+    "bahay": "house property",
+    "kapitbahay": "neighbor",
+    "kapit-bahay": "neighbor",
+    "kalapit": "neighbor",
+    "pamilya": "family",
+    "bata": "children minor",
+    "babae": "women",
+    "asawa": "spouse husband wife",
+    "kasamahan": "partner spouse",
+    "kabit": "affair infidelity",
+    "kalayaan": "separation rights",
+    "karapatan": "rights",
+    "tulong": "help assistance legal",
+    "impormasyon": "information",
+    "proseso": "process steps",
+    "paano": "how process steps",
+    "saan": "where barangay",
+    "sino": "who official",
+    "kailan": "when schedule",
+    "magkano": "how much fee cost",
+    "libre": "free cost",
+    "bayad": "fee cost payment",
+    "mabilis": "fast quick process",
+    "matagal": "long time process",
+    "lupon": "lupon mediation kp",
+    "punong": "punong barangay captain",
+    "kapitan": "barangay captain",
+    "tanod": "tanod security barangay",
+    "huwes": "judge court",
+    "abogado": "lawyer legal",
+    "pulis": "police report",
+    "ospital": "hospital medical",
+    "batas": "law legal",
+    "kaso": "case complaint court",
+    "proteksyon": "protection order bpo",
+    "kalayaan": "rights separation",
+}
+
+_VAGUE_INTENT_WORDS = {
+    "requirements", "process", "paano", "proseso", "impormasyon",
+    "information", "details", "steps", "guide", "tulong", "help",
+    "kumuha", "makakuha", "humingi", "gusto", "kailangan", "need",
+    "want", "dokumento", "document", "certificate", "sertipiko",
+}
+
+_CLARIFICATION_RESPONSE = (
+    "I'd be happy to help! Could you please specify what you need assistance with?\n\n"
+    "Maaari mo akong tanungin tungkol sa:\n\n"
+    "• 📋 **Barangay Clearance** — requirements, process, fees\n"
+    "• ⚖️ **Mediation / Summoning** — KP process, dispute resolution\n"
+    "• 💸 **Debt / Utang** — neighbour refuses to pay\n"
+    "• 🏠 **Property / Lupa** — boundary disputes, encroachment\n"
+    "• 🚨 **VAWC / Abuse** — protection orders, domestic violence\n"
+    "• 📝 **Blotter / Reklamo** — how to file an incident report\n"
+    "• 🔇 **Noise / Ingay** — noise disturbance, curfew\n"
+    "• 👴 **Senior / PWD / Solo Parent** — benefits and discounts\n\n"
+    "Just type your concern and I'll guide you step by step! 😊"
+)
+
+
+def _expand_tagalog(text: str) -> str:
+    """Replace Tagalog words with English equivalents for better topic matching."""
+    words = text.lower().split()
+    expanded = []
+    for word in words:
+        clean = re.sub(r"[^\w]", "", word)
+        if clean in _TAGALOG_MAP:
+            expanded.append(_TAGALOG_MAP[clean])
+        else:
+            expanded.append(word)
+    return " ".join(expanded)
+
+
+def _is_vague(text: str) -> bool:
+    """Return True if message has intent but no specific topic."""
+    words = set(re.sub(r"[^\w\s]", "", text.lower()).split())
+    has_vague_intent = bool(words & _VAGUE_INTENT_WORDS)
+    if not has_vague_intent:
+        return False
+    # Check if there's any specific topic keyword present
+    all_triggers = set()
+    for topic in _LEGAL_TOPICS:
+        all_triggers |= topic["triggers"]
+    all_triggers |= set(_TAGALOG_MAP.keys())
+    specific = words & (all_triggers - _VAGUE_INTENT_WORDS)
+    return len(specific) == 0
+
+
 # ── Built-in structured legal topic answers ───────────────────────────────────
 # Each entry: list of trigger keywords → structured answer
 # A query matches if it shares ≥2 trigger keywords (or 1 strong unique keyword)
 
 _LEGAL_TOPICS = [
     {
-        "triggers": {"summon", "summoning", "summons", "mediation", "katarungang", "pambarangay", "lupon", "lupong", "tagapamayapa", "kp"},
+        "triggers": {"summon", "summoning", "summons", "mediation", "katarungang", "pambarangay", "lupon", "lupong", "tagapamayapa", "kp", "pagpapamagitan", "pagkakasundo", "pangkat", "usapin"},
         "answer": (
             "**Summoning Rules in Barangay Mediation (KP Process)**\n\n"
             "Here is the step-by-step process:\n\n"
@@ -88,7 +214,7 @@ _LEGAL_TOPICS = [
         ),
     },
     {
-        "triggers": {"debt", "utang", "bayad", "bayaran", "owe", "owes", "refuses", "pay", "collection", "borrow", "borrowed", "lending", "loan"},
+        "triggers": {"debt", "utang", "bayad", "bayaran", "owe", "owes", "refuses", "pay", "collection", "borrow", "borrowed", "lending", "loan", "pautang", "pera", "hindi", "nagbabayad"},
         "answer": (
             "**Neighbour Refuses to Pay Debt — What You Can Do**\n\n"
             "We understand how frustrating this situation can be. Here is the step-by-step process to resolve it:\n\n"
@@ -115,7 +241,7 @@ _LEGAL_TOPICS = [
         ),
     },
     {
-        "triggers": {"clearance", "barangay clearance", "certificate", "residency"},
+        "triggers": {"clearance", "certificate", "residency", "cedula", "katibayan", "pahintulot", "pagpapatunay", "sertipiko"},
         "answer": (
             "**How to Get a Barangay Clearance**\n\n"
             "Here is the step-by-step process:\n\n"
@@ -137,7 +263,7 @@ _LEGAL_TOPICS = [
         ),
     },
     {
-        "triggers": {"noise", "disturbance", "videoke", "karaoke", "loud", "curfew", "ordinance", "nuisance"},
+        "triggers": {"noise", "disturbance", "videoke", "karaoke", "loud", "curfew", "ordinance", "nuisance", "ingay", "maingay", "gabi", "bisyo"},
         "answer": (
             "**Noise Disturbance and Curfew Violations**\n\n"
             "Here is how the barangay handles these:\n\n"
@@ -211,7 +337,7 @@ _LEGAL_TOPICS = [
         ),
     },
     {
-        "triggers": {"blotter", "police", "report", "incident", "crime", "assault", "fight", "mauling", "threat", "threatening"},
+        "triggers": {"blotter", "police", "report", "incident", "crime", "assault", "fight", "mauling", "threat", "threatening", "reklamo", "ireklamo", "away", "suntok", "sigawan", "away"},
         "answer": (
             "**How to File a Barangay Blotter Report**\n\n"
             "We're sorry to hear you've been through a difficult situation. "
@@ -234,7 +360,7 @@ _LEGAL_TOPICS = [
         ),
     },
     {
-        "triggers": {"property", "land", "boundary", "encroachment", "trespassing", "fence", "wall", "easement"},
+        "triggers": {"property", "land", "boundary", "encroachment", "trespassing", "fence", "wall", "easement", "lupa", "lupain", "bakod", "hangganan", "bahay", "ari-arian"},
         "answer": (
             "**Property Boundary Dispute at the Barangay Level**\n\n"
             "We understand property disputes can be stressful. "
@@ -447,27 +573,38 @@ def get_local_answer(message: str, history: list | None = None) -> Optional[str]
 
     Priority:
       1. Greeting
-      2. Built-in legal topic
-      3. FAQ search
+      2. Vague/unspecified query → ask for clarification
+      3. Built-in legal topic (original + Tagalog-expanded + history-enriched)
+      4. FAQ search
     """
     text = message.strip()
-    enriched = _enrich_with_history(text, history or [])
+    expanded = _expand_tagalog(text)
+    enriched = _enrich_with_history(expanded, history or [])
 
     # 1 — greeting
     if _is_greeting(text):
         logger.info(f"[CHATBOT] Greeting detected: {text[:40]}")
         return _GREETING_RESPONSE
 
-    # 2 — structured legal topic
-    topic_hit = _match_legal_topic(enriched) or _match_legal_topic(text)
+    # 2 — vague query (has intent but no specific topic)
+    if _is_vague(text) and _is_vague(expanded):
+        logger.info(f"[CHATBOT] Vague query, asking for clarification: {text[:60]}")
+        return _CLARIFICATION_RESPONSE
+
+    # 3 — structured legal topic (try all variants)
+    topic_hit = (
+        _match_legal_topic(enriched)
+        or _match_legal_topic(expanded)
+        or _match_legal_topic(text)
+    )
     if topic_hit:
         logger.info(f"[CHATBOT] Matched legal topic for: {text[:60]}")
         if _should_add_cta(text, topic_hit):
             topic_hit += _CTA
         return topic_hit
 
-    # 3 — FAQ search
-    faq_hit = _faq_search(enriched) or _faq_search(text)
+    # 4 — FAQ search
+    faq_hit = _faq_search(enriched) or _faq_search(expanded) or _faq_search(text)
     if faq_hit:
         logger.info(f"[CHATBOT] Matched FAQ for: {text[:60]}")
         if _should_add_cta(text, faq_hit):
