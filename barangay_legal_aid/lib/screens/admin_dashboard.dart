@@ -183,6 +183,8 @@ class AdminDashboardState extends State<AdminDashboard>
                         const SizedBox(height: 20),
                         _buildAnalyticsSection(),
                         const SizedBox(height: 20),
+                        _buildTrendsSection(),
+                        const SizedBox(height: 20),
                         _buildQuickAccessSection(),
                         const SizedBox(height: 20),
                       ],
@@ -668,6 +670,221 @@ class AdminDashboardState extends State<AdminDashboard>
           ],
         ),
       ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Trends / Top-category analytics
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Returns the top [n] entries from a frequency map, sorted descending.
+  List<MapEntry<String, int>> _topN(Map<String, int> freq, int n) {
+    final sorted = freq.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(n).toList();
+  }
+
+  Map<String, int> _complaintFreq() {
+    final freq = <String, int>{};
+    for (final c in _cases) {
+      final title = c['title']?.toString() ?? '';
+      if (title.startsWith('[Suggestion]')) continue;
+      final cat = c['category']?.toString();
+      if (cat == null || cat.isEmpty) continue;
+      freq[cat] = (freq[cat] ?? 0) + 1;
+    }
+    return freq;
+  }
+
+  Map<String, int> _suggestionFreq() {
+    final freq = <String, int>{};
+    final re = RegExp(r'\[Suggestion\]\[([^\]]+)\]');
+    for (final c in _cases) {
+      final title = c['title']?.toString() ?? '';
+      final m = re.firstMatch(title);
+      if (m == null) continue;
+      final cat = m.group(1) ?? 'Other';
+      freq[cat] = (freq[cat] ?? 0) + 1;
+    }
+    return freq;
+  }
+
+  Map<String, int> _requestFreq() {
+    final freq = <String, int>{};
+    for (final r in _requests) {
+      final dt = r['document_type']?.toString() ?? 'Unknown';
+      freq[dt] = (freq[dt] ?? 0) + 1;
+    }
+    return freq;
+  }
+
+  Widget _buildTrendsSection() {
+    final complaintTop  = _topN(_complaintFreq(), 5);
+    final suggestionTop = _topN(_suggestionFreq(), 5);
+    final requestTop    = _topN(_requestFreq(), 5);
+
+    final colors = [
+      const Color(0xFF99272D),
+      const Color(0xFFF59E0B),
+      const Color(0xFF10B981),
+      const Color(0xFF3B82F6),
+      const Color(0xFF8E24AA),
+    ];
+
+    Widget trendCard(
+      String title,
+      String badge,
+      IconData icon,
+      Color accentColor,
+      List<MapEntry<String, int>> entries,
+      String emptyMsg,
+    ) {
+      final maxVal = entries.isEmpty
+          ? 1
+          : entries.fold(1, (m, e) => e.value > m ? e.value : m);
+
+      return _Card(
+        title: title,
+        badge: badge,
+        child: entries.isEmpty
+            ? _emptyState(emptyMsg)
+            : Column(
+                children: entries.asMap().entries.map((entry) {
+                  final i   = entry.key;
+                  final kv  = entry.value;
+                  final col = colors[i % colors.length];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: col,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                kv.key,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _kCharcoal,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            AnimatedBuilder(
+                              animation: _chartAnim,
+                              builder: (_, __) => Text(
+                                (kv.value * _chartAnim.value).round().toString(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: col,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: AnimatedBuilder(
+                            animation: _chartAnim,
+                            builder: (_, __) => LinearProgressIndicator(
+                              value: (kv.value / maxVal) * _chartAnim.value,
+                              minHeight: 8,
+                              backgroundColor: col.withValues(alpha: 0.1),
+                              valueColor: AlwaysStoppedAnimation(col),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.trending_up_rounded, size: 16, color: _kCharcoal),
+            const SizedBox(width: 6),
+            const Text(
+              'Trends',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: _kCharcoal,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (_, c) {
+            final isWide = c.maxWidth > 750;
+            final cards = [
+              trendCard(
+                'Top Complaint Categories',
+                '${complaintTop.fold(0, (s, e) => s + e.value)} complaints',
+                Icons.report_problem_rounded,
+                _kPrimary,
+                complaintTop,
+                'No complaints yet',
+              ),
+              trendCard(
+                'Top Document Requests',
+                '${requestTop.fold(0, (s, e) => s + e.value)} requests',
+                Icons.description_outlined,
+                const Color(0xFF2196F3),
+                requestTop,
+                'No requests yet',
+              ),
+              trendCard(
+                'Top Suggestion Topics',
+                '${suggestionTop.fold(0, (s, e) => s + e.value)} suggestions',
+                Icons.lightbulb_outline_rounded,
+                const Color(0xFFF59E0B),
+                suggestionTop,
+                'No suggestions yet',
+              ),
+            ];
+            if (isWide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 16),
+                  Expanded(child: cards[1]),
+                  const SizedBox(width: 16),
+                  Expanded(child: cards[2]),
+                ],
+              );
+            }
+            return Column(
+              children: [
+                cards[0],
+                const SizedBox(height: 16),
+                cards[1],
+                const SizedBox(height: 16),
+                cards[2],
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
