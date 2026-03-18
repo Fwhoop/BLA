@@ -4,7 +4,13 @@ from typing import List, Optional
 from datetime import datetime
 from .. import models, schemas
 from ..db import get_db
-from ..chatbot import load_faq_data, chat_response as _faq_fallback, get_local_answer as _local_answer
+from ..chatbot import (
+    load_faq_data,
+    chat_response as _faq_fallback,
+    get_local_answer as _local_answer,
+    get_instant_answer as _instant_answer,
+    get_legal_context as _get_legal_context,
+)
 
 import os
 import logging
@@ -157,28 +163,47 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     try:
         history_dicts = [{"role": h.role, "content": h.content} for h in (chat.history or [])]
 
-        # 1 — Local structured answers (greetings, legal topics, FAQ)
-        #     Always runs first so model service can't override known topics
-        local_text = _local_answer(chat.message, history_dicts)
-        if local_text:
-            logger.info("[AI_ENDPOINT] Served by local knowledge base")
-            return {"message": local_text, "ui_action": None}
+        # 1 — Instant answers: greetings and vague queries only (no model needed)
+        instant = _instant_answer(chat.message, history_dicts)
+        if instant:
+            logger.info("[AI_ENDPOINT] Served instantly (greeting/clarification)")
+            return {"message": instant, "ui_action": None}
 
-        # 2 — bla-chatbot-railway (AI model, for queries without local answers)
+        # 2 — Retrieve legal context from KB (60 topics + FAQ) to ground the model
+        context = _get_legal_context(chat.message, history_dicts)
+
+        # 3 — Send to model with context as RAG grounding
         if _CHATBOT_SERVICE_URL:
-            service_text = _call_chatbot_service(chat.message, chat.history)
+            if context:
+                rag_message = (
+                    f"[LEGAL CONTEXT — use this to answer accurately]\n"
+                    f"{context}\n\n"
+                    f"[USER QUESTION]\n{chat.message}\n\n"
+                    f"Using the legal context above, provide a clear, helpful, and conversational answer. "
+                    f"Cite the relevant Philippine law. Reply in the same language as the user."
+                )
+            else:
+                rag_message = chat.message
+
+            service_text = _call_chatbot_service(rag_message, chat.history)
             if service_text:
-                logger.info("[AI_ENDPOINT] Served by chatbot service")
+                log_label = "model+RAG context" if context else "model (no context)"
+                logger.info(f"[AI_ENDPOINT] Served by {log_label}")
                 return {"message": service_text, "ui_action": None}
 
-        # 3 — HuggingFace Inference API (secondary fallback)
+        # 4 — Model unavailable: fall back to raw KB context
+        if context:
+            logger.info("[AI_ENDPOINT] Model unavailable — served by KB context fallback")
+            return {"message": context, "ui_action": None}
+
+        # 5 — HuggingFace Inference API (last resort before generic fallback)
         if _HF_API_TOKEN:
             hf_text = _call_hf_model(chat.message)
             if hf_text:
                 logger.info("[AI_ENDPOINT] Served by HF Inference API")
                 return {"message": hf_text, "ui_action": None}
 
-        # 4 — Generic fallback
+        # 6 — Generic fallback
         local = _faq_fallback(sender=chat.sender_id, message=chat.message, history=history_dicts)
         return {"message": local["response"], "ui_action": None}
 

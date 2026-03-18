@@ -2206,6 +2206,49 @@ def _enrich_with_history(message: str, history: list) -> str:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def get_instant_answer(message: str, history: list | None = None) -> Optional[str]:
+    """
+    Returns an instant local answer ONLY for greetings and vague queries.
+    Legal topic and FAQ answers are NOT returned here — they go to the model as context.
+    """
+    text = message.strip()
+    expanded = _expand_tagalog(text)
+    if _is_greeting(text):
+        logger.info(f"[CHATBOT] Greeting detected: {text[:40]}")
+        return _GREETING_RESPONSE
+    if _is_vague(text) and _is_vague(expanded):
+        logger.info(f"[CHATBOT] Vague query, asking for clarification: {text[:60]}")
+        return _CLARIFICATION_RESPONSE
+    return None
+
+
+def get_legal_context(message: str, history: list | None = None) -> Optional[str]:
+    """
+    Returns the best matching legal topic or FAQ answer as RAG context for the model.
+    Does NOT return this as a final answer — the model uses it to generate a response.
+    """
+    text = message.strip()
+    tl = _is_tagalog(text)
+    expanded = _expand_tagalog(text)
+    enriched = _enrich_with_history(expanded, history or [])
+
+    topic_hit = (
+        _match_legal_topic(enriched, tagalog=tl)
+        or _match_legal_topic(expanded, tagalog=tl)
+        or _match_legal_topic(text, tagalog=tl)
+    )
+    if topic_hit:
+        logger.info(f"[CHATBOT] Legal context retrieved for: {text[:60]}")
+        return topic_hit
+
+    faq_hit = _faq_search(enriched) or _faq_search(expanded) or _faq_search(text)
+    if faq_hit:
+        logger.info(f"[CHATBOT] FAQ context retrieved for: {text[:60]}")
+        return faq_hit
+
+    return None
+
+
 def get_local_answer(message: str, history: list | None = None) -> Optional[str]:
     """
     Returns a local answer string if we have one, or None to let the
