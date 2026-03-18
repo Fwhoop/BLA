@@ -151,6 +151,46 @@ _TAGALOG_MAP = {
     "kaso": "case complaint court",
     "proteksyon": "protection order bpo",
     "kalayaan": "rights separation",
+    # animal bite
+    "nakagat": "animal bite injury",
+    "kinagat": "animal bite injury",
+    "kagat":   "animal bite injury",
+    "aso":     "dog animal",
+    "pusa":    "cat animal",
+    # drugs
+    "droga":    "illegal drugs prohibited",
+    "shabu":    "illegal drugs prohibited",
+    "marijuana": "illegal drugs cannabis",
+    "marijuana": "illegal drugs cannabis",
+    # theft
+    "magnakaw":  "theft robbery steal",
+    "nanakaw":   "theft robbery stolen",
+    "magnanakaw":"theft robbery criminal",
+    "ninakaw":   "theft robbery stolen",
+    "pagnanakaw":"theft robbery",
+    # fraud
+    "panloloko": "estafa fraud swindling",
+    "daya":      "fraud estafa cheat",
+    "lokohin":   "fraud estafa deceive",
+    # environment
+    "basura":    "garbage waste environment",
+    # smoking
+    "sigarilyo": "smoking cigarette",
+    "usok":      "smoke smoking",
+    # bullying / violence
+    "pang-aapi":   "bullying harassment abuse",
+    "panggugulpi": "physical assault mauling",
+    # juvenile
+    "kabataan": "youth minor juvenile",
+    "menor":    "minor juvenile curfew",
+    # corruption
+    "suhol":     "bribery corruption",
+    "korupsyon": "corruption bribery",
+    # cybercrime
+    "manloloko": "fraud online cybercrime",
+    "scam":      "fraud online cybercrime",
+    "hacked":    "cybercrime online",
+    "libelo":    "libel cybercrime defamation",
 }
 
 _VAGUE_INTENT_WORDS = {
@@ -449,6 +489,261 @@ _LEGAL_TOPICS = [
             "conduct an official relocation survey.\n\n"
             "📋 **Legal Basis:** RA 7160, Sections 399–422 (KP Law); "
             "PD 1529 (Property Registration Decree)"
+        ),
+    },
+    {
+        "triggers": {"animal", "bite", "dog", "cat", "aso", "pusa", "nakagat", "kinagat", "kagat", "rabies", "wound", "injury", "bitten"},
+        "answer": (
+            "**Animal Bite — What to Do and Your Legal Rights**\n\n"
+            "**Step 1 — Seek immediate medical attention**\n"
+            "Go to the nearest hospital or Animal Bite Treatment Center (ABTC) immediately. "
+            "Wash the wound with soap and water for at least 15 minutes. "
+            "Anti-rabies vaccine and Rabies Immune Globulin (RIG) are provided FREE in government ABTCs.\n\n"
+            "**Step 2 — Report to the Barangay**\n"
+            "Report the incident at your Barangay Hall. The barangay will document the case "
+            "and coordinate with the City/Municipal Veterinarian to locate and quarantine the animal.\n\n"
+            "**Step 3 — File a complaint against the animal owner**\n"
+            "If the animal has an owner, the barangay can summon them for mediation. "
+            "The owner is liable for medical expenses, damages, and loss of income "
+            "under the Civil Code and RA 9482.\n\n"
+            "**Step 4 — Barangay mediation for damages**\n"
+            "The Lupon will facilitate settlement between you and the animal owner "
+            "covering hospital bills, treatment costs, and moral damages.\n\n"
+            "**Step 5 — Escalate if owner refuses**\n"
+            "If the owner refuses to cooperate, the barangay issues a Certificate to File Action (CFA). "
+            "You may sue in court for damages. The owner may also face criminal liability.\n\n"
+            "📋 **Legal Basis:** RA 9482 (Anti-Rabies Act of 2007) — Sections 6 & 7, owner liability; "
+            "Civil Code of the Philippines, Article 2183 — possessor of animal liable for damages; "
+            "RA 7160, Sections 399–422 — KP mediation"
+        ),
+    },
+    {
+        "triggers": {"drugs", "illegal", "prohibited", "shabu", "marijuana", "cannabis", "pusher", "drug", "droga", "addict", "addiction", "substance", "peddling", "selling drugs", "narkotiko"},
+        "answer": (
+            "**Illegal Drugs — Reporting and Barangay Procedures**\n\n"
+            "**Step 1 — Report to the Barangay**\n"
+            "Report suspected drug activity to the Punong Barangay or Barangay Tanod immediately. "
+            "You may report anonymously. The barangay is mandated by law to act on drug complaints.\n\n"
+            "**Step 2 — Barangay Anti-Drug Abuse Council (BADAC)**\n"
+            "Every barangay has a BADAC (Barangay Anti-Drug Abuse Council) that coordinates "
+            "drug-related concerns. They will coordinate with the PNP and PDEA.\n\n"
+            "**Step 3 — Do NOT confront the suspect**\n"
+            "Do not attempt to apprehend or confront the suspect yourself. "
+            "Let law enforcement handle the operation.\n\n"
+            "**Step 4 — For drug users seeking help**\n"
+            "Drug dependents who voluntarily surrender are entitled to rehabilitation, not imprisonment. "
+            "Go to the barangay or nearest drug treatment and rehabilitation center. "
+            "PDEA and DOH provide free rehabilitation programs.\n\n"
+            "**Step 5 — Community-Based Rehabilitation (CBR)**\n"
+            "The barangay runs Community-Based Drug Rehabilitation Programs for low-risk users. "
+            "Participants avoid prosecution by completing the program.\n\n"
+            "📋 **Legal Basis:** RA 9165 (Comprehensive Dangerous Drugs Act of 2002) — "
+            "Sections 23 & 54, voluntary surrender and rehabilitation; "
+            "RA 10640 — amendment on drug operations; "
+            "RA 7160, Section 389 — BADAC mandate"
+        ),
+    },
+    {
+        "triggers": {"theft", "robbery", "steal", "stolen", "stole", "robbed", "thief", "burglar", "burglary", "snatching", "snatcher", "nanakaw", "ninakaw", "magnanakaw", "pagnanakaw", "holdap", "holdup"},
+        "answer": (
+            "**Theft or Robbery — What to Do**\n\n"
+            "**Step 1 — Ensure your safety first**\n"
+            "If you are in immediate danger, call 911 or go to the nearest barangay or police station.\n\n"
+            "**Step 2 — File a Barangay Blotter**\n"
+            "Go to the Barangay Hall and report the incident. The barangay will record it in the blotter. "
+            "Bring any evidence: CCTV footage, witness accounts, description of the suspect.\n\n"
+            "**Step 3 — File a Police Report**\n"
+            "Simultaneously file a report at the nearest PNP station. "
+            "Theft and robbery are criminal cases handled by the police and courts — "
+            "not by barangay mediation.\n\n"
+            "**Step 4 — Barangay jurisdiction note**\n"
+            "Theft between neighbors (small amounts, first offense) may go through barangay mediation "
+            "for restitution. Robbery (with force or violence) is always a police/court matter.\n\n"
+            "**Step 5 — Recover your property**\n"
+            "File an inventory of stolen items. Report to the nearest pawnshop or market "
+            "if items might be sold. Coordinate with PNP for recovery operations.\n\n"
+            "📋 **Legal Basis:** Revised Penal Code (RPC), Articles 308–312 — Theft; "
+            "Articles 293–302 — Robbery; "
+            "RA 7160, Sections 399–422 — KP jurisdiction for minor disputes"
+        ),
+    },
+    {
+        "triggers": {"cybercrime", "online", "hacked", "hack", "scam", "phishing", "identity", "fake", "account", "social media", "facebook", "messenger", "cyber", "libel", "defamation", "libelo", "slander", "threat online", "bullying online", "cyberbullying"},
+        "answer": (
+            "**Cybercrime and Online Harassment — What to Do**\n\n"
+            "**Step 1 — Document everything**\n"
+            "Take screenshots of all messages, posts, accounts, or transactions involved. "
+            "Do not delete anything — these are your evidence.\n\n"
+            "**Step 2 — Report to the Barangay (for cyberbullying)**\n"
+            "Online bullying between residents may be reported to the barangay for mediation "
+            "under RA 10627 (Anti-Bullying Act). The barangay can issue summons for a settlement.\n\n"
+            "**Step 3 — File a complaint with the PNP-ACG or NBI-CCD**\n"
+            "For serious cyber offenses (hacking, scam, online libel, identity theft), "
+            "file a complaint with the PNP Anti-Cybercrime Group (ACG) or NBI Cybercrime Division. "
+            "Bring your screenshots and evidence.\n\n"
+            "**Step 4 — Report fake accounts / scam pages**\n"
+            "Report to the platform (Facebook, Instagram, etc.) AND to PNP-ACG. "
+            "The platform can take down the account; PNP can trace and prosecute the offender.\n\n"
+            "**Step 5 — Online libel**\n"
+            "If someone posts false statements damaging your reputation online, "
+            "you can file online libel under RA 10175. Penalty is higher than traditional libel.\n\n"
+            "📋 **Legal Basis:** RA 10175 (Cybercrime Prevention Act of 2012) — "
+            "online libel, hacking, identity theft, cyberbullying; "
+            "RA 10627 (Anti-Bullying Act) — cyberbullying in schools; "
+            "RA 8792 (E-Commerce Act) — electronic fraud"
+        ),
+    },
+    {
+        "triggers": {"bullying", "bully", "bullied", "harassment", "hazing", "pang-aapi", "intimidation", "school", "classmate", "student", "teacher"},
+        "answer": (
+            "**Bullying and Harassment — Legal Remedies**\n\n"
+            "**Step 1 — Report to the School (for school bullying)**\n"
+            "Report to the school principal or guidance counselor immediately. "
+            "Under RA 10627, all schools must have an Anti-Bullying Policy and act within 5 school days.\n\n"
+            "**Step 2 — Report to the Barangay**\n"
+            "For bullying outside school or between community members, report to the barangay. "
+            "The barangay can summon both parties for mediation and issue appropriate sanctions.\n\n"
+            "**Step 3 — File a complaint at DSWD (for child victims)**\n"
+            "If the victim is a minor, the Department of Social Welfare and Development (DSWD) "
+            "must be notified. The child may be entitled to protection services.\n\n"
+            "**Step 4 — Barangay Protection Order (if physical violence)**\n"
+            "If bullying involves physical harm, the Punong Barangay can issue a "
+            "Barangay Protection Order (BPO) on the same day.\n\n"
+            "**Step 5 — File a criminal case (for serious cases)**\n"
+            "Severe bullying (physical injury, hazing, RA 11053) may be filed as criminal cases "
+            "in court. Consult the Public Attorney's Office (PAO) for free legal assistance.\n\n"
+            "📋 **Legal Basis:** RA 10627 (Anti-Bullying Act of 2013); "
+            "RA 11053 (Anti-Hazing Act of 2018); "
+            "RA 7610 (Special Protection of Children Against Abuse); "
+            "RA 7160, Section 389 — BPO authority"
+        ),
+    },
+    {
+        "triggers": {"child", "abuse", "minor", "children", "bata", "neglect", "exploitation", "child labor", "battered child", "sexual abuse", "molest", "rape minor", "trafficking"},
+        "answer": (
+            "**Child Abuse — Reporting and Protection**\n\n"
+            "**Step 1 — Ensure the child's immediate safety**\n"
+            "Remove the child from the abusive situation immediately. "
+            "Go to the barangay, police station, or nearest DSWD office.\n\n"
+            "**Step 2 — Report to the Barangay VAWC Desk**\n"
+            "Every barangay has a VAWC Desk that also handles child abuse cases. "
+            "The Punong Barangay can issue a Barangay Protection Order (BPO) immediately.\n\n"
+            "**Step 3 — Report to DSWD and PNP-WCPD**\n"
+            "File a report with the Department of Social Welfare and Development (DSWD) "
+            "and the PNP Women and Children Protection Desk (WCPD). "
+            "A social worker will be assigned to the case.\n\n"
+            "**Step 4 — Medical examination**\n"
+            "Bring the child to the nearest government hospital for a medico-legal examination. "
+            "The report is critical evidence for the case.\n\n"
+            "**Step 5 — File a criminal case**\n"
+            "Child abuse is a criminal offense with penalties of 6–40 years imprisonment. "
+            "The case is filed in the Family Court. Free legal aid is available through PAO.\n\n"
+            "📋 **Legal Basis:** RA 7610 (Special Protection of Children Against Abuse, Exploitation and Discrimination Act); "
+            "RA 9262 (Anti-VAWC Act) — child victims; "
+            "RA 9208 as amended by RA 10364 — Anti-Trafficking in Persons Act; "
+            "RA 7160, Section 389 — BPO authority"
+        ),
+    },
+    {
+        "triggers": {"curfew", "minor", "juvenile", "youth", "kabataan", "menor", "out late", "gabi", "youth offender", "youth delinquency", "dilinquent"},
+        "answer": (
+            "**Curfew for Minors and Juvenile Justice**\n\n"
+            "**Curfew Hours (Standard)**\n"
+            "Most barangays enforce a curfew for minors below 18 years old: "
+            "**10PM–5AM** (varies per local ordinance — some barangays set it at 9PM or 8PM).\n\n"
+            "**Step 1 — If a minor is apprehended for curfew violation**\n"
+            "The barangay tanod brings the minor to the Barangay Hall — NOT to the police station. "
+            "Parents or guardians are immediately notified.\n\n"
+            "**Step 2 — Parent/guardian accountability**\n"
+            "Parents or guardians may be summoned and fined under local ordinance "
+            "for repeated curfew violations by their child.\n\n"
+            "**Step 3 — Children in Conflict with the Law (CICL)**\n"
+            "Minors who commit offenses are handled under RA 9344 — they cannot be imprisoned "
+            "like adults. They undergo intervention, diversion, and rehabilitation programs.\n\n"
+            "**Step 4 — Barangay Intervention Program**\n"
+            "For first-time minor offenders (minor offenses), the barangay handles the case "
+            "through a Diversion Program without going to court.\n\n"
+            "**Step 5 — Court referral (for serious offenses)**\n"
+            "For serious crimes committed by minors aged 15–18, the case is referred to "
+            "the Family Court. Minors below 15 are exempt from criminal liability.\n\n"
+            "📋 **Legal Basis:** RA 9344 (Juvenile Justice and Welfare Act of 2006) as amended by RA 10630; "
+            "Local Government Anti-Curfew Ordinances under RA 7160"
+        ),
+    },
+    {
+        "triggers": {"estafa", "fraud", "scam", "swindling", "deceive", "deceived", "fake", "swindled", "panloloko", "daya", "lokohin", "investment", "pyramiding", "money lost"},
+        "answer": (
+            "**Estafa / Fraud / Swindling — What to Do**\n\n"
+            "**Step 1 — Document the fraud**\n"
+            "Gather all evidence: receipts, contracts, text messages, screenshots, bank transfers, "
+            "and names/contact details of the suspect.\n\n"
+            "**Step 2 — Barangay mediation (for small amounts, known parties)**\n"
+            "If the suspect is a neighbor or known person, you may file a complaint at the barangay. "
+            "The Lupon can summon both parties to attempt settlement and recovery of money.\n\n"
+            "**Step 3 — File a complaint at the prosecutor's office**\n"
+            "For larger amounts or if mediation fails, file an Affidavit-Complaint at the "
+            "City/Provincial Prosecutor's Office. Bring all documentary evidence.\n\n"
+            "**Step 4 — File a police report**\n"
+            "Report to the PNP. For online fraud (scam via social media), "
+            "also report to the PNP Anti-Cybercrime Group (ACG).\n\n"
+            "**Step 5 — Small Claims Court (for money recovery)**\n"
+            "For amounts up to ₱400,000, file a Small Claims case in the Municipal Trial Court — "
+            "no lawyer required, fast resolution.\n\n"
+            "📋 **Legal Basis:** Revised Penal Code (RPC), Articles 315–318 — Estafa and Other Deceits; "
+            "RA 10175 (Cybercrime Prevention Act) — online fraud; "
+            "A.M. No. 08-8-7-SC — Rule of Procedure for Small Claims"
+        ),
+    },
+    {
+        "triggers": {"garbage", "waste", "littering", "dumping", "basura", "environment", "pollution", "dirty", "sanitation", "segregation", "ecology", "trash", "illegal dumping"},
+        "answer": (
+            "**Garbage, Waste, and Environmental Violations**\n\n"
+            "**Step 1 — Report to the Barangay**\n"
+            "Report illegal dumping, littering, or unsanitary conditions at the Barangay Hall. "
+            "The barangay is the frontline enforcer of solid waste management laws.\n\n"
+            "**Step 2 — Barangay enforcement**\n"
+            "The Punong Barangay can issue notices of violation and impose fines for littering "
+            "and improper garbage disposal under local ordinances.\n\n"
+            "**Step 3 — Waste segregation compliance**\n"
+            "Households are required to segregate waste: biodegradable, non-biodegradable, "
+            "and special/hazardous waste. Non-compliance is subject to barangay fines.\n\n"
+            "**Step 4 — Report to City Environment Office**\n"
+            "For large-scale illegal dumping or industrial pollution, report to the "
+            "City/Municipal Environment and Natural Resources Office (CENRO) or DENR.\n\n"
+            "**Step 5 — File a complaint**\n"
+            "If the barangay fails to act, escalate to the City/Municipal Mayor's Office "
+            "or the Environmental Management Bureau (EMB) under DENR.\n\n"
+            "📋 **Legal Basis:** RA 9003 (Ecological Solid Waste Management Act of 2000); "
+            "RA 8749 (Philippine Clean Air Act); "
+            "RA 9275 (Philippine Clean Water Act); "
+            "RA 7160, Section 389 — barangay environmental enforcement"
+        ),
+    },
+    {
+        "triggers": {"smoking", "cigarette", "vape", "smoke", "tobacco", "sigarilyo", "usok", "e-cigarette", "liquor", "alcohol", "drinking", "public drinking", "drunk"},
+        "answer": (
+            "**Anti-Smoking and Liquor Regulations at the Barangay Level**\n\n"
+            "**Anti-Smoking Rules:**\n\n"
+            "**Step 1 — Designated Smoking Areas**\n"
+            "Smoking is prohibited in all public places: barangay halls, markets, schools, "
+            "hospitals, public transport, restaurants, and government offices.\n\n"
+            "**Step 2 — Report violations**\n"
+            "Report smokers in prohibited areas to the barangay. "
+            "Fines range from ₱500–₱10,000 for individuals and ₱5,000–₱50,000 for establishments.\n\n"
+            "**Step 3 — Vape/E-cigarette regulations**\n"
+            "Vaping is prohibited in the same places as smoking under RA 11900 (Vape Law). "
+            "Sale to minors under 21 is prohibited.\n\n"
+            "**Anti-Liquor/Drinking Rules:**\n\n"
+            "**Step 4 — Public drinking**\n"
+            "Most barangays prohibit drinking in public places (streets, basketball courts) "
+            "especially late at night. Violators are subject to fines or temporary detention.\n\n"
+            "**Step 5 — Drunk and disorderly conduct**\n"
+            "Persons who are drunk and causing disturbance can be taken into custody by "
+            "barangay tanods until sober, then turned over to police if necessary.\n\n"
+            "📋 **Legal Basis:** RA 9211 (Tobacco Regulation Act of 2003); "
+            "RA 11900 (Vaporized Nicotine and Non-Nicotine Products Regulation Act of 2022); "
+            "RA 10586 (Anti-Drunk and Drugged Driving Act); "
+            "Local Anti-Liquor Ordinances under RA 7160"
         ),
     },
     {
