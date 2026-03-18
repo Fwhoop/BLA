@@ -260,6 +260,75 @@ _TAGALOG_MAP = {
     "minura":    "oral defamation slander insult",
     "nagmura":   "oral defamation cursing slander",
     "panlalait": "defamation insult slander",
+    # rape / sexual assault
+    "ginahasa":  "rape sexual assault victim",
+    "inabuso":   "sexual abuse victim",
+    "nang-rape": "rape sexual assault",
+    # trafficking
+    "inalipin":  "trafficking exploited victim",
+    "biktima":   "victim crime trafficking",
+    # gambling
+    "sugal":     "gambling illegal bet",
+    "masugal":   "gamble bet illegal",
+    "jueteng":   "illegal gambling jueteng",
+    # missing person
+    "nawala":    "missing disappeared person",
+    "hinahanap": "missing looking searching person",
+    # child support / custody
+    "suporta bata": "child support custody",
+    "iniwan":    "abandoned abandonment",
+    "pag-aalalay": "support custody child",
+    # adoption
+    "inaampon":  "adoption foster child",
+    "inampon":   "adopted child foster",
+    "ampunin":   "adopt foster child",
+    "ulila":     "orphan adoption",
+    # maternity / paternity
+    "buntis":    "pregnant maternity leave",
+    "magpapaanak": "pregnancy maternity leave",
+    # building / construction
+    "walang permit itayo": "no building permit illegal construction",
+    "itayo":     "construction build structure",
+    # agrarian
+    "magsasaka": "farmer agrarian land",
+    "bukid":     "farm agricultural land",
+    "kasama":    "tenant farmer agrarian",
+    # SSS / PhilHealth / Pag-IBIG
+    "pensiyon":  "pension sss retirement benefit",
+    "kontribusyon": "contribution sss philhealth pagibig",
+    # loan shark
+    "bombay":    "loan shark lender illegal",
+    "limang anim": "5-6 loan shark usury",
+    # child labor
+    "bata nagtatrabaho": "child labor working minor",
+    # disaster
+    "bagyo":     "typhoon disaster calamity",
+    "baha":      "flood disaster calamity",
+    "lindol":    "earthquake disaster calamity",
+    "sakuna":    "disaster calamity emergency",
+    "lumikas":   "evacuate evacuation disaster",
+    # electricity / water theft
+    "kuryente":  "electricity power",
+    "jumper":    "illegal connection electricity theft",
+    "tubig":     "water pilferage theft",
+    # hazing
+    "padyak":    "hazing initiation physical",
+    "initian":   "hazing initiation rite",
+    # arrest / rights
+    "naaresto":  "arrested detained rights",
+    "nakulong":  "detained imprisoned rights",
+    "pulis kinuha": "arrested police detained",
+    # farming / wildlife
+    "pagputol ng puno": "illegal logging tree cutting",
+    "pangingisda ilegal": "illegal fishing BFAR",
+    # endo / contractualization
+    "kontraktwal": "contractual endo employee",
+    "hindi regular": "not regular employee endo",
+    # business permit
+    "negosyo":   "business permit license",
+    "tindahan permit": "store business permit",
+    # OSAEC
+    "inabuso online": "online sexual exploitation OSAEC",
 }
 
 _VAGUE_INTENT_WORDS = {
@@ -1379,6 +1448,600 @@ _LEGAL_TOPICS = [
             "Sections 28–29, eviction and demolition procedures; "
             "RA 7160, Section 389 — barangay role in demolition; "
             "CHR Resolution A2010-019 — guidelines on forced eviction"
+        ),
+    },
+    {
+        "triggers": {"rape", "sexual assault", "molest", "molested", "sexually abused", "rape victim", "rapist", "inabuso", "ginahasa", "nang-rape", "sexual violence", "RA 8353", "rape shield"},
+        "answer": (
+            "**Rape and Sexual Assault — Immediate Steps and Legal Rights**\n\n"
+            "**Step 1 — Prioritize safety and medical care**\n"
+            "Go to the nearest hospital IMMEDIATELY. Do not shower, change clothes, or wash up — "
+            "physical evidence is critical. Request a medico-legal examination (SANE exam). "
+            "This is FREE in all government hospitals.\n\n"
+            "**Step 2 — Report to the Barangay VAWC Desk**\n"
+            "The barangay VAWC Desk is required to assist rape survivors. "
+            "They can accompany you to the hospital and police station, and help you file a report.\n\n"
+            "**Step 3 — Report to PNP Women and Children Protection Desk (WCPD)**\n"
+            "File a formal complaint at the PNP-WCPD. A female officer must take your statement. "
+            "You have the right to privacy — the report is confidential.\n\n"
+            "**Step 4 — Rape shield protections**\n"
+            "- Your past sexual behavior CANNOT be used against you in court\n"
+            "- Your identity will be protected — court records use initials only\n"
+            "- You may testify in private (in camera) proceedings\n"
+            "- Free legal assistance available through PAO\n\n"
+            "**Step 5 — Penalties**\n"
+            "Rape: reclusion perpetua (life imprisonment). "
+            "If victim is below 12 years old or has disability: death penalty provision (life + max penalties). "
+            "Attempted rape: 6–12 years.\n\n"
+            "📋 **Legal Basis:** RA 8353 (Anti-Rape Law of 1997); "
+            "RA 8505 (Rape Victim Assistance and Protection Act); "
+            "RA 11648 (raised age of sexual consent to 16); "
+            "RA 9262 (Anti-VAWC) — intimate partner sexual violence"
+        ),
+    },
+    {
+        "triggers": {"trafficking", "human trafficking", "recruit", "transport", "harbor", "exploit", "exploitation", "sex trafficking", "labor trafficking", "trafficked", "alipin", "biktima trafficking", "IACAT", "RA 9208"},
+        "answer": (
+            "**Human Trafficking — Recognition and Reporting**\n\n"
+            "**Step 1 — Recognize trafficking**\n"
+            "Trafficking signs include:\n"
+            "- Promised jobs abroad that turn into forced labor or prostitution\n"
+            "- Persons controlled by others, unable to leave or communicate freely\n"
+            "- Children found working in bars, massage parlors, or online\n"
+            "- Persons with withheld documents (passports, IDs)\n\n"
+            "**Step 2 — Report immediately**\n"
+            "Call the Inter-Agency Council Against Trafficking (IACAT) hotline: **1343** (24/7, free). "
+            "Report to the nearest barangay, PNP, or NBI. You can report anonymously.\n\n"
+            "**Step 3 — Barangay's role**\n"
+            "Every barangay must have a Violence Against Women and Children (VAWC) desk that also "
+            "handles trafficking cases. The Punong Barangay coordinates with DSWD and PNP.\n\n"
+            "**Step 4 — Victim support**\n"
+            "Trafficking victims are entitled to:\n"
+            "- FREE shelter and temporary housing (DSWD recovery centers)\n"
+            "- FREE medical, psychological, and legal assistance\n"
+            "- Repatriation assistance (for OFW victims)\n"
+            "- Immunity from prosecution for acts committed as a result of trafficking\n\n"
+            "**Step 5 — Penalties**\n"
+            "Trafficking: 20 years to life imprisonment + ₱1M–₱5M fine. "
+            "Qualified trafficking (victims are children, done in large scale): life imprisonment.\n\n"
+            "📋 **Legal Basis:** RA 9208 as amended by RA 10364 (Expanded Anti-Trafficking in Persons Act); "
+            "RA 9775 (Anti-Child Pornography Act); "
+            "RA 11930 (Anti-OSAEC Act) — online sexual exploitation"
+        ),
+    },
+    {
+        "triggers": {"gambling", "illegal gambling", "jueteng", "talpak", "cara y cruz", "bingo", "mahjong illegal", "sabong illegal", "cockfight", "masugal", "sugal", "manggagamble", "illegal bettor"},
+        "answer": (
+            "**Illegal Gambling — Reporting and Penalties**\n\n"
+            "**Step 1 — What is illegal gambling?**\n"
+            "Illegal gambling includes jueteng, masiao, last two, bookmaking, cara y cruz, "
+            "and unauthorized cockfighting (outside licensed cockpits or online platforms "
+            "not authorized by PAGCOR). Unauthorized online gambling is also illegal.\n\n"
+            "**Step 2 — Report to the Barangay**\n"
+            "Report illegal gambling operations to the Punong Barangay. "
+            "The barangay, together with PNP, can raid illegal gambling dens.\n\n"
+            "**Step 3 — Report to PNP**\n"
+            "File a report at the nearest PNP station. You may report anonymously. "
+            "The PNP has a dedicated anti-illegal gambling task force.\n\n"
+            "**Step 4 — Legal gambling venues**\n"
+            "Only PAGCOR-licensed establishments (casinos, e-Games cafes, PCSO lotteries, "
+            "and accredited cockpits) may operate gambling activities legally.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Operators: 6 months to 6 years imprisonment + ₱3,000–₱6,000 fine. "
+            "Bettors: 30 days imprisonment or fine. "
+            "For large-scale illegal gambling: up to 12 years + heavier fines.\n\n"
+            "📋 **Legal Basis:** PD 1602 (Strengthening Penalties for Illegal Gambling); "
+            "RA 9287 (Increasing Penalties for Illegal Numbers Games like Jueteng); "
+            "RA 9487 — Philippine Charity Sweepstakes Office (PCSO) Charter; "
+            "RA 7160, Section 389 — barangay peace and order"
+        ),
+    },
+    {
+        "triggers": {"missing", "missing person", "disappeared", "nawala", "hinahanap", "missing child", "kidnap", "kidnapped", "abducted", "abduction", "FIND", "NCMEC", "wala na", "nawalan"},
+        "answer": (
+            "**Missing Person — What to Do Immediately**\n\n"
+            "**Step 1 — Report to the Barangay immediately**\n"
+            "Go to the Barangay Hall right away — there is NO waiting period required. "
+            "You do NOT need to wait 24 hours before reporting a missing person. "
+            "The barangay will document the report and alert barangay tanods.\n\n"
+            "**Step 2 — Report to the PNP**\n"
+            "Simultaneously file a missing person report at the nearest PNP station. "
+            "Bring a recent photo, full name, age, last known location, and clothing description.\n\n"
+            "**Step 3 — For missing children**\n"
+            "Contact the PNP Women and Children Protection Desk (WCPD) and the "
+            "Inter-Country Adoption Board (ICAB) or DSWD. "
+            "For possible kidnapping: call NBI immediately.\n\n"
+            "**Step 4 — Alert neighboring barangays**\n"
+            "The barangay can coordinate with neighboring barangays and local government to "
+            "issue community alerts. Post descriptions on community boards and social media.\n\n"
+            "**Step 5 — Kidnapping vs. missing person**\n"
+            "If kidnapping is suspected (ransom demanded, threats received), "
+            "call PNP Anti-Kidnapping Group (AKG): (02) 8723-0401 immediately. "
+            "Do NOT pay ransom without coordinating with authorities.\n\n"
+            "📋 **Legal Basis:** RA 9208 (Anti-Trafficking) — missing persons linked to trafficking; "
+            "Revised Penal Code, Articles 267–270 — Kidnapping and Serious Illegal Detention; "
+            "RA 7610 (Anti-Child Abuse) — missing minors; "
+            "RA 7160, Section 389 — barangay peace and order duty"
+        ),
+    },
+    {
+        "triggers": {"child support", "support", "maintenance", "alimony", "abandoned child", "abandoned family", "abandonment", "hindi nagbibigay ng suporta", "child custody", "custody", "visitation", "pag-aalalay"},
+        "answer": (
+            "**Child Support, Custody, and Abandonment**\n\n"
+            "**Child Support:**\n\n"
+            "**Step 1 — Who is required to provide support?**\n"
+            "Both parents — whether married or not — are legally required to support their children. "
+            "Support includes food, shelter, education, clothing, and medical care.\n\n"
+            "**Step 2 — How much support?**\n"
+            "The amount is proportional to the resources of the giver and the needs of the child. "
+            "There is no fixed amount — courts determine it based on circumstances.\n\n"
+            "**Step 3 — File at the Barangay first**\n"
+            "Report non-payment of support to the barangay for mediation. "
+            "A barangay-mediated support agreement has the force of a court judgment.\n\n"
+            "**Step 4 — File in Family Court**\n"
+            "If mediation fails, file a petition for support in the Family Court. "
+            "The court can issue a Support Pendente Lite (immediate support while case is ongoing).\n\n"
+            "**Child Custody:**\n"
+            "Children below 7 years: generally awarded to the mother (unless unfit). "
+            "Children above 7: court considers the child's best interest and preference.\n\n"
+            "**Abandonment (Criminal):**\n"
+            "Abandoning a child under 7 or a family dependent is a criminal offense under the RPC.\n\n"
+            "📋 **Legal Basis:** Family Code (EO 209), Articles 194–208 — Support; "
+            "Articles 213–216 — Custody; "
+            "Revised Penal Code, Article 276 — Abandoning a Minor; "
+            "RA 9262 (Anti-VAWC) — economic abuse through non-support"
+        ),
+    },
+    {
+        "triggers": {"adoption", "adopt", "adoptee", "foster", "foster care", "ampunin", "inaampon", "inampon", "orphan", "ulila", "NACC", "domestic adoption", "RA 11642"},
+        "answer": (
+            "**Adoption — Process and Requirements**\n\n"
+            "**Step 1 — Who can adopt?**\n"
+            "- Filipino citizens, at least 27 years old, at least 16 years older than the adoptee\n"
+            "- Husband and wife must jointly adopt (with exceptions)\n"
+            "- Must be of good moral character, emotionally and psychologically capable\n"
+            "- Must have the means to support the child\n\n"
+            "**Step 2 — Domestic Administrative Adoption (new process under RA 11642)**\n"
+            "Adoption is now handled by the National Authority for Child Care (NACC) — "
+            "NO court appearance required. The process is administrative (faster).\n\n"
+            "**Step 3 — Steps to adopt**\n"
+            "1. File application at NACC (formerly DSWD)\n"
+            "2. Home study conducted by a licensed social worker\n"
+            "3. Child matching and placement (6-month trial custody)\n"
+            "4. NACC issues the Decree of Adoption\n"
+            "5. Register with the Local Civil Registry and PSA\n\n"
+            "**Step 4 — Barangay's role**\n"
+            "The barangay issues certifications of good moral character and residency "
+            "required in the adoption application.\n\n"
+            "**Step 5 — Effects of adoption**\n"
+            "The adopted child has all rights of a legitimate child including inheritance. "
+            "Original birth certificate is sealed; new certificate issued.\n\n"
+            "📋 **Legal Basis:** RA 11642 (Domestic Administrative Adoption and Alternative Child Care Act of 2022); "
+            "RA 8552 (Domestic Adoption Act of 1998) — still applies for pending cases; "
+            "Family Code (EO 209), Articles 183–193"
+        ),
+    },
+    {
+        "triggers": {"age discrimination", "old age", "discriminated age", "too old", "ageism", "retirement", "mandatory retirement", "discriminated work", "RA 10911", "anti-age"},
+        "answer": (
+            "**Anti-Age Discrimination in Employment**\n\n"
+            "**Step 1 — What is prohibited?**\n"
+            "Employers CANNOT:\n"
+            "- Set maximum age limits in job ads or hiring (unless a bona fide requirement)\n"
+            "- Refuse to hire or promote someone solely because of age\n"
+            "- Force retirement below 60 years old without consent\n"
+            "- Discriminate in training, compensation, or conditions of work based on age\n\n"
+            "**Step 2 — Mandatory retirement age**\n"
+            "The compulsory retirement age is **65 years old** for private sector employees "
+            "(optional retirement at 60). "
+            "Employers cannot force retirement before 60 without the employee's consent.\n\n"
+            "**Step 3 — Report to DOLE**\n"
+            "If you experienced age discrimination in hiring or employment, file a complaint "
+            "at the nearest DOLE Regional Office. Bring the job ad, rejection letter, or evidence.\n\n"
+            "**Step 4 — File a civil case**\n"
+            "Victims of age discrimination may file for damages in court. "
+            "Free legal assistance available through PAO.\n\n"
+            "**Step 5 — Penalties for employers**\n"
+            "Fine of ₱50,000–₱500,000 per violation + imprisonment of 3 months to 2 years.\n\n"
+            "📋 **Legal Basis:** RA 10911 (Anti-Age Discrimination in Employment Act of 2016); "
+            "Labor Code (PD 442), Article 302 — Retirement; "
+            "RA 7277 (Magna Carta for PWDs) — disability discrimination"
+        ),
+    },
+    {
+        "triggers": {"maternity", "paternity", "leave", "pregnancy", "pregnant", "buntis", "magpapaanak", "maternity leave", "paternity leave", "solo parent leave", "RA 11210"},
+        "answer": (
+            "**Maternity, Paternity, and Parental Leave Rights**\n\n"
+            "**Maternity Leave (RA 11210):**\n"
+            "- **105 days** paid maternity leave for live birth (120 days for solo parents)\n"
+            "- **60 days** for miscarriage or emergency termination\n"
+            "- Available to all female workers — private, government, self-employed, OFW\n"
+            "- SSS pays the benefit (computed based on average daily salary credit)\n"
+            "- Must notify employer/SSS at least 30 days before expected delivery\n\n"
+            "**Paternity Leave (RA 8187):**\n"
+            "- **7 days** paid paternity leave for married male employees\n"
+            "- Available for first 4 deliveries of the legitimate spouse\n"
+            "- Must be availed within 60 days from delivery\n\n"
+            "**Solo Parent Leave (RA 8972):**\n"
+            "- **7 additional days** per year for solo parents with a Solo Parent ID\n\n"
+            "**Step 1 — Notify your employer**\n"
+            "Notify in writing as early as possible. Employer CANNOT refuse maternity leave.\n\n"
+            "**Step 2 — File SSS/GSIS maternity benefit**\n"
+            "Submit SSS Maternity Notification form and required documents to your employer "
+            "who forwards to SSS. Self-employed: file directly with SSS.\n\n"
+            "**Step 3 — Report violations**\n"
+            "Employers who deny maternity/paternity leave face fines + imprisonment. Report to DOLE.\n\n"
+            "📋 **Legal Basis:** RA 11210 (105-Day Expanded Maternity Leave Law); "
+            "RA 8187 (Paternity Leave Act of 1996); "
+            "RA 8972 (Solo Parents' Welfare Act) — solo parent leave"
+        ),
+    },
+    {
+        "triggers": {"building permit", "construction", "illegal construction", "no permit", "zoning", "setback", "building violation", "demolish illegal building", "encroach", "nakasali", "walang permit itayo", "DPWH", "building code"},
+        "answer": (
+            "**Building Permit and Illegal Construction**\n\n"
+            "**Step 1 — When is a building permit required?**\n"
+            "A building permit is required before constructing, renovating, or demolishing any structure. "
+            "Minor repairs (repainting, minor plumbing) generally do not require a permit.\n\n"
+            "**Step 2 — Where to get a building permit**\n"
+            "Apply at the Office of the Building Official (OBO) in your City or Municipality Hall. "
+            "Requirements: lot title/tax declaration, architectural/structural plans, "
+            "barangay clearance, and site development plan.\n\n"
+            "**Step 3 — Report illegal construction**\n"
+            "Report to the barangay. The Punong Barangay can issue a stop-work order for "
+            "structures violating zoning ordinances or built without permits.\n\n"
+            "**Step 4 — Zoning violations**\n"
+            "Each LGU has a Comprehensive Land Use Plan (CLUP) and zoning ordinance. "
+            "Building in the wrong zone (e.g., residential area vs. commercial) is a violation "
+            "reportable to the Zoning Administrator.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Constructing without a permit: fine up to ₱20,000 + stop-work order + demolition order. "
+            "Repeated violations: criminal prosecution + imprisonment.\n\n"
+            "📋 **Legal Basis:** PD 1096 (National Building Code of the Philippines); "
+            "RA 9514 (Revised Fire Code) — fire safety compliance; "
+            "RA 7160, Sections 447–458 — LGU zoning authority; "
+            "RA 7279 — land use and zoning"
+        ),
+    },
+    {
+        "triggers": {"agrarian", "farm", "farmer", "tenant farmer", "agricultural", "CARP", "land reform", "DAR", "disturbance compensation", "leaseholder", "magsasaka", "bukid", "lupa bukid", "kasama", "land tenant"},
+        "answer": (
+            "**Agrarian Reform and Farmer's Rights**\n\n"
+            "**Step 1 — What is CARP?**\n"
+            "The Comprehensive Agrarian Reform Program (CARP) redistributes agricultural land "
+            "to landless farmers and farmworkers. Qualified beneficiaries receive land titles.\n\n"
+            "**Step 2 — Who qualifies as an agrarian reform beneficiary?**\n"
+            "- Landless farmers and farmworkers who are Filipino citizens\n"
+            "- Tillers of private agricultural lands\n"
+            "- Cooperative members in agricultural areas\n\n"
+            "**Step 3 — Tenant farmer rights**\n"
+            "Agricultural lessees (tenants) have security of tenure — they cannot be ejected "
+            "without just cause even if the land is sold. They have first right to purchase.\n\n"
+            "**Step 4 — Report agrarian disputes**\n"
+            "File at the Department of Agrarian Reform (DAR) — Provincial/Municipal Agrarian "
+            "Reform Office (PARO/MARO). The DAR handles land disputes, tenancy issues, and "
+            "disturbance compensation.\n\n"
+            "**Step 5 — Barangay's role**\n"
+            "The barangay certifies residency and tenancy for DAR applications and mediates "
+            "minor farm boundary disputes through the Lupon.\n\n"
+            "📋 **Legal Basis:** RA 6657 as amended by RA 9700 (Comprehensive Agrarian Reform Law); "
+            "RA 3844 (Agricultural Land Reform Code) — leasehold tenancy; "
+            "RA 7160, Sections 399–422 — KP for agrarian-related minor disputes"
+        ),
+    },
+    {
+        "triggers": {"sss", "philhealth", "pagibig", "pag-ibig", "pension", "benefit", "contribution", "social security", "gsis", "retirement benefit", "disability benefit", "death benefit", "housing loan", "sss contribution"},
+        "answer": (
+            "**SSS, PhilHealth, and Pag-IBIG — Benefits and Disputes**\n\n"
+            "**SSS (Social Security System):**\n"
+            "- Sickness benefit: 90% of average daily salary for up to 120 days/year\n"
+            "- Disability benefit: monthly pension based on credited years of service\n"
+            "- Retirement pension: available at age 60 (optional) or 65 (mandatory)\n"
+            "- Death/funeral benefit: lump sum + survivorship pension for dependents\n"
+            "- Salary/calamity/housing loans available to members\n"
+            "- File disputes at nearest SSS branch or my.sss.gov.ph\n\n"
+            "**PhilHealth:**\n"
+            "- Covers hospitalization, surgeries, maternity, dialysis, chemotherapy\n"
+            "- All Filipinos are automatically covered under Universal Health Care (RA 11223)\n"
+            "- Report non-remittance of contributions by employers to PhilHealth\n"
+            "- Disputes: file at philhealth.gov.ph or nearest PhilHealth office\n\n"
+            "**Pag-IBIG (HDMF):**\n"
+            "- Housing loans up to ₱6M at low interest rates\n"
+            "- Multi-purpose loans (salary loan) for members\n"
+            "- Provident savings fund with dividends\n"
+            "- File at pagibigfund.gov.ph or nearest branch\n\n"
+            "**Report employer non-remittance:**\n"
+            "If your employer deducts SSS/PhilHealth/Pag-IBIG from your salary but does not remit, "
+            "report to the respective agency AND to DOLE. This is a criminal offense.\n\n"
+            "📋 **Legal Basis:** RA 11199 (Social Security Act of 2018); "
+            "RA 11223 (Universal Health Care Act); "
+            "RA 9679 (Home Development Mutual Fund Law of 2009); "
+            "RA 8291 (GSIS Act of 1997) — for government employees"
+        ),
+    },
+    {
+        "triggers": {"loan shark", "5-6", "usury", "high interest", "illegal lender", "bombay", "utang mataas", "interest", "overcharging interest", "hindi makapagbayad utang", "debt collector", "harassment creditor"},
+        "answer": (
+            "**Loan Sharks, Usury, and Illegal Lending**\n\n"
+            "**Step 1 — What is usury/illegal lending?**\n"
+            "Usury is charging excessively high interest rates beyond what is reasonable and legal. "
+            "Common examples: '5-6' lending (20% per day/week), door-to-door lenders charging "
+            "100%+ interest per month. Lending without a license from SEC or BSP is illegal.\n\n"
+            "**Step 2 — Report to the Barangay**\n"
+            "Report illegal lenders operating in your barangay. The barangay can document the "
+            "complaint, assist in mediation, and refer to proper authorities.\n\n"
+            "**Step 3 — Report to Securities and Exchange Commission (SEC)**\n"
+            "File a complaint at sec.gov.ph or call (02) 8818-0921. "
+            "SEC regulates lending companies and can shut down unlicensed lenders.\n\n"
+            "**Step 4 — Harassment by debt collectors**\n"
+            "Debt collectors CANNOT: threaten you, contact your family/employer without consent, "
+            "use obscene language, or make false statements. Report harassment to the barangay and PNP.\n\n"
+            "**Step 5 — Online lending apps**\n"
+            "Illegal online lending apps that access your contacts or post shaming messages "
+            "violate the Data Privacy Act (RA 10173) and the SEC's rules. "
+            "Report to SEC and the National Privacy Commission (NPC).\n\n"
+            "📋 **Legal Basis:** Act No. 2655 (Usury Law) as amended; "
+            "RA 9474 (Lending Company Regulation Act of 2007); "
+            "BSP Circular 1048 — interest rate ceiling; "
+            "RA 10173 (Data Privacy Act) — for online lending app abuses"
+        ),
+    },
+    {
+        "triggers": {"child labor", "working child", "minor working", "bata nagtatrabaho", "illegal work minor", "RA 9231", "child worker", "exploited child worker", "hazardous work child"},
+        "answer": (
+            "**Anti-Child Labor — Rights of Working Children**\n\n"
+            "**Step 1 — Minimum working age**\n"
+            "Children below **15 years old** cannot be employed in any business or undertaking. "
+            "Exception: children below 15 may work ONLY in family undertakings (farm, business) "
+            "where the parent is the employer, and work does not interfere with schooling.\n\n"
+            "**Step 2 — Children aged 15–17**\n"
+            "May work BUT:\n"
+            "- Not more than 8 hours per day / 40 hours per week\n"
+            "- No night work (10PM–6AM)\n"
+            "- Cannot work in hazardous environments (construction, mining, etc.)\n"
+            "- Must continue schooling\n\n"
+            "**Step 3 — What is hazardous work for children?**\n"
+            "Carrying heavy loads, exposure to chemicals, working underground or underwater, "
+            "working in bars/clubs, manufacturing with dangerous machinery — all prohibited for minors.\n\n"
+            "**Step 4 — Report child labor**\n"
+            "Report to the barangay, DOLE, or DSWD. You may report anonymously. "
+            "DOLE hotline: 1349. DSWD hotline: 931-8101.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Employers violating child labor laws: ₱1,000–₱10,000 fine per child + "
+            "6 months to 2 years imprisonment.\n\n"
+            "📋 **Legal Basis:** RA 9231 (Special Protection of Children Against Child Abuse, "
+            "Exploitation and Discrimination Act — Child Labor provisions); "
+            "RA 7610, Section 12 — employment of children; "
+            "Labor Code (PD 442), Articles 137–139"
+        ),
+    },
+    {
+        "triggers": {"online sexual", "OSAEC", "child pornography", "child nude", "child video", "online exploitation child", "RA 9775", "RA 11930", "CSAM", "child sexual abuse material"},
+        "answer": (
+            "**Online Sexual Exploitation of Children (OSAEC)**\n\n"
+            "**Step 1 — What is OSAEC?**\n"
+            "OSAEC includes:\n"
+            "- Producing, distributing, or possessing child sexual abuse material (CSAM)\n"
+            "- Live-streaming sexual abuse of children for online viewers\n"
+            "- Grooming children online for sexual purposes\n"
+            "- Engaging children in cybersex activities\n\n"
+            "**Step 2 — Report immediately — Do NOT share the material**\n"
+            "Report to REPORT-IT hotline: **1868** or visit cybercrime.gov.ph. "
+            "Also report to PNP-ACG and DSWD immediately.\n\n"
+            "**Step 3 — Preserve evidence (safely)**\n"
+            "Screenshot URLs and report them to the platform. "
+            "Do NOT download or re-share the material — possession alone is a criminal offense.\n\n"
+            "**Step 4 — Victim assistance**\n"
+            "Victims are entitled to FREE psychological, legal, and social services through DSWD. "
+            "Identity of child victims is strictly protected — no names in reports.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Producing CSAM: 20 years to life imprisonment. "
+            "Possession: 12–20 years. Online sale: life imprisonment. "
+            "Facilitating (parents/guardians): 12–20 years.\n\n"
+            "📋 **Legal Basis:** RA 11930 (Anti-OSAEC and Anti-CSAEM Act of 2022); "
+            "RA 9775 (Anti-Child Pornography Act of 2009); "
+            "RA 10175 (Cybercrime Prevention Act) — child pornography provisions"
+        ),
+    },
+    {
+        "triggers": {"endo", "contractualization", "contractual", "fixed term", "5 months contract", "no regularization", "illegal endo", "labor contracting", "manpower agency", "regularize", "regular employee"},
+        "answer": (
+            "**Endo and Illegal Contractualization**\n\n"
+            "**Step 1 — What is illegal endo?**\n"
+            "'Endo' (end of contract) is the practice of repeatedly hiring workers on short-term "
+            "contracts (usually 5 months) to prevent them from becoming regular employees "
+            "and receiving full benefits. This is ILLEGAL under DOLE regulations.\n\n"
+            "**Step 2 — When do you become a regular employee?**\n"
+            "After **6 months** of continuous service doing work necessary and desirable to the "
+            "business, you are automatically a regular employee — regardless of your contract type.\n\n"
+            "**Step 3 — Rights of regular employees**\n"
+            "- Security of tenure (cannot be dismissed without just cause)\n"
+            "- Full benefits: SSS, PhilHealth, Pag-IBIG, 13th month pay, service incentive leave\n"
+            "- Separation pay if retrenched or position abolished\n\n"
+            "**Step 4 — Report to DOLE**\n"
+            "File a complaint at the nearest DOLE Regional/Field Office. "
+            "DOLE conducts labor inspections and can order regularization. DOLE hotline: **1349**.\n\n"
+            "**Step 5 — File at NLRC for illegal dismissal**\n"
+            "If you were terminated to avoid regularization, file an illegal dismissal case at the NLRC. "
+            "You may be entitled to back wages and reinstatement.\n\n"
+            "📋 **Legal Basis:** Labor Code (PD 442), Article 295 — Regular and Casual Employment; "
+            "DOLE Department Order No. 174-17 — Rules on Contracting and Subcontracting; "
+            "DOLE Advisory No. 01-17 — guidelines on employment status"
+        ),
+    },
+    {
+        "triggers": {"business permit", "business license", "mayor's permit", "DTI registration", "sole proprietorship", "barangay business", "business clearance", "business registration", "negosyo", "tindahan permit", "store permit"},
+        "answer": (
+            "**Business Permit and Registration**\n\n"
+            "**Step 1 — Register your business name (DTI)**\n"
+            "For sole proprietorships, register your business name with the DTI. "
+            "Do this online at negosyo.dti.gov.ph or at the nearest DTI office. Fee: ₱200–₱2,000.\n\n"
+            "**Step 2 — Get a Barangay Business Clearance**\n"
+            "Go to your Barangay Hall and apply for a Barangay Business Clearance. "
+            "Requirements: DTI registration, valid ID, proof of location. "
+            "Fee varies per barangay (usually ₱500–₱2,000). This is renewed annually.\n\n"
+            "**Step 3 — Get a Mayor's Permit (Business License)**\n"
+            "Apply at the City/Municipal Business Permits and Licensing Office (BPLO). "
+            "Requirements: Barangay Clearance, DTI registration, BIR registration, "
+            "lease contract or proof of ownership, and fire safety inspection certificate.\n\n"
+            "**Step 4 — Register with BIR**\n"
+            "Register with the Bureau of Internal Revenue (BIR) for tax compliance. "
+            "Get a Certificate of Registration (COR) and official receipts (OR).\n\n"
+            "**Step 5 — Annual renewal**\n"
+            "Renew your Barangay Clearance and Mayor's Permit annually (January of each year). "
+            "Late renewal incurs surcharges.\n\n"
+            "📋 **Legal Basis:** RA 7160 (Local Government Code), Section 444 — "
+            "Mayor's permit authority; "
+            "RA 3883 (Business Name Law) as amended by RA 9178; "
+            "NIRC (National Internal Revenue Code) — BIR registration; "
+            "RA 11032 (Ease of Doing Business Act)"
+        ),
+    },
+    {
+        "triggers": {"disaster", "calamity", "typhoon", "flood", "earthquake", "emergency", "relief", "evacuation", "NDRRMC", "LGU relief", "sakuna", "lindol", "bagyo", "baha", "evacuate", "evacuation center"},
+        "answer": (
+            "**Disaster Relief and Emergency Preparedness**\n\n"
+            "**Step 1 — Evacuation**\n"
+            "Follow barangay official evacuation orders immediately. "
+            "The Punong Barangay has authority to order mandatory evacuation in danger zones. "
+            "Go to your designated barangay evacuation center.\n\n"
+            "**Step 2 — Barangay Disaster Risk Reduction and Management Council (BDRRMC)**\n"
+            "Every barangay has a BDRRMC that coordinates disaster response. "
+            "Contact the barangay tanod or BDRRMC during emergencies.\n\n"
+            "**Step 3 — Relief goods and assistance**\n"
+            "Disaster survivors are entitled to:\n"
+            "- Emergency food, water, and shelter\n"
+            "- Medical assistance from the barangay health center and DOH\n"
+            "- Emergency cash assistance from DSWD (up to ₱15,000 for major disasters)\n"
+            "- Housing assistance from NHA and DSWD for totally damaged homes\n\n"
+            "**Step 4 — Report disaster-related corruption**\n"
+            "If relief goods are withheld or misappropriated, report to the COA, Ombudsman, "
+            "or directly to DSWD. Corruption during disasters has higher penalties.\n\n"
+            "**Step 5 — Post-disaster legal remedies**\n"
+            "For property damaged by neighbors' negligence during a disaster, "
+            "file at the barangay for mediation. Insurance claims for damage follow policy terms.\n\n"
+            "📋 **Legal Basis:** RA 10121 (Philippine Disaster Risk Reduction and Management Act of 2010); "
+            "RA 7160, Section 389 — Punong Barangay emergency powers; "
+            "RA 10869 — Sagana at Ligtas na Tubig Act"
+        ),
+    },
+    {
+        "triggers": {"illegal logging", "wildlife", "poaching", "endangered species", "cutting trees", "illegal fishing", "dynamite fishing", "cyanide fishing", "pagputol ng puno", "pangingisda ilegal", "DENR", "BFAR"},
+        "answer": (
+            "**Illegal Logging, Wildlife, and Fishing Violations**\n\n"
+            "**Illegal Logging:**\n\n"
+            "**Step 1 — Report illegal logging**\n"
+            "Report to the DENR (Department of Environment and Natural Resources), barangay, "
+            "or PNP. You can call the DENR hotline: 1-800-10-DENR-123 (1-800-10-3367-123).\n\n"
+            "**Step 2 — Penalties for illegal logging**\n"
+            "Imprisonment of 12–20 years + fines + confiscation of equipment and products.\n\n"
+            "**Illegal Wildlife:**\n\n"
+            "**Step 3 — Report illegal wildlife trade**\n"
+            "Report to DENR-Biodiversity Management Bureau. Killing, collecting, or trading "
+            "endangered species (eagles, turtles, monkeys) is strictly prohibited.\n\n"
+            "**Illegal Fishing:**\n\n"
+            "**Step 4 — Report illegal fishing**\n"
+            "Report to BFAR (Bureau of Fisheries and Aquatic Resources) or the PNP Maritime Group. "
+            "Hotline: (02) 8332-4661.\n\n"
+            "**Step 5 — What is prohibited**\n"
+            "- Dynamite/blast fishing: 20 years imprisonment\n"
+            "- Cyanide fishing: 8–20 years\n"
+            "- Fishing in municipal waters without license: fines + confiscation\n"
+            "- Use of fine-mesh nets (baby fish): fines + license cancellation\n\n"
+            "📋 **Legal Basis:** RA 9175 (Chainsaw Act of 2002) — illegal logging; "
+            "RA 9147 (Wildlife Resources Conservation and Protection Act); "
+            "RA 10654 (Philippine Fisheries Code of 2015); "
+            "PD 705 (Revised Forestry Code)"
+        ),
+    },
+    {
+        "triggers": {"electricity theft", "meralco", "power", "electric", "kuryente", "illegal connection", "jumper", "water theft", "water pilferage", "tubig", "illegal tap", "Manila Water", "Maynilad"},
+        "answer": (
+            "**Electricity and Water Theft / Pilferage**\n\n"
+            "**Electricity Theft:**\n\n"
+            "**Step 1 — What is electricity pilferage?**\n"
+            "- Illegal connection (jumper) to power lines without a meter\n"
+            "- Tampering with electric meters to reduce readings\n"
+            "- Using unregistered appliances that bypass billing\n\n"
+            "**Step 2 — Consequences**\n"
+            "Electric company may immediately disconnect supply and assess differential billing "
+            "(estimated unbilled consumption) going back up to 5 years.\n\n"
+            "**Step 3 — Report electricity theft**\n"
+            "Report to Meralco (in areas served) or your local electric cooperative. "
+            "You can report anonymously to prevent electricity theft that drives up costs for all.\n\n"
+            "**Water Pilferage:**\n\n"
+            "**Step 4 — What is water pilferage?**\n"
+            "Illegal connection to water mains, tampering with water meters, or unauthorized use "
+            "of fire hydrants are all punishable offenses.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Electricity theft: 1–12 years imprisonment + payment of differential billing + fines. "
+            "Water pilferage: fines + imprisonment + civil liability for water consumed.\n\n"
+            "📋 **Legal Basis:** RA 7832 (Anti-Electricity and Electric Transmission Lines/Materials "
+            "Pilferage Act of 1994); "
+            "RA 8041 (National Water Crisis Act) — water pilferage provisions; "
+            "RA 9136 (Electric Power Industry Reform Act — EPIRA)"
+        ),
+    },
+    {
+        "triggers": {"anti-hazing", "hazing", "initiation rites", "fraternity", "sorority", "organization initiation", "padyak", "paddling", "physical initiation", "RA 11053"},
+        "answer": (
+            "**Anti-Hazing Law — Rights of Students and Members**\n\n"
+            "**Step 1 — What is hazing?**\n"
+            "Hazing is any initiation rite or practice that causes physical, psychological, "
+            "or emotional suffering as a prerequisite for membership in any group, "
+            "organization, military, or educational institution.\n\n"
+            "**Step 2 — All hazing is now regulated**\n"
+            "Under RA 11053, hazing is PROHIBITED unless:\n"
+            "- Prior written notice is given to the school authority\n"
+            "- A school representative is present\n"
+            "- No physical harm is inflicted\n"
+            "Physical hazing (paddling, hitting, forced exercise) is ALWAYS prohibited.\n\n"
+            "**Step 3 — Report to the school and barangay**\n"
+            "Report immediately to the school principal/president AND to the barangay where the "
+            "initiation occurred. File a blotter. The barangay will coordinate with PNP.\n\n"
+            "**Step 4 — Report to PNP and file a case**\n"
+            "Hazing that results in injury or death is a criminal offense. "
+            "All participants — planners, principals, participants who did not prevent it — are liable.\n\n"
+            "**Step 5 — Penalties**\n"
+            "If victim suffers injury: 6–12 years. "
+            "If victim dies: reclusion perpetua (life) for all responsible parties. "
+            "School officials who knew and failed to act: also liable.\n\n"
+            "📋 **Legal Basis:** RA 11053 (Anti-Hazing Act of 2018); "
+            "RA 8049 (Anti-Hazing Law of 1995) — superseded by RA 11053; "
+            "RA 7610 — child abuse provisions for minor victims"
+        ),
+    },
+    {
+        "triggers": {"rights of accused", "arrested", "detained", "arrest", "warrant", "warrantless arrest", "miranda rights", "inquest", "preliminary investigation", "bail", "detained rights", "naaresto", "nakulong"},
+        "answer": (
+            "**Rights of the Accused and Arrested Persons**\n\n"
+            "**Your rights upon arrest (Miranda Rights):**\n\n"
+            "**Step 1 — Right to be informed**\n"
+            "You have the right to be told:\n"
+            "- The reason for your arrest\n"
+            "- Your right to remain silent\n"
+            "- Your right to a lawyer (even if you cannot afford one)\n\n"
+            "**Step 2 — Right to remain silent**\n"
+            "You do NOT have to answer any questions. Say: "
+            "'I invoke my right to remain silent and to counsel.' "
+            "Anything you say can be used against you in court.\n\n"
+            "**Step 3 — Right to a lawyer**\n"
+            "You have the right to a lawyer at ALL stages of investigation. "
+            "If you cannot afford one, the Public Attorney's Office (PAO) will provide one for free.\n\n"
+            "**Step 4 — Warrantless arrest — when is it valid?**\n"
+            "Police can arrest without a warrant only if:\n"
+            "- You are caught in the act (in flagrante delicto)\n"
+            "- Hot pursuit of a crime just committed\n"
+            "- Escaped prisoner\n"
+            "Otherwise, a valid court-issued warrant is required.\n\n"
+            "**Step 5 — Detention limits**\n"
+            "Without a warrant: 12 hours (light offense), 18 hours (less grave), 36 hours (grave offense). "
+            "After that, charges must be filed or you must be released. "
+            "File a complaint for arbitrary detention at the Ombudsman if rights are violated.\n\n"
+            "📋 **Legal Basis:** 1987 Philippine Constitution, Article III (Bill of Rights) — "
+            "Sections 12–14; "
+            "Rules of Court, Rule 113 — Arrest; "
+            "RA 7438 (Rights of Persons Arrested, Detained or Under Custodial Investigation)"
         ),
     },
 ]
