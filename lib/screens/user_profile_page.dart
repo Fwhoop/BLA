@@ -5,6 +5,10 @@ import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
+const _kPrimary  = Color(0xFF99272D);
+const _kCharcoal = Color(0xFF36454F);
+const _kBg       = Color(0xFFF5F6FA);
+
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
 
@@ -15,42 +19,32 @@ class UserProfilePage extends StatefulWidget {
 class UserProfilePageState extends State<UserProfilePage> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _currentPasswordController = TextEditingController();
-  final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final _firstNameCtrl    = TextEditingController();
+  final _lastNameCtrl     = TextEditingController();
+  final _emailCtrl        = TextEditingController();
+  final _phoneCtrl        = TextEditingController();
+  final _addressCtrl      = TextEditingController();
+  final _curPassCtrl      = TextEditingController();
+  final _newPassCtrl      = TextEditingController();
+  final _confirmPassCtrl  = TextEditingController();
 
   String? _selectedBarangay;
-  bool _isLoading = false;
-  bool _isEditing = false;
-  bool _isChangingPassword = false;
-  bool _obscureCurrentPassword = true;
-  bool _obscureNewPassword = true;
-  bool _obscureConfirmPassword = true;
+  bool _isLoading         = false;
+  bool _isEditing         = false;
+  bool _isChangingPw      = false;
+  bool _obscureCur        = true;
+  bool _obscureNew        = true;
+  bool _obscureConfirm    = true;
   User? _currentUser;
   Map<String, dynamic>? _stats;
   bool _statsLoading = false;
-  String? _statsError;
 
-  final List<String> _barangays = [
-    'Barangay 1',
-    'Barangay 2',
-    'Barangay Cabaluay',
-    'Barangay Cabatangan',
-    'Barangay Culianan',
-    'Barangay Mercedes',
-    'Barangay Pasonanca',
-    'Barangay San Jose Cawa-Cawa',
-    'Barangay San Jose Gusu',
-    'Barangay San Roque',
-    'Barangay Sta. Maria',
-    'Barangay Talabaan',
-    'Barangay Taluksangay',
-    'System',
+  static const List<String> _barangays = [
+    'Barangay 1', 'Barangay 2', 'Barangay Cabaluay', 'Barangay Cabatangan',
+    'Barangay Culianan', 'Barangay Mercedes', 'Barangay Pasonanca',
+    'Barangay San Jose Cawa-Cawa', 'Barangay San Jose Gusu',
+    'Barangay San Roque', 'Barangay Sta. Maria', 'Barangay Talabaan',
+    'Barangay Taluksangay', 'System',
   ];
 
   @override
@@ -60,28 +54,11 @@ class UserProfilePageState extends State<UserProfilePage> {
     _loadStats();
   }
 
-  Future<void> _loadStats() async {
-    if (!mounted) return;
-    setState(() { _statsLoading = true; _statsError = null; });
-    try {
-      final api = Provider.of<ApiService>(context, listen: false);
-      final stats = await api.getMyStats();
-      if (mounted) setState(() { _stats = stats; _statsLoading = false; });
-    } catch (e) {
-      if (mounted) setState(() { _statsError = e.toString().replaceFirst('Exception: ', ''); _statsLoading = false; });
-    }
-  }
-
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
+    _firstNameCtrl.dispose(); _lastNameCtrl.dispose(); _emailCtrl.dispose();
+    _phoneCtrl.dispose(); _addressCtrl.dispose(); _curPassCtrl.dispose();
+    _newPassCtrl.dispose(); _confirmPassCtrl.dispose();
     super.dispose();
   }
 
@@ -89,702 +66,665 @@ class UserProfilePageState extends State<UserProfilePage> {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final user = await auth.getCurrentUser();
-      final userData = await auth.getUserData();
-      
+      final data = await auth.getUserData();
       if (mounted) {
         setState(() {
-          _currentUser = user;
-          _firstNameController.text = userData['firstName'] ?? '';
-          _lastNameController.text = userData['lastName'] ?? '';
-          _emailController.text = userData['email'] ?? '';
-          _phoneController.text = userData['phone'] ?? '';
-          _addressController.text = userData['address'] ?? '';
-          _selectedBarangay = userData['barangay'] ?? '';
+          _currentUser          = user;
+          _firstNameCtrl.text   = data['firstName'] ?? '';
+          _lastNameCtrl.text    = data['lastName']  ?? '';
+          _emailCtrl.text       = data['email']     ?? '';
+          _phoneCtrl.text       = data['phone']     ?? '';
+          _addressCtrl.text     = data['address']   ?? '';
+          _selectedBarangay     = data['barangay']  ?? '';
         });
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading user data: $e'),
-            backgroundColor: Color(0xFF99272D),
-          ),
+          SnackBar(content: Text('Error loading user data: $e'), backgroundColor: _kPrimary),
         );
       }
+    }
+  }
+
+  Future<void> _loadStats() async {
+    if (!mounted) return;
+    setState(() => _statsLoading = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final stats = await api.getMyStats();
+      if (mounted) setState(() { _stats = stats; _statsLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _statsLoading = false);
     }
   }
 
   Future<void> _updateProfile() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      try {
-        final auth = Provider.of<AuthService>(context, listen: false);
-        final success = await auth.updateProfile(
-          firstName: _firstNameController.text,
-          lastName: _lastNameController.text,
-          phone: _phoneController.text,
-          address: _addressController.text,
-          barangay: _selectedBarangay,
-        );
-
-        if (success) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Profile updated successfully!'),
-              backgroundColor: Color(0xFF36454F),
-              duration: Duration(seconds: 3),
-            ),
-          );
-          setState(() => _isEditing = false);
-          await _loadUserData();
-        } else {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update profile. Please try again.'),
-              backgroundColor: Color(0xFF99272D),
-            ),
-          );
-        }
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating profile: $e'),
-            backgroundColor: Color(0xFF99272D),
-          ),
-        );
-      } finally {
-        setState(() => _isLoading = false);
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final ok = await auth.updateProfile(
+        firstName: _firstNameCtrl.text,
+        lastName:  _lastNameCtrl.text,
+        phone:     _phoneCtrl.text,
+        address:   _addressCtrl.text,
+        barangay:  _selectedBarangay,
+      );
+      if (!mounted) return;
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Profile updated successfully!'),
+          backgroundColor: Color(0xFF36454F),
+        ));
+        setState(() => _isEditing = false);
+        await _loadUserData();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Failed to update profile.'), backgroundColor: _kPrimary,
+        ));
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: _kPrimary),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _changePassword() async {
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('New passwords do not match'),
-          backgroundColor: Color(0xFF99272D),
-        ),
-      );
+    if (_newPassCtrl.text != _confirmPassCtrl.text) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('New passwords do not match'), backgroundColor: _kPrimary,
+      ));
       return;
     }
-
-    if (_newPasswordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('New password must be at least 6 characters'),
-          backgroundColor: Color(0xFF99272D),
-        ),
-      );
+    if (_newPassCtrl.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Password must be at least 6 characters'), backgroundColor: _kPrimary,
+      ));
       return;
     }
-
     setState(() => _isLoading = true);
-
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
-      final success = await auth.changePassword(
-        _currentPasswordController.text,
-        _newPasswordController.text,
-      );
-
-      if (success) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Password changed successfully!'),
-            backgroundColor: Color(0xFF36454F),
-            duration: Duration(seconds: 3),
-          ),
-        );
-        setState(() => _isChangingPassword = false);
-        _currentPasswordController.clear();
-        _newPasswordController.clear();
-        _confirmPasswordController.clear();
+      final ok = await auth.changePassword(_curPassCtrl.text, _newPassCtrl.text);
+      if (!mounted) return;
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Password changed successfully!'),
+          backgroundColor: Color(0xFF36454F),
+        ));
+        setState(() => _isChangingPw = false);
+        _curPassCtrl.clear(); _newPassCtrl.clear(); _confirmPassCtrl.clear();
       } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Current password is incorrect'),
-            backgroundColor: Color(0xFF99272D),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Current password is incorrect'), backgroundColor: _kPrimary,
+        ));
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error changing password: $e'),
-          backgroundColor: Color(0xFF99272D),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: _kPrimary),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    if (_currentUser == null && !_isLoading) {
-      return Scaffold(
-        appBar: BlaAppBar(title: 'My Profile'),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: Color(0xFF99272D)),
-              SizedBox(height: 16),
-              Text(
-                'Unable to load user data',
-                style: TextStyle(fontSize: 18, color: Color(0xFF36454F)),
-              ),
-              SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _loadUserData,
-                child: Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
+      backgroundColor: _kBg,
       appBar: BlaAppBar(
         title: 'My Profile',
         user: _currentUser == null ? {} : {
           'first_name': _currentUser!.firstName,
-          'last_name': _currentUser!.lastName,
-          'role': _currentUser!.role.toString().split('.').last,
-          'email': _currentUser!.email,
+          'last_name':  _currentUser!.lastName,
+          'role':       _currentUser!.role.toString().split('.').last,
+          'email':      _currentUser!.email,
           'profile_photo_path': '',
         },
         extraActions: [
-          if (!_isEditing && !_isChangingPassword)
+          if (!_isEditing && !_isChangingPw)
             IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => setState(() => _isEditing = true),
+              icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit Profile',
+              onPressed: () => setState(() => _isEditing = true),
             ),
         ],
       ),
-      body: Container(
-        color: Color(0xFFFFFFFF),
-        child: _isLoading && _currentUser == null
-            ? Center(child: CircularProgressIndicator())
-            : Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 860),
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(20),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildProfileHeader(),
-                          SizedBox(height: 24),
-                          _buildProfileInfoCard(),
-                          SizedBox(height: 20),
-                          _buildStatsCard(),
-                          SizedBox(height: 20),
-                          _buildPasswordCard(),
-                          SizedBox(height: 20),
-                          _buildActionButtons(),
+      body: _currentUser == null
+          ? const Center(child: CircularProgressIndicator(color: _kPrimary))
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 860),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHero(),
+                        if (!(_currentUser?.isAdmin ?? false)) ...[
+                          const SizedBox(height: 20),
+                          _buildActivityRow(),
+                          const SizedBox(height: 16),
+                        ] else
+                          const SizedBox(height: 20),
+                        _buildInfoCard(),
+                        const SizedBox(height: 16),
+                        _buildPasswordCard(),
+                        if (_isEditing) ...[
+                          const SizedBox(height: 16),
+                          _buildEditActions(),
                         ],
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  // ── Hero ──────────────────────────────────────────────────────────────────
+
+  Widget _buildHero() {
+    final initials = () {
+      final f = _currentUser?.firstName ?? '';
+      final l = _currentUser?.lastName  ?? '';
+      if (f.isNotEmpty && l.isNotEmpty) return '${f[0]}${l[0]}'.toUpperCase();
+      if (f.isNotEmpty) return f[0].toUpperCase();
+      return '?';
+    }();
+    final role = _currentUser?.roleDisplay ?? 'User';
+    final brgy = _currentUser?.barangay ?? '';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF99272D), Color(0xFF6B1A1E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [BoxShadow(color: _kPrimary.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            radius: 38,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 26)),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _currentUser?.fullName ?? 'User',
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
                       ),
+                      child: Text(role, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                     ),
-                  ),
+                    if (brgy.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '· $brgy',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildProfileHeader() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Color(0xFF99272D), Color(0xFFCC3A47)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.white.withValues(alpha:0.2),
-              child: Icon(
-                Icons.person,
-                size: 50,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              _currentUser?.fullName ?? 'User',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              _currentUser?.roleDisplay ?? 'User',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withValues(alpha:0.9),
-              ),
-            ),
-            if (_currentUser?.barangay != null && _currentUser!.barangay.isNotEmpty) ...[
-              SizedBox(height: 4),
-              Text(
-                _currentUser!.barangay,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withValues(alpha:0.8),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileInfoCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.person_outline, color: Color(0xFF99272D)),
-                SizedBox(width: 8),
-                Text(
-                  'Personal Information',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF36454F),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            _buildNameFields(),
-            SizedBox(height: 16),
-            _buildEmailField(),
-            SizedBox(height: 16),
-            _buildPhoneField(),
-            SizedBox(height: 16),
-            _buildAddressField(),
-            SizedBox(height: 16),
-            _buildBarangayDropdown(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPasswordCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.lock_outline, color: Color(0xFF99272D)),
-                SizedBox(width: 8),
-                Text(
-                  'Password Settings',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF36454F),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            if (_isChangingPassword) ...[
-              _buildCurrentPasswordField(),
-              SizedBox(height: 16),
-              _buildNewPasswordField(),
-              SizedBox(height: 16),
-              _buildConfirmPasswordField(),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setState(() => _isChangingPassword = false);
-                        _currentPasswordController.clear();
-                        _newPasswordController.clear();
-                        _confirmPasswordController.clear();
-                      },
-                      child: Text('Cancel'),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _changePassword,
-                      child: _isLoading
-                          ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text('Change Password'),
-                    ),
-                  ),
+                if (_emailCtrl.text.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(_emailCtrl.text, style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 12)),
                 ],
-              ),
-            ] else
-              ElevatedButton.icon(
-                onPressed: () => setState(() => _isChangingPassword = true),
-                icon: Icon(Icons.edit),
-                label: Text('Change Password'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF36454F),
-                ),
-              ),
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildNameFields() {
+  // ── Activity row ──────────────────────────────────────────────────────────
+
+  Widget _buildActivityRow() {
     return Row(
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: _firstNameController,
-            enabled: _isEditing,
-            decoration: InputDecoration(
-              labelText: 'First name',
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your first name';
-              }
-              return null;
-            },
-          ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: TextFormField(
-            controller: _lastNameController,
-            enabled: _isEditing,
-            decoration: InputDecoration(
-              labelText: 'Last name',
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your last name';
-              }
-              return null;
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmailField() {
-    return TextFormField(
-      controller: _emailController,
-      readOnly: true, 
-      decoration: InputDecoration(
-        labelText: 'Email address',
-        prefixIcon: Icon(Icons.email_outlined),
-        helperText: 'Email cannot be changed',
-      ),
-    );
-  }
-
-  Widget _buildPhoneField() {
-    return TextFormField(
-      controller: _phoneController,
-      enabled: _isEditing,
-      keyboardType: TextInputType.phone,
-      decoration: InputDecoration(
-        labelText: 'Phone number',
-        prefixIcon: Icon(Icons.phone_outlined),
-      ),
-      validator: (value) {
-        if (_isEditing && (value == null || value.isEmpty)) {
-          return 'Please enter your phone number';
-        }
-        if (_isEditing && value != null && value.length < 10) {
-          return 'Please enter a valid phone number';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildAddressField() {
-    return TextFormField(
-      controller: _addressController,
-      enabled: _isEditing,
-      maxLines: 2,
-      decoration: InputDecoration(
-        labelText: 'Complete address',
-        prefixIcon: Icon(Icons.home_outlined),
-      ),
-      validator: (value) {
-        if (_isEditing && (value == null || value.isEmpty)) {
-          return 'Please enter your address';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildBarangayDropdown() {
-    String? validSelectedBarangay = _selectedBarangay;
-    if (_selectedBarangay != null && !_barangays.contains(_selectedBarangay)) {
-      validSelectedBarangay = null;
-    }
-
-    return DropdownButtonFormField<String>(
-      initialValue: validSelectedBarangay,
-      decoration: InputDecoration(
-        labelText: 'Barangay',
-        prefixIcon: Icon(Icons.location_on_outlined),
-      ),
-      items: _barangays.map((String barangay) {
-        return DropdownMenuItem<String>(
-          value: barangay,
-          child: Text(barangay),
-        );
-      }).toList(),
-      onChanged: _isEditing ? (String? newValue) {
-        setState(() => _selectedBarangay = newValue);
-      } : null,
-      validator: (value) {
-        if (_isEditing && value == null) {
-          return 'Please select your barangay';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildCurrentPasswordField() {
-    return TextFormField(
-      controller: _currentPasswordController,
-      obscureText: _obscureCurrentPassword,
-      decoration: InputDecoration(
-        labelText: 'Current password',
-        prefixIcon: Icon(Icons.lock_outline),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscureCurrentPassword ? Icons.visibility : Icons.visibility_off,
-          ),
-          onPressed: () {
-            setState(() => _obscureCurrentPassword = !_obscureCurrentPassword);
-          },
-        ),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter your current password';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildNewPasswordField() {
-    return TextFormField(
-      controller: _newPasswordController,
-      obscureText: _obscureNewPassword,
-      decoration: InputDecoration(
-        labelText: 'New password',
-        prefixIcon: Icon(Icons.lock_outline),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscureNewPassword ? Icons.visibility : Icons.visibility_off,
-          ),
-          onPressed: () {
-            setState(() => _obscureNewPassword = !_obscureNewPassword);
-          },
-        ),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter a new password';
-        }
-        if (value.length < 6) {
-          return 'Password must be at least 6 characters';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildConfirmPasswordField() {
-    return TextFormField(
-      controller: _confirmPasswordController,
-      obscureText: _obscureConfirmPassword,
-      decoration: InputDecoration(
-        labelText: 'Confirm new password',
-        prefixIcon: Icon(Icons.lock_outline),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-          ),
-          onPressed: () {
-            setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-          },
-        ),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please confirm your new password';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildStatsCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              const Icon(Icons.bar_chart, color: Color(0xFF99272D)),
-              const SizedBox(width: 8),
-              const Text('My Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF36454F))),
-            ]),
-            const SizedBox(height: 16),
-            if (_statsLoading)
-              const Center(child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: CircularProgressIndicator(color: Color(0xFF99272D)),
-              ))
-            else if (_statsError != null)
-              Column(children: [
-                Text(_statsError!, style: const TextStyle(color: Color(0xFF99272D), fontSize: 13), textAlign: TextAlign.center),
-                const SizedBox(height: 8),
-                TextButton(onPressed: _loadStats, child: const Text('Retry')),
-              ])
-            else if (_stats != null)
-              _buildStatsContent()
-            else
-              const Text('No activity yet.', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsContent() {
-    final s = _stats!;
-    final byStatus = (s['complaints_by_status'] as Map<String, dynamic>?) ?? {};
-    final reqByStatus = (s['requests_by_status'] as Map<String, dynamic>?) ?? {};
-    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('My Complaints: ${s['complaints_filed_count'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF36454F))),
-        const SizedBox(height: 6),
-        Wrap(spacing: 6, runSpacing: 4, children: [
-          _statsChip('Pending', byStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
-          _statsChip('Reviewing', byStatus['reviewing'] ?? 0, const Color(0xFF3B82F6)),
-          _statsChip('Resolved', byStatus['resolved'] ?? 0, const Color(0xFF10B981)),
-          _statsChip('Dismissed', byStatus['dismissed'] ?? 0, const Color(0xFF6B7280)),
-        ]),
-        const Divider(height: 24),
-        Text('My Requests: ${s['requests_total'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF36454F))),
-        const SizedBox(height: 6),
-        Wrap(spacing: 6, runSpacing: 4, children: [
-          _statsChip('Pending', reqByStatus['pending'] ?? 0, const Color(0xFFF59E0B)),
-          _statsChip('Approved', reqByStatus['approved'] ?? 0, const Color(0xFF10B981)),
-          _statsChip('Rejected', reqByStatus['rejected'] ?? 0, const Color(0xFF99272D)),
-        ]),
+        Expanded(child: _buildComplaintsFiledCard()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildComplaintsAgainstCard()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildRequestsCard()),
       ],
     );
   }
 
-  Widget _statsChip(String label, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text('$label: $count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+  Widget _buildComplaintsFiledCard() {
+    if (_statsLoading) return _statCardShimmer();
+    final s = _stats;
+    final count   = s?['complaints_filed_count'] ?? 0;
+    final pending  = (s?['complaints_by_status']?['pending']   ?? 0) as int;
+    final reviewing = (s?['complaints_by_status']?['reviewing'] ?? 0) as int;
+    final resolved  = (s?['complaints_by_status']?['resolved']  ?? 0) as int;
+    final dismissed = (s?['complaints_by_status']?['dismissed'] ?? 0) as int;
+
+    return _StatCard(
+      icon: Icons.report_outlined,
+      iconColor: _kPrimary,
+      label: 'Complaints Filed',
+      count: count,
+      children: [
+        _StatRow('Pending',   pending,   const Color(0xFFF59E0B)),
+        _StatRow('Reviewing', reviewing, const Color(0xFF3B82F6)),
+        _StatRow('Resolved',  resolved,  const Color(0xFF10B981)),
+        _StatRow('Dismissed', dismissed, const Color(0xFF6B7280)),
+      ],
     );
   }
 
-  Widget _buildActionButtons() {
-    if (_isEditing) {
-      return Row(
+  Widget _buildComplaintsAgainstCard() {
+    if (_statsLoading) return _statCardShimmer();
+    final s = _stats;
+    final count = s?['complaints_filed_against_count'] ?? 0;
+    final cats  = (s?['complaints_against_by_category'] as List<dynamic>?) ?? [];
+
+    return _StatCard(
+      icon: Icons.gavel_outlined,
+      iconColor: const Color(0xFF8E24AA),
+      label: 'Complaints Against Me',
+      count: count,
+      children: cats.isEmpty
+          ? [const _EmptyStatHint('No complaints on record')]
+          : cats.take(4).map<Widget>((c) {
+              final cat   = c['category'] as String? ?? 'Other';
+              final cnt   = c['count'] as int? ?? 0;
+              return _StatRow(cat, cnt, const Color(0xFF8E24AA));
+            }).toList(),
+    );
+  }
+
+  Widget _buildRequestsCard() {
+    if (_statsLoading) return _statCardShimmer();
+    final s = _stats;
+    final total    = s?['requests_total'] ?? 0;
+    final pending  = (s?['requests_by_status']?['pending']  ?? 0) as int;
+    final approved = (s?['requests_by_status']?['approved'] ?? 0) as int;
+    final rejected = (s?['requests_by_status']?['rejected'] ?? 0) as int;
+
+    return _StatCard(
+      icon: Icons.description_outlined,
+      iconColor: const Color(0xFF0277BD),
+      label: 'Document Requests',
+      count: total,
+      children: [
+        _StatRow('Pending',  pending,  const Color(0xFFF59E0B)),
+        _StatRow('Approved', approved, const Color(0xFF10B981)),
+        _StatRow('Rejected', rejected, const Color(0xFF99272D)),
+      ],
+    );
+  }
+
+  Widget _statCardShimmer() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+      ),
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: _kPrimary)),
+        ),
+      ),
+    );
+  }
+
+  // ── Personal info card ────────────────────────────────────────────────────
+
+  Widget _buildInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () {
-                setState(() => _isEditing = false);
-                _loadUserData(); 
-              },
-              child: Text('Cancel'),
-            ),
+          Row(
+            children: [
+              const Icon(Icons.person_outline_rounded, color: _kPrimary, size: 20),
+              const SizedBox(width: 8),
+              const Text('Personal Information',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kCharcoal)),
+              const Spacer(),
+              if (_isEditing)
+                TextButton(
+                  onPressed: () { setState(() => _isEditing = false); _loadUserData(); },
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+            ],
           ),
-          SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _updateProfile,
-              child: _isLoading
-                  ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Text('Save Changes'),
-            ),
+          const SizedBox(height: 18),
+          // Name row
+          Row(
+            children: [
+              Expanded(child: _field(_firstNameCtrl, 'First Name', Icons.person_outline)),
+              const SizedBox(width: 12),
+              Expanded(child: _field(_lastNameCtrl, 'Last Name', Icons.person_outline,
+                  validator: (v) => (v == null || v.isEmpty) ? 'Required' : null)),
+            ],
           ),
+          const SizedBox(height: 14),
+          // Email (read-only)
+          TextFormField(
+            controller: _emailCtrl,
+            readOnly: true,
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+            decoration: _inputDec('Email', Icons.email_outlined, helper: 'Email cannot be changed'),
+          ),
+          const SizedBox(height: 14),
+          _field(_phoneCtrl, 'Phone Number', Icons.phone_outlined,
+              type: TextInputType.phone,
+              validator: (v) {
+                if (_isEditing && (v == null || v.isEmpty)) return 'Required';
+                if (_isEditing && v != null && v.length < 10) return 'Enter a valid phone';
+                return null;
+              }),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _addressCtrl,
+            enabled: _isEditing,
+            maxLines: 2,
+            decoration: _inputDec('Complete Address', Icons.home_outlined),
+            validator: (v) => (_isEditing && (v == null || v.isEmpty)) ? 'Required' : null,
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: _barangays.contains(_selectedBarangay) ? _selectedBarangay : null,
+            decoration: _inputDec('Barangay', Icons.location_on_outlined),
+            items: _barangays.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+            onChanged: _isEditing ? (v) => setState(() => _selectedBarangay = v) : null,
+            validator: (v) => (_isEditing && v == null) ? 'Required' : null,
+          ),
+          if (_isEditing) ...[
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _updateProfile,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: _isLoading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
         ],
-      );
-    }
-    return SizedBox.shrink();
+      ),
+    );
+  }
+
+  Widget _field(TextEditingController ctrl, String label, IconData icon, {
+    TextInputType? type,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: ctrl,
+      enabled: _isEditing,
+      keyboardType: type,
+      decoration: _inputDec(label, icon),
+      validator: validator ?? (v) => (_isEditing && (v == null || v.isEmpty)) ? 'Required' : null,
+    );
+  }
+
+  InputDecoration _inputDec(String label, IconData icon, {String? helper}) {
+    return InputDecoration(
+      labelText: label,
+      helperText: helper,
+      prefixIcon: Icon(icon, size: 18),
+      filled: true,
+      fillColor: _isEditing ? Colors.white : const Color(0xFFF8F9FA),
+      isDense: true,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFDDE3EE)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _kPrimary, width: 2),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
+      ),
+    );
+  }
+
+  // ── Password card ─────────────────────────────────────────────────────────
+
+  Widget _buildPasswordCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lock_outline_rounded, color: _kPrimary, size: 20),
+              const SizedBox(width: 8),
+              const Text('Password Settings',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kCharcoal)),
+              const Spacer(),
+              if (!_isChangingPw)
+                TextButton.icon(
+                  onPressed: () => setState(() => _isChangingPw = true),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Change'),
+                  style: TextButton.styleFrom(foregroundColor: _kPrimary),
+                ),
+              if (_isChangingPw)
+                TextButton(
+                  onPressed: () {
+                    setState(() => _isChangingPw = false);
+                    _curPassCtrl.clear(); _newPassCtrl.clear(); _confirmPassCtrl.clear();
+                  },
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+            ],
+          ),
+          if (_isChangingPw) ...[
+            const SizedBox(height: 16),
+            _pwField(_curPassCtrl, 'Current Password', _obscureCur, () => setState(() => _obscureCur = !_obscureCur)),
+            const SizedBox(height: 12),
+            _pwField(_newPassCtrl, 'New Password', _obscureNew, () => setState(() => _obscureNew = !_obscureNew)),
+            const SizedBox(height: 12),
+            _pwField(_confirmPassCtrl, 'Confirm New Password', _obscureConfirm, () => setState(() => _obscureConfirm = !_obscureConfirm)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _changePassword,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kCharcoal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: _isLoading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            Text('Keep your account secure with a strong password.',
+                style: TextStyle(fontSize: 12, color: _kCharcoal.withValues(alpha: 0.55))),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _pwField(TextEditingController ctrl, String label, bool obscure, VoidCallback toggle) {
+    return TextFormField(
+      controller: ctrl,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.lock_outline, size: 18),
+        suffixIcon: IconButton(
+          icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18),
+          onPressed: toggle,
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        isDense: true,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFDDE3EE))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _kPrimary, width: 2)),
+      ),
+    );
+  }
+
+  Widget _buildEditActions() => const SizedBox.shrink();
+}
+
+// ── Reusable stat card ────────────────────────────────────────────────────────
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final int count;
+  final List<Widget> children;
+
+  const _StatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.count,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const Spacer(),
+              Text(
+                '$count',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: iconColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kCharcoal)),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const SizedBox(height: 8),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+
+  const _StatRow(this.label, this.count, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 11, color: _kCharcoal), overflow: TextOverflow.ellipsis)),
+          Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyStatHint extends StatelessWidget {
+  final String text;
+  const _EmptyStatHint(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(text, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+    );
   }
 }
