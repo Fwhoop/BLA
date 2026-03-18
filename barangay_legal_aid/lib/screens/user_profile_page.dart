@@ -315,13 +315,16 @@ class UserProfilePageState extends State<UserProfilePage> {
   // ── Activity row ──────────────────────────────────────────────────────────
 
   Widget _buildActivityRow() {
+    final isAdmin = _currentUser?.isAdmin ?? false;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: _buildComplaintsFiledCard()),
         const SizedBox(width: 12),
-        Expanded(child: _buildComplaintsAgainstCard()),
-        const SizedBox(width: 12),
+        if (!isAdmin) ...[
+          Expanded(child: _buildComplaintsAgainstCard()),
+          const SizedBox(width: 12),
+        ],
         Expanded(child: _buildRequestsCard()),
       ],
     );

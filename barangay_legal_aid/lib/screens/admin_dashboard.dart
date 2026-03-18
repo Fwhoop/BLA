@@ -9,7 +9,7 @@ import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/cases_screen.dart';
-import 'package:barangay_legal_aid/screens/admin/settings_screen.dart';
+
 import 'package:barangay_legal_aid/screens/admin/requests_screen.dart';
 
 import 'package:barangay_legal_aid/screens/notification_screen.dart';
@@ -934,13 +934,6 @@ class AdminDashboardState extends State<AdminDashboard>
                 AdminUsersScreen(),
               ),
 
-              _Nav(
-                'Settings',
-                'Barangay config',
-                Icons.settings_outlined,
-                const Color(0xFF7B5EA7),
-                AdminSettingsScreen(),
-              ),
             ];
             return GridView.builder(
               shrinkWrap: true,
