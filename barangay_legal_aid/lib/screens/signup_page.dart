@@ -600,9 +600,10 @@ class SignupPageState extends State<SignupPage> {
         labelText: 'Email address',
         hintText: 'you@example.com',
         prefixIcon: Icon(Icons.email_outlined),
+        helperText: 'Optional if phone is provided',
       ),
       validator: (v) {
-        if (v == null || v.trim().isEmpty) return 'Email address is required';
+        if (v == null || v.trim().isEmpty) return null; // optional
         final ok = RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v.trim());
         return ok ? null : 'Enter a valid email address';
       },
