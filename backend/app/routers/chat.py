@@ -4,28 +4,32 @@ from typing import List, Optional
 from datetime import datetime
 from .. import models, schemas
 from ..db import get_db
-from ..chatbot import (
-    load_faq_data,
-    chat_response as _faq_fallback,
-    get_local_answer as _local_answer,
-    get_instant_answer as _instant_answer,
-    get_legal_context as _get_legal_context,
-)
+from ..chatbot import load_faq_data
 
 import os
 import logging
 import requests
-from requests import RequestException
+from requests import RequestException, Timeout
 
 logger = logging.getLogger(__name__)
 
-_HF_API_TOKEN        = os.environ.get("HF_API_TOKEN", "")
-_HF_MODEL_ID         = os.environ.get("HF_MODEL_ID", "fwhoop/bla_model")
-_HF_ENDPOINT         = f"https://api-inference.huggingface.co/models/{_HF_MODEL_ID}"
-_CHATBOT_SERVICE_URL = os.environ.get("CHATBOT_SERVICE_URL", "")
+# Model backend URL — override via env var or defaults to the Railway deployment
+_MODEL_URL = os.environ.get(
+    "CHATBOT_SERVICE_URL",
+    "https://bla-chatbot-railway-production.up.railway.app",
+).rstrip("/")
+
+_MODEL_TIMEOUT = int(os.environ.get("MODEL_TIMEOUT_SECONDS", "90"))
+
+_FALLBACK_MESSAGE = (
+    "I'm sorry, I'm unable to reach the AI service right now. "
+    "Please try again in a moment, or visit your barangay hall for legal assistance."
+)
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
+
+# ── CRUD endpoints ─────────────────────────────────────────────────────────────
 
 @router.post("/", response_model=schemas.ChatRead)
 def create_chat(chat: schemas.ChatCreate, db: Session = Depends(get_db)):
@@ -73,160 +77,49 @@ def get_chat(chat_id: int, db: Session = Depends(get_db)):
     return chat
 
 
-def _call_hf_model(message: str) -> Optional[str]:
-    """Call HuggingFace Inference API. Returns text or None on failure."""
-    if not _HF_API_TOKEN:
-        return None
-
-    # Build the same system-prompt format the model was fine-tuned on.
-    system_prompt = (
-        "You are a Philippine Barangay Legal Advisory AI Assistant (BLA). "
-        "Provide structured legal guidance limited to barangay-level jurisdiction "
-        "under Philippine law (RA 7160, RA 9262, etc.). "
-        "If outside barangay jurisdiction, say so. "
-        "Always cite the relevant Philippine law."
-    )
-    prompt = (
-        f"<bos><start_of_turn>system\n{system_prompt}<end_of_turn>\n"
-        f"<start_of_turn>user\n{message}<end_of_turn>\n"
-        f"<start_of_turn>model\n"
-    )
-
-    headers = {"Authorization": f"Bearer {_HF_API_TOKEN}"}
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 512,
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "repetition_penalty": 1.1,
-            "return_full_text": False,
-        },
-    }
-    try:
-        resp = requests.post(_HF_ENDPOINT, headers=headers, json=payload, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
-
-        if isinstance(data, list) and data:
-            first = data[0]
-            text = first.get("generated_text") or first.get("text") or ""
-            return text.strip() or None
-        if isinstance(data, dict):
-            return (data.get("generated_text") or "").strip() or None
-        return None
-    except RequestException as e:
-        logger.error(f"HuggingFace request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected HF error: {e}")
-    return None
-
-
-def _call_chatbot_service(message: str, history=None) -> Optional[str]:
-    """Call bla-chatbot-railway service with conversation history. Returns reply or None."""
-    if not _CHATBOT_SERVICE_URL:
-        return None
-    history_payload = [
-        {"role": h.role, "content": h.content}
-        for h in (history or [])
-    ]
-    try:
-        resp = requests.post(
-            f"{_CHATBOT_SERVICE_URL}/chat",
-            json={"message": message, "history": history_payload},
-            timeout=90,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return (data.get("reply") or "").strip() or None
-    except RequestException as e:
-        logger.error(f"Chatbot service request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected chatbot service error: {e}")
-    return None
-
+# ── AI endpoint ────────────────────────────────────────────────────────────────
 
 @router.post("/ai", response_model=dict)
 def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
     """
-    AI chatbot endpoint.
+    Forward the user's message and conversation history to the model backend,
+    then return its reply to the frontend.
 
-    Priority:
-      1. HuggingFace Inference API  (requires HF_API_TOKEN env var)
-      2. FAQ keyword search fallback
-      3. Canned 'not available' message
-
-    Returns: { "message": str, "ui_action": null }
+    Falls back to a static message if the model backend is unreachable or
+    returns an error.
     """
-    logger.info(f"[AI_ENDPOINT] sender={chat.sender_id} message={chat.message!r}")
+    logger.info(f"[/chats/ai] sender={chat.sender_id} message={chat.message!r}")
+
+    history_payload = [
+        {"role": h.role, "content": h.content}
+        for h in (chat.history or [])
+    ]
+
+    target_url = f"{_MODEL_URL}/chat"
 
     try:
-        history_dicts = [{"role": h.role, "content": h.content} for h in (chat.history or [])]
+        resp = requests.post(
+            target_url,
+            json={"message": chat.message, "history": history_payload},
+            timeout=_MODEL_TIMEOUT,
+        )
+        resp.raise_for_status()
 
-        # 1 — Instant answers: greetings and vague queries only (no model needed)
-        instant = _instant_answer(chat.message, history_dicts)
-        if instant:
-            logger.info("[AI_ENDPOINT] Served instantly (greeting/clarification)")
-            return {"message": instant, "ui_action": None}
+        data = resp.json()
+        reply = (data.get("reply") or "").strip()
 
-        # 2 — Retrieve legal context from KB (60 topics + FAQ) to ground the model
-        context = _get_legal_context(chat.message, history_dicts)
+        if not reply:
+            logger.warning(f"[/chats/ai] Model returned empty reply — using fallback")
+            return {"message": _FALLBACK_MESSAGE, "ui_action": None}
 
-        # 3 — Send to model with context as RAG grounding
-        if _CHATBOT_SERVICE_URL:
-            if context:
-                rag_message = (
-                    f"[LEGAL CONTEXT — use this to answer accurately]\n"
-                    f"{context}\n\n"
-                    f"[USER QUESTION]\n{chat.message}\n\n"
-                    f"Using the legal context above, provide a clear, helpful, and conversational answer. "
-                    f"Cite the relevant Philippine law. Reply in the same language as the user."
-                )
-            else:
-                rag_message = chat.message
+        logger.info(f"[/chats/ai] Model replied ({len(reply)} chars)")
+        return {"message": reply, "ui_action": None}
 
-            service_text = _call_chatbot_service(rag_message, chat.history)
-            # Treat the chatbot's own fallback string as a failure so we can
-            # fall through to the KB context (step 4) instead of surfacing
-            # "I'm sorry, I couldn't process…" to the user.
-            _svc_fallback_prefix = "I'm sorry, I couldn't process"
-            if service_text and not service_text.startswith(_svc_fallback_prefix):
-                log_label = "model+RAG context" if context else "model (no context)"
-                logger.info(f"[AI_ENDPOINT] Served by {log_label}")
-                return {"message": service_text, "ui_action": None}
-            if service_text:
-                logger.warning("[AI_ENDPOINT] Chatbot service returned its own fallback — falling through to KB context")
-
-        # 4 — Model unavailable: fall back to raw KB context
-        if context:
-            logger.info("[AI_ENDPOINT] Model unavailable — served by KB context fallback")
-            # For follow-up questions, add a brief acknowledgment so the answer
-            # doesn't feel like a cold static dump.
-            history_len = len(chat.history or [])
-            is_followup = history_len > 0 and len(chat.message.strip().split()) <= 8
-            msg = (
-                f"Good question! Here's what I found that should help:\n\n{context}"
-                if is_followup else context
-            )
-            return {"message": msg, "ui_action": None}
-
-        # 5 — HuggingFace Inference API (last resort before generic fallback)
-        if _HF_API_TOKEN:
-            hf_text = _call_hf_model(chat.message)
-            if hf_text:
-                logger.info("[AI_ENDPOINT] Served by HF Inference API")
-                return {"message": hf_text, "ui_action": None}
-
-        # 6 — Generic fallback
-        local = _faq_fallback(sender=chat.sender_id, message=chat.message, history=history_dicts)
-        return {"message": local["response"], "ui_action": None}
-
+    except Timeout:
+        logger.error(f"[/chats/ai] Timed out after {_MODEL_TIMEOUT}s calling {target_url}")
+    except RequestException as e:
+        logger.error(f"[/chats/ai] Request to model backend failed: {e}")
     except Exception as e:
-        logger.error(f"Unexpected error in chat_with_ai: {e}", exc_info=True)
-        return {
-            "message": (
-                "Sorry, I'm temporarily unavailable. "
-                "Please visit your barangay hall for legal assistance."
-            ),
-            "ui_action": None,
-        }
+        logger.error(f"[/chats/ai] Unexpected error: {e}", exc_info=True)
+
+    return {"message": _FALLBACK_MESSAGE, "ui_action": None}
