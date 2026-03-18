@@ -415,7 +415,7 @@ _LEGAL_TOPICS = [
         ),
     },
     {
-        "triggers": {"debt", "utang", "bayad", "bayaran", "owe", "owes", "refuses", "pay", "collection", "borrow", "borrowed", "lending", "loan", "pautang", "pera", "hindi", "nagbabayad"},
+        "triggers": {"debt", "utang", "bayad", "bayaran", "owe", "owes", "pay", "collection", "borrow", "borrowed", "lending", "loan", "pautang", "pera", "nagbabayad"},
         "answer": (
             "**Neighbour Refuses to Pay Debt — What You Can Do**\n\n"
             "We understand how frustrating this situation can be. Here is the step-by-step process to resolve it:\n\n"
@@ -2070,6 +2070,24 @@ _LEGAL_TOPICS = [
 ]
 
 
+def _topic_from_previous_answer(assistant_text: str) -> Optional[dict]:
+    """
+    Given a previous assistant response, figure out which _LEGAL_TOPICS entry
+    it came from by scoring how many trigger words appear in the answer text.
+    Returns the topic dict (with 'answer') or None.
+    """
+    answer_words = set(re.sub(r"[^\w\s]", "", assistant_text.lower()).split())
+    best_topic = None
+    best_score = 0
+    for topic in _LEGAL_TOPICS:
+        overlap = len(answer_words & topic["triggers"])
+        if overlap > best_score:
+            best_score = overlap
+            best_topic = topic
+    # Require at least 2 trigger words in the answer to be confident
+    return best_topic if best_score >= 2 else None
+
+
 def _match_legal_topic(query: str, tagalog: bool = False) -> Optional[str]:
     """Return a structured answer if the query matches a known legal topic."""
     q_keys = _keywords(query)
@@ -2255,17 +2273,41 @@ def get_legal_context(message: str, history: list | None = None) -> Optional[str
     expanded = _expand_tagalog(text)
     enriched = _enrich_with_history(expanded, history or [])
 
-    # For short follow-up questions (≤6 words), try the original query first so that
-    # history enrichment doesn't bias the match toward the previous topic.
-    # Example: "is there a payment?" should match Fees, not Property again.
-    is_short_followup = len(text.split()) <= 6
+    # Short follow-up detection: ≤8 words and conversation history exists.
+    # For these, try the original query FIRST (before history-enriched) so that
+    # the follow-up's own intent wins over previous topic keywords.
+    # Then, if the query has no direct topic match of its own, stay in the
+    # previous topic dynamically (inferred from the last assistant message).
+    is_short_followup = len(text.split()) <= 8 and bool(history)
 
     if is_short_followup:
+        # 1. Try direct match on original / expanded text (follow-up's own intent)
         topic_hit = (
             _match_legal_topic(text, tagalog=tl)
             or _match_legal_topic(expanded, tagalog=tl)
-            or _match_legal_topic(enriched, tagalog=tl)
         )
+
+        if not topic_hit:
+            # 2. No direct match — dynamically infer the active topic from the
+            #    last assistant message and stay in it.
+            last_assistant = next(
+                (h.get("content", "") for h in reversed(history or [])
+                 if h.get("role") in ("assistant", "model")),
+                None,
+            )
+            if last_assistant:
+                prev_topic = _topic_from_previous_answer(last_assistant)
+                if prev_topic:
+                    logger.info(
+                        f"[CHATBOT] Follow-up detected — staying in topic for: {text[:50]}"
+                    )
+                    topic_hit = (
+                        prev_topic.get("answer_tl") if tl else None
+                    ) or prev_topic["answer"]
+
+        if not topic_hit:
+            # 3. Last resort: try enriched
+            topic_hit = _match_legal_topic(enriched, tagalog=tl)
     else:
         topic_hit = (
             _match_legal_topic(enriched, tagalog=tl)

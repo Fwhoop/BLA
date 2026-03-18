@@ -200,7 +200,15 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
         # 4 — Model unavailable: fall back to raw KB context
         if context:
             logger.info("[AI_ENDPOINT] Model unavailable — served by KB context fallback")
-            return {"message": context, "ui_action": None}
+            # For follow-up questions, add a brief acknowledgment so the answer
+            # doesn't feel like a cold static dump.
+            history_len = len(chat.history or [])
+            is_followup = history_len > 0 and len(chat.message.strip().split()) <= 8
+            msg = (
+                f"Good question! Here's what I found that should help:\n\n{context}"
+                if is_followup else context
+            )
+            return {"message": msg, "ui_action": None}
 
         # 5 — HuggingFace Inference API (last resort before generic fallback)
         if _HF_API_TOKEN:
