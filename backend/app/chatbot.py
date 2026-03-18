@@ -2044,6 +2044,29 @@ _LEGAL_TOPICS = [
             "RA 7438 (Rights of Persons Arrested, Detained or Under Custodial Investigation)"
         ),
     },
+    {
+        "triggers": {
+            "payment", "fee", "fees", "cost", "costs", "charge", "charges",
+            "libre", "free", "magkano", "singil", "bayaran",
+        },
+        "answer": (
+            "**Barangay Services — Are There Fees?**\n\n"
+            "Good news: most barangay legal aid services are **FREE of charge**.\n\n"
+            "**No fees for:**\n"
+            "- Filing a complaint or blotter at the Barangay Hall\n"
+            "- Barangay mediation and conciliation (KP process)\n"
+            "- Summons issued to the other party\n"
+            "- Lupon hearings and settlement sessions\n"
+            "- Barangay Clearance (some barangays charge a minimal admin fee of ₱50–₱100)\n\n"
+            "**If the case goes to court**, filing fees apply under the Rules of Court. "
+            "However, indigent litigants may avail of free legal aid from the Public Attorney's Office (PAO).\n\n"
+            "**Tip:** If anyone at the barangay asks for an unofficial payment or 'lagay' to process "
+            "your complaint, you have the right to refuse and report it as corruption.\n\n"
+            "📋 **Legal Basis:** RA 7160 (Local Government Code), Section 394 — "
+            "Barangay officials must render service without any fees or charges for KP proceedings; "
+            "RA 9999 — Free Legal Assistance Act"
+        ),
+    },
 ]
 
 
@@ -2232,11 +2255,24 @@ def get_legal_context(message: str, history: list | None = None) -> Optional[str
     expanded = _expand_tagalog(text)
     enriched = _enrich_with_history(expanded, history or [])
 
-    topic_hit = (
-        _match_legal_topic(enriched, tagalog=tl)
-        or _match_legal_topic(expanded, tagalog=tl)
-        or _match_legal_topic(text, tagalog=tl)
-    )
+    # For short follow-up questions (≤6 words), try the original query first so that
+    # history enrichment doesn't bias the match toward the previous topic.
+    # Example: "is there a payment?" should match Fees, not Property again.
+    is_short_followup = len(text.split()) <= 6
+
+    if is_short_followup:
+        topic_hit = (
+            _match_legal_topic(text, tagalog=tl)
+            or _match_legal_topic(expanded, tagalog=tl)
+            or _match_legal_topic(enriched, tagalog=tl)
+        )
+    else:
+        topic_hit = (
+            _match_legal_topic(enriched, tagalog=tl)
+            or _match_legal_topic(expanded, tagalog=tl)
+            or _match_legal_topic(text, tagalog=tl)
+        )
+
     if topic_hit:
         logger.info(f"[CHATBOT] Legal context retrieved for: {text[:60]}")
         return topic_hit
