@@ -191,6 +191,75 @@ _TAGALOG_MAP = {
     "scam":      "fraud online cybercrime",
     "hacked":    "cybercrime online",
     "libelo":    "libel cybercrime defamation",
+    # eviction / rent
+    "nangungupahan": "tenant rent eviction",
+    "paupahan":      "rent landlord tenant",
+    "renta":         "rent payment",
+    "upa":           "rent lease",
+    "pinaalis":      "evicted eviction",
+    "inalis":        "evicted removed",
+    # labor
+    "trabaho":   "work employment labor",
+    "sweldo":    "salary wage payment",
+    "tinanggal": "fired dismissed terminated",
+    "tanggal":   "fired dismissed terminated",
+    # kasambahay
+    "katulong":  "helper kasambahay domestic worker",
+    "yaya":      "helper kasambahay domestic worker",
+    # consumer
+    "mamahaling": "overpricing expensive consumer",
+    "dayaan":     "fraud consumer cheat",
+    # threats
+    "tinakot":   "threats threatening coercion",
+    "banta":     "threats threatening",
+    "pananakot": "coercion intimidation threats",
+    "pangongotong": "extortion bribery",
+    # physical injury
+    "sinuntok":  "physical injury assault punch",
+    "binugbog":  "physical injury mauling beaten",
+    "nasaktan":  "injured physical harm",
+    "bugbog":    "mauling physical assault",
+    # fire / arson
+    "nasunog":   "fire arson burned",
+    "sinunog":   "arson fire burned",
+    "sunog":     "fire arson",
+    # trespassing
+    "pumasok":   "trespass illegal entry",
+    "nagsalakay":"trespass intrusion",
+    # inheritance
+    "pamana":    "inheritance estate succession",
+    "mana":      "inheritance estate",
+    "namatay":   "deceased estate inheritance",
+    # marriage
+    "kasal":     "marriage wedding",
+    "hiwalay":   "separation annulment divorce",
+    "annul":     "annulment marriage void",
+    # mental health
+    "nalulungkot": "depression mental health",
+    "gusto mamatay": "suicidal mental health crisis",
+    # privacy
+    "naglabas ng impormasyon": "data privacy breach",
+    # election
+    "eleksyon":  "election vote",
+    "boto":      "vote election voter",
+    "bumoto":    "vote election",
+    # squatting
+    "demolisyon": "demolition eviction informal settler",
+    "relokasyon": "relocation housing informal settler",
+    "palipat":    "relocation eviction",
+    # OFW
+    "abroad":    "overseas ofw migrant",
+    "nagtatrabaho sa ibang bansa": "ofw overseas worker",
+    # voyeurism
+    "kuha ng litrato": "photo recording voyeurism",
+    "video nang walang pahintulot": "voyeurism recording consent",
+    # free legal
+    "libre abogado": "free legal aid pao",
+    "walang pera abogado": "free legal assistance pao",
+    # oral defamation
+    "minura":    "oral defamation slander insult",
+    "nagmura":   "oral defamation cursing slander",
+    "panlalait": "defamation insult slander",
 }
 
 _VAGUE_INTENT_WORDS = {
@@ -767,6 +836,549 @@ _LEGAL_TOPICS = [
             "📋 **Legal Basis:** RA 8972 (Solo Parents' Welfare Act); "
             "RA 7277 as amended by RA 10754 (Magna Carta for PWDs); "
             "RA 9994 (Expanded Senior Citizens Act)"
+        ),
+    },
+    {
+        "triggers": {"eviction", "ejectment", "rent", "tenant", "landlord", "renter", "lease", "lessor", "lessee", "upa", "nangungupahan", "panginoong", "paupahan", "renta", "usura", "evict"},
+        "answer": (
+            "**Eviction and Tenant Rights — What You Need to Know**\n\n"
+            "**Step 1 — Know your rights as a tenant**\n"
+            "A landlord cannot forcibly eject a tenant without a court order. "
+            "Padlocking, cutting utilities, or removing belongings are ILLEGAL even if rent is unpaid.\n\n"
+            "**Step 2 — Report illegal eviction to the Barangay**\n"
+            "If your landlord is harassing or illegally evicting you, report to the Barangay Hall. "
+            "The barangay can summon both parties for mediation and issue a protection notice.\n\n"
+            "**Step 3 — Rent Control protection**\n"
+            "For monthly rent of ₱10,000 or below (Metro Manila) or ₱5,000 or below (provincial), "
+            "the landlord cannot increase rent by more than 2% per year per RA 9653.\n\n"
+            "**Step 4 — Legal eviction process**\n"
+            "A landlord must file an ejectment case in the Municipal Trial Court. "
+            "You have the right to respond and present your case. The process takes months — "
+            "you cannot be removed immediately.\n\n"
+            "**Step 5 — Barangay mediation first**\n"
+            "Before going to court, both parties must undergo barangay mediation (KP process) "
+            "and receive a Certificate to File Action (CFA) first.\n\n"
+            "📋 **Legal Basis:** RA 9653 (Rent Control Act of 2009); "
+            "Rules on Summary Procedure — Ejectment cases; "
+            "RA 7160, Sections 399–422 — KP mandatory mediation"
+        ),
+    },
+    {
+        "triggers": {"labor", "employee", "employer", "dismissal", "fired", "terminated", "work", "wage", "salary", "overtime", "holiday pay", "separation pay", "illegal dismissal", "dole", "trabaho", "sweldo", "tanggal", "tinanggal", "alis trabaho"},
+        "answer": (
+            "**Labor Disputes and Worker Rights**\n\n"
+            "**Step 1 — Barangay jurisdiction for labor**\n"
+            "The barangay handles labor disputes ONLY between household employers and kasambahay (domestic workers). "
+            "For regular employment, the Department of Labor and Employment (DOLE) has jurisdiction.\n\n"
+            "**Step 2 — File at DOLE (for regular workers)**\n"
+            "Go to the nearest DOLE Regional/Field Office. File a complaint for illegal dismissal, "
+            "unpaid wages, overtime, or 13th month pay. DOLE mediation (SEnA) is FREE.\n\n"
+            "**Step 3 — Single Entry Approach (SEnA)**\n"
+            "DOLE's SEnA program mediates labor disputes within 30 days. "
+            "Bring employment contract, payslips, and any written communications.\n\n"
+            "**Step 4 — National Labor Relations Commission (NLRC)**\n"
+            "If SEnA fails, file a formal case at the NLRC. "
+            "For illegal dismissal: you may receive back wages + separation pay or reinstatement.\n\n"
+            "**Step 5 — Minimum wage compliance**\n"
+            "Employers must pay at least the regional minimum wage set by the Regional Tripartite "
+            "Wages and Productivity Board. Non-compliance is a criminal offense.\n\n"
+            "📋 **Legal Basis:** Presidential Decree 442 (Labor Code of the Philippines); "
+            "RA 6727 (Wage Rationalization Act); "
+            "RA 10361 (Kasambahay Law) — for domestic workers; "
+            "DOLE Department Order No. 147-15 — Termination of Employment"
+        ),
+    },
+    {
+        "triggers": {"catcall", "catcalling", "harassment", "gender", "sexist", "wolf whistle", "misogyny", "safe spaces", "online harassment", "gender-based", "sexual harassment", "work harassment", "lewd", "manyak", "bastos", "pandiraya"},
+        "answer": (
+            "**Gender-Based Harassment and Safe Spaces Act**\n\n"
+            "**Step 1 — What counts as harassment under RA 11313**\n"
+            "- Catcalling, wolf-whistling, lewd comments in public\n"
+            "- Unwanted sexual advances, touching, or gestures\n"
+            "- Online sexual harassment (sending lewd images, threats)\n"
+            "- Gender-based discrimination in schools, workplaces, and public spaces\n\n"
+            "**Step 2 — Report to the Barangay**\n"
+            "The barangay is the first responder for street-level harassment. "
+            "The Punong Barangay can issue a Barangay Protection Order (BPO) on the same day.\n\n"
+            "**Step 3 — File a complaint**\n"
+            "File a written complaint at the barangay or nearest PNP station. "
+            "Bring any evidence: videos, screenshots, witness names.\n\n"
+            "**Step 4 — Penalties**\n"
+            "First offense: 1–10 days imprisonment OR ₱1,000–₱10,000 fine. "
+            "Repeat offenders and aggravated cases face higher penalties.\n\n"
+            "**Step 5 — Workplace harassment**\n"
+            "For harassment in the workplace, file with the employer's HR AND the Civil Service "
+            "Commission (for government) or DOLE (for private sector). RA 11313 mandates all "
+            "workplaces to have a Committee on Decorum and Investigation (CODI).\n\n"
+            "📋 **Legal Basis:** RA 11313 (Safe Spaces Act / Bawal Bastos Law of 2019); "
+            "RA 7877 (Anti-Sexual Harassment Act of 1995) — workplace/school harassment; "
+            "RA 9262 (Anti-VAWC) — gender-based violence"
+        ),
+    },
+    {
+        "triggers": {"carnapping", "car", "vehicle", "motorcycle", "stolen vehicle", "carjack", "carjacking", "motor", "kotse", "motor", "sasakyan", "ninakaw na sasakyan"},
+        "answer": (
+            "**Carnapping and Vehicle Theft — What to Do**\n\n"
+            "**Step 1 — Report immediately to PNP**\n"
+            "Call 911 or go directly to the nearest PNP station. "
+            "Report the exact time, place, vehicle description, plate number, and conduction sticker number. "
+            "Time is critical for recovery.\n\n"
+            "**Step 2 — File a Barangay Blotter**\n"
+            "Also file a blotter at the barangay where the carnapping occurred for documentation.\n\n"
+            "**Step 3 — Report to LTO**\n"
+            "Report to the Land Transportation Office (LTO) to flag the vehicle as stolen. "
+            "This prevents the thief from re-registering the vehicle.\n\n"
+            "**Step 4 — Report to your insurance company**\n"
+            "If the vehicle is insured, notify your insurance company within 24–48 hours. "
+            "Bring the police report and blotter as requirements for the claim.\n\n"
+            "**Step 5 — Penalties for carnapping**\n"
+            "Carnapping carries 20–30 years imprisonment. If the owner or driver is killed, "
+            "the penalty is reclusion perpetua (life imprisonment).\n\n"
+            "📋 **Legal Basis:** RA 10883 (New Anti-Carnapping Act of 2016); "
+            "Revised Penal Code, Articles 308–312 — Theft (for non-motor vehicles); "
+            "RA 4136 (Land Transportation and Traffic Code)"
+        ),
+    },
+    {
+        "triggers": {"kasambahay", "domestic worker", "house helper", "maid", "helper", "househelp", "katulong", "yaya", "household worker", "employer kasambahay"},
+        "answer": (
+            "**Kasambahay (Domestic Worker) Rights and Obligations**\n\n"
+            "**Rights of the Kasambahay:**\n\n"
+            "**Step 1 — Minimum wage**\n"
+            "- NCR: ₱6,000/month minimum\n"
+            "- Other chartered cities: ₱5,000/month\n"
+            "- Municipalities: ₱2,500/month\n\n"
+            "**Step 2 — Mandatory benefits**\n"
+            "- SSS, PhilHealth, and Pag-IBIG coverage (employer pays)\n"
+            "- 8 hours rest per day, 24 consecutive hours rest per week\n"
+            "- 5 days annual service incentive leave\n"
+            "- 13th month pay\n\n"
+            "**Step 3 — Employment contract required**\n"
+            "A written employment contract is mandatory. The barangay must be furnished a copy.\n\n"
+            "**Step 4 — Report abuse or non-compliance**\n"
+            "For unpaid wages or abuse, report to the barangay (for mediation) or DOLE. "
+            "Physical abuse is a criminal offense — report to PNP and file a blotter.\n\n"
+            "**Step 5 — Termination rules**\n"
+            "Either party may end employment with 5 days notice. "
+            "The employer must pay all earned wages and benefits upon termination.\n\n"
+            "📋 **Legal Basis:** RA 10361 (Batas Kasambahay / Domestic Workers Act of 2013); "
+            "DOLE Department Order No. 5 — implementing rules; "
+            "RA 7160, Section 389 — barangay duty to receive employment contracts"
+        ),
+    },
+    {
+        "triggers": {"consumer", "overpricing", "price", "defective", "product", "goods", "refund", "warranty", "receipt", "business", "store", "scam store", "price gouging", "DTI", "mamahaling", "dayaan sa tindahan"},
+        "answer": (
+            "**Consumer Rights and Price Complaints**\n\n"
+            "**Step 1 — Document the violation**\n"
+            "Keep the receipt, take photos of the product/price tag, and note the store name and address.\n\n"
+            "**Step 2 — Report to the Barangay**\n"
+            "For local stores within the barangay, report price gouging or defective products to "
+            "the Punong Barangay, who can mediate between you and the business owner.\n\n"
+            "**Step 3 — Report to DTI**\n"
+            "File a complaint with the Department of Trade and Industry (DTI): "
+            "dti.gov.ph or call 1-384. DTI handles overpricing, defective goods, and misleading ads.\n\n"
+            "**Step 4 — Report to the Bureau of Food and Drugs (FDA)**\n"
+            "For expired, adulterated, or unsafe food/medicine, report to the Food and Drug Administration (FDA).\n\n"
+            "**Step 5 — Refund and warranty rights**\n"
+            "You have the right to a refund, replacement, or repair for defective products. "
+            "Sellers cannot refuse refunds for products that don't match their description.\n\n"
+            "📋 **Legal Basis:** RA 7394 (Consumer Act of the Philippines); "
+            "RA 10623 (amended Consumer Act); "
+            "RA 7581 (Price Act) — anti-price manipulation; "
+            "EO 913 — DTI consumer protection authority"
+        ),
+    },
+    {
+        "triggers": {"grave threat", "threats", "threatening", "coercion", "intimidation", "banta", "tinakot", "pananakot", "forced", "blackmail", "extortion", "pangongotong"},
+        "answer": (
+            "**Grave Threats, Coercion, and Extortion — What to Do**\n\n"
+            "**Step 1 — Document the threats**\n"
+            "Save all text messages, social media messages, call logs, or recordings. "
+            "Write down dates, times, and witnesses if any.\n\n"
+            "**Step 2 — Report to the Barangay**\n"
+            "Report to the Barangay Hall for immediate documentation and blotter entry. "
+            "The Punong Barangay can issue a Barangay Protection Order (BPO) if you feel unsafe.\n\n"
+            "**Step 3 — File a police report**\n"
+            "Go to the nearest PNP station. Grave threats and coercion are criminal offenses "
+            "under the Revised Penal Code — the police can take immediate action.\n\n"
+            "**Step 4 — Extortion (pangongotong)**\n"
+            "If someone is demanding money under threat, do NOT pay. Report immediately to the PNP. "
+            "For public officials involved, report to the Ombudsman or NBI.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Grave threats: 6 months to 6 years imprisonment. "
+            "Grave coercion: 6 months to 6 years. "
+            "Robbery with intimidation (extortion): 12–20 years.\n\n"
+            "📋 **Legal Basis:** Revised Penal Code (RPC), Articles 282–286 — Grave Threats and Coercion; "
+            "Article 294 — Robbery with Intimidation; "
+            "RA 7160, Section 389 — BPO authority of Punong Barangay"
+        ),
+    },
+    {
+        "triggers": {"physical injury", "mauling", "hitting", "punched", "kicked", "beaten", "injured", "wound", "hurt", "sinuntok", "binugbog", "nasaktan", "suntok", "hampas", "physical harm"},
+        "answer": (
+            "**Physical Injuries — Filing a Complaint**\n\n"
+            "**Step 1 — Seek medical attention immediately**\n"
+            "Go to the nearest hospital or health center. Request a Medico-Legal Certificate "
+            "— this is the most critical piece of evidence for your case.\n\n"
+            "**Step 2 — File a Barangay Blotter**\n"
+            "Report the incident at the Barangay Hall for official documentation. "
+            "The barangay can facilitate mediation if both parties are willing.\n\n"
+            "**Step 3 — Classification of physical injuries**\n"
+            "- **Slight physical injuries** (heals in 1–9 days): Barangay mediation possible\n"
+            "- **Less serious physical injuries** (10–30 days): Barangay or police\n"
+            "- **Serious physical injuries** (31+ days, permanent damage): Police + court\n\n"
+            "**Step 4 — File a criminal complaint**\n"
+            "Bring the medico-legal certificate and blotter to the Prosecutor's Office "
+            "to file a formal complaint. For VAWC cases, go to the VAWC Desk.\n\n"
+            "**Step 5 — Civil damages**\n"
+            "In addition to criminal charges, you can claim civil damages for medical expenses, "
+            "lost income, and moral damages.\n\n"
+            "📋 **Legal Basis:** Revised Penal Code (RPC), Articles 262–266 — Physical Injuries; "
+            "RA 9262 (Anti-VAWC) — if committed by partner or family member; "
+            "RA 7160, Sections 399–422 — KP for slight physical injuries"
+        ),
+    },
+    {
+        "triggers": {"trespassing", "trespass", "enter", "illegal entry", "break in", "entering property", "unauthorized", "pasok", "pumasok", "nagsalakay", "sinakop"},
+        "answer": (
+            "**Trespassing and Illegal Entry**\n\n"
+            "**Step 1 — Report to the Barangay**\n"
+            "Report immediately to the Barangay Hall or Barangay Tanod. "
+            "For ongoing trespass, the tanod can respond on-site and remove the intruder.\n\n"
+            "**Step 2 — File a Barangay Blotter**\n"
+            "Document the incident with names, dates, and witness accounts. "
+            "The blotter is important evidence if you escalate to court.\n\n"
+            "**Step 3 — Barangay mediation**\n"
+            "For neighbor disputes involving boundary encroachment, the Lupon can mediate "
+            "and formalize a boundary agreement.\n\n"
+            "**Step 4 — File a criminal complaint**\n"
+            "Bring the blotter to the Prosecutor's Office. "
+            "Trespassing (qualified) carries 6 months to 2 years imprisonment.\n\n"
+            "**Step 5 — Secure your property**\n"
+            "You may erect fences or barriers on your own property. "
+            "However, you CANNOT use excessive force against trespassers — "
+            "only reasonable force to protect yourself.\n\n"
+            "📋 **Legal Basis:** Revised Penal Code (RPC), Article 280–281 — Trespass to Dwelling; "
+            "PD 1529 (Property Registration Decree) — property rights; "
+            "RA 7160, Sections 399–422 — KP for boundary disputes"
+        ),
+    },
+    {
+        "triggers": {"arson", "fire", "burned", "sinunog", "nagsunog", "nasunog", "sunog", "incendiary", "fire setting"},
+        "answer": (
+            "**Arson (Intentional Fire-Setting) — What to Do**\n\n"
+            "**Step 1 — Ensure safety and call for help**\n"
+            "Call 911 or the Bureau of Fire Protection (BFP) immediately. "
+            "Evacuate the area. Do not re-enter a burning structure.\n\n"
+            "**Step 2 — File a Barangay Blotter**\n"
+            "After the fire, file an incident report at the Barangay Hall. "
+            "The Punong Barangay will coordinate with BFP and PNP for investigation.\n\n"
+            "**Step 3 — BFP fire investigation**\n"
+            "The Bureau of Fire Protection (BFP) is mandated to investigate all fires. "
+            "Request a copy of the Fire Investigation Report — needed for insurance and legal proceedings.\n\n"
+            "**Step 4 — File a criminal case**\n"
+            "If arson is suspected, the PNP and Prosecutor's Office handle the criminal case. "
+            "Bring the BFP report, photos, and witness accounts.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Simple arson: 6–12 years imprisonment. "
+            "Destructive arson (residential buildings, schools): reclusion perpetua (life) "
+            "if someone dies.\n\n"
+            "📋 **Legal Basis:** RA 9514 (Revised Fire Code of the Philippines); "
+            "Revised Penal Code (RPC), Articles 320–326 — Arson; "
+            "RA 7160, Section 389 — barangay fire safety coordination"
+        ),
+    },
+    {
+        "triggers": {"fencing", "fence", "anti-fencing", "buy and sell stolen", "receiver stolen goods", "stolen property", "tiangge", "pawnshop stolen", "pagbibili ng ninakaw"},
+        "answer": (
+            "**Anti-Fencing Law — Buying or Selling Stolen Goods**\n\n"
+            "**Step 1 — What is fencing?**\n"
+            "Fencing is buying, selling, or possessing goods that you know or should know are stolen. "
+            "This includes buying from suspicious sources or at unusually low prices.\n\n"
+            "**Step 2 — Report suspected fencing**\n"
+            "Report to the barangay or PNP. Provide descriptions of the goods, the seller's identity, "
+            "and the location of the transaction.\n\n"
+            "**Step 3 — Pawnshops and secondhand dealers**\n"
+            "Pawnshops and dealers of secondhand goods are required by law to keep a logbook of "
+            "transactions. Non-compliance is a violation. PNP can inspect these establishments.\n\n"
+            "**Step 4 — Penalties**\n"
+            "Fencing is punishable based on the value of the stolen goods: "
+            "minimum 1 year to maximum reclusion temporal (12–20 years) for large amounts.\n\n"
+            "**Step 5 — If you unknowingly bought stolen goods**\n"
+            "Surrender the goods to the PNP voluntarily. Good faith may be a mitigating factor, "
+            "but possession of stolen property still requires explanation.\n\n"
+            "📋 **Legal Basis:** PD 1612 (Anti-Fencing Law of 1979); "
+            "Revised Penal Code, Article 308 — Theft; "
+            "RA 7160, Section 389 — barangay peace and order"
+        ),
+    },
+    {
+        "triggers": {"mental health", "depression", "anxiety", "suicidal", "suicide", "mental illness", "psychological", "counseling", "psychiatric", "mental wellness", "stress", "trauma", "ptsd"},
+        "answer": (
+            "**Mental Health Rights and Support Resources**\n\n"
+            "**Step 1 — Emergency mental health crisis**\n"
+            "If someone is in immediate danger of self-harm or harming others, call 911 or go to "
+            "the nearest government hospital emergency room. The National Center for Mental Health "
+            "(NCMH) crisis hotline: **1553** (24/7, free).\n\n"
+            "**Step 2 — Barangay mental health support**\n"
+            "Barangays are mandated under RA 11036 to have a mental health program and refer "
+            "residents to appropriate services. Speak with your Barangay Health Worker (BHW).\n\n"
+            "**Step 3 — Free mental health services**\n"
+            "Government hospitals and Rural Health Units (RHUs) provide FREE outpatient mental health "
+            "services. PhilHealth covers inpatient psychiatric care.\n\n"
+            "**Step 4 — Rights of persons with mental illness**\n"
+            "- Right to access mental health services without discrimination\n"
+            "- Right to confidentiality of mental health records\n"
+            "- Cannot be discriminated against in employment, education, or housing\n"
+            "- Right to free or affordable medication (RA 11036)\n\n"
+            "**Step 5 — Workplace mental health**\n"
+            "Employers are required to provide mental health programs for employees. "
+            "Discrimination based on mental health condition is prohibited.\n\n"
+            "📋 **Legal Basis:** RA 11036 (Philippine Mental Health Act of 2018); "
+            "RA 11228 (mandatory PhilHealth coverage); "
+            "RA 7277 (Magna Carta for PWDs) — mental disability protection"
+        ),
+    },
+    {
+        "triggers": {"inheritance", "heir", "estate", "deceased", "dead", "property death", "will", "testament", "succession", "pamana", "mana", "namatay", "patay", "ari-arian namatay", "extrajudicial"},
+        "answer": (
+            "**Inheritance and Succession — Your Rights**\n\n"
+            "**Step 1 — Who are the legal heirs?**\n"
+            "Under Philippine law, legal heirs in order of priority:\n"
+            "1. Legitimate children and spouse\n"
+            "2. Legitimate parents (if no children)\n"
+            "3. Illegitimate children (½ share of legitimate children's share)\n"
+            "4. Other relatives (siblings, nephews, nieces)\n\n"
+            "**Step 2 — Extrajudicial Settlement (for small estates)**\n"
+            "If the estate has no debts and all heirs agree, you can do an Extrajudicial Settlement "
+            "through a notarized deed signed by all heirs. Publish in a newspaper once a week for "
+            "3 consecutive weeks. File with the BIR and Register of Deeds.\n\n"
+            "**Step 3 — Estate tax**\n"
+            "Estate tax of **6%** of the net estate must be paid to the BIR within 1 year of death. "
+            "Failure to pay results in penalties and surcharges.\n\n"
+            "**Step 4 — Barangay's role**\n"
+            "The barangay can certify residency and authenticate documents needed for estate proceedings. "
+            "For disputes between heirs, the Lupon can mediate.\n\n"
+            "**Step 5 — Judicial settlement (for disputes)**\n"
+            "If heirs cannot agree, file a petition for judicial settlement in the Regional Trial Court. "
+            "Consult the Public Attorney's Office (PAO) for free legal assistance.\n\n"
+            "📋 **Legal Basis:** Civil Code of the Philippines, Articles 774–1105 — Succession; "
+            "RA 11213 (Tax Amnesty Act) — estate tax amnesty; "
+            "Rule 74, Rules of Court — Extrajudicial Settlement"
+        ),
+    },
+    {
+        "triggers": {"marriage", "annulment", "separation", "divorce", "kasal", "hiwalay", "annul", "void marriage", "bigamy", "bigamya", "legal separation", "family court", "spouse rights"},
+        "answer": (
+            "**Marriage, Annulment, and Legal Separation**\n\n"
+            "**Important: The Philippines does not have absolute divorce** (except for Muslims under PD 1083).\n\n"
+            "**Options for married couples:**\n\n"
+            "**Option 1 — Legal Separation**\n"
+            "Allows spouses to live separately and divide property, but does NOT allow remarriage. "
+            "Filed in Family Court. Grounds include physical violence, drug addiction, infidelity.\n\n"
+            "**Option 2 — Annulment**\n"
+            "Declares the marriage void from the beginning. Allows remarriage after finality. "
+            "Grounds: psychological incapacity (Art. 36), fraud, force, underage marriage.\n\n"
+            "**Option 3 — Declaration of Nullity**\n"
+            "For void marriages (bigamy, incest, no marriage license). "
+            "Simpler to prove than annulment.\n\n"
+            "**Step 1 — Consult PAO or a lawyer**\n"
+            "Annulment proceedings require a lawyer. The Public Attorney's Office (PAO) provides "
+            "free legal assistance for qualified indigent clients.\n\n"
+            "**Step 2 — Barangay's role**\n"
+            "The barangay issues certifications needed for court proceedings and can mediate "
+            "support/custody disputes between separated parents.\n\n"
+            "**Step 3 — Child custody and support**\n"
+            "Children below 7 years old are generally in the mother's custody. "
+            "Child support is mandatory regardless of marital status.\n\n"
+            "📋 **Legal Basis:** Family Code of the Philippines (EO 209) — Articles 36, 45, 55; "
+            "RA 9048 — Clerical Error Law; "
+            "PD 1083 (Code of Muslim Personal Laws) — divorce for Muslims"
+        ),
+    },
+    {
+        "triggers": {"data privacy", "personal data", "information leaked", "privacy", "data breach", "hacked account", "personal information", "identity theft", "NPC", "unauthorized access data"},
+        "answer": (
+            "**Data Privacy Violations — Your Rights**\n\n"
+            "**Step 1 — What is a data privacy violation?**\n"
+            "- Unauthorized collection or use of your personal information\n"
+            "- Data breach exposing your details (name, address, account info)\n"
+            "- Sharing your personal data without consent\n"
+            "- Identity theft using your personal information\n\n"
+            "**Step 2 — Report to the National Privacy Commission (NPC)**\n"
+            "File a complaint at privacy.gov.ph or call (02) 8234-2228. "
+            "Bring evidence of the violation (screenshots, documents).\n\n"
+            "**Step 3 — Report to the organization involved**\n"
+            "All organizations handling personal data must have a Data Protection Officer (DPO). "
+            "Send a written complaint to the DPO requesting correction or deletion of your data.\n\n"
+            "**Step 4 — For government data breaches**\n"
+            "Report to the NPC and the Commission on Audit (COA). "
+            "Government agencies have stricter obligations under RA 10173.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Unauthorized processing: 1–3 years imprisonment + ₱500,000–₱2M fine. "
+            "Malicious disclosure: 3–5 years + ₱500,000–₱1M fine.\n\n"
+            "📋 **Legal Basis:** RA 10173 (Data Privacy Act of 2012); "
+            "NPC Circular 16-03 — Security of Personal Data; "
+            "RA 10175 (Cybercrime Prevention Act) — computer-related identity theft"
+        ),
+    },
+    {
+        "triggers": {"voyeurism", "photo", "video", "secret recording", "upskirt", "recorded without consent", "intimate video", "leaked video", "sex video", "non-consensual", "RA 9995"},
+        "answer": (
+            "**Anti-Photo and Video Voyeurism Act**\n\n"
+            "**Step 1 — What is prohibited**\n"
+            "- Taking photos or videos of private parts without consent\n"
+            "- Recording intimate acts without knowledge of the subject\n"
+            "- Sharing, uploading, or distributing intimate images/videos without consent\n"
+            "- This includes leaked sex videos, upskirt photos, and similar acts\n\n"
+            "**Step 2 — Preserve evidence**\n"
+            "Take screenshots of where the content is posted. Report the content to the platform "
+            "(Facebook, Twitter, etc.) for immediate removal.\n\n"
+            "**Step 3 — Report to PNP-ACG**\n"
+            "File a complaint with the PNP Anti-Cybercrime Group (ACG) if the content was "
+            "shared online. Bring all evidence including links and screenshots.\n\n"
+            "**Step 4 — File at the Prosecutor's Office**\n"
+            "Submit an Affidavit-Complaint with your evidence. The perpetrator can be prosecuted "
+            "even if they claim you consented to recording but not sharing.\n\n"
+            "**Step 5 — Penalties**\n"
+            "3–7 years imprisonment AND ₱100,000–₱500,000 fine. "
+            "For uploading/distributing: same penalties per act.\n\n"
+            "📋 **Legal Basis:** RA 9995 (Anti-Photo and Video Voyeurism Act of 2009); "
+            "RA 10175 (Cybercrime Prevention Act) — if done online; "
+            "RA 11313 (Safe Spaces Act) — gender-based online harassment"
+        ),
+    },
+    {
+        "triggers": {"ofw", "overseas", "abroad", "worker abroad", "migrant", "deployment", "agency", "illegal recruitment", "recruiter", "placement fee", "OFW family", "remittance", "POEA", "OWWA"},
+        "answer": (
+            "**OFW and Overseas Employment — Rights and Protection**\n\n"
+            "**Step 1 — Verify your recruitment agency**\n"
+            "Only use POEA-licensed recruitment agencies. Verify at poea.gov.ph. "
+            "Illegal recruiters promise jobs abroad for large fees without proper documentation.\n\n"
+            "**Step 2 — Placement fee limits**\n"
+            "Placement fees are capped at 1 month salary. Any amount exceeding this is illegal. "
+            "Report overcharging to POEA.\n\n"
+            "**Step 3 — If stranded or in distress abroad**\n"
+            "Contact the nearest Philippine Embassy or Consulate. "
+            "OWWA's 24/7 hotline: +632-8891-7601. DFA assistance: (+632) 8651-9400.\n\n"
+            "**Step 4 — Illegal recruitment complaint**\n"
+            "Report illegal recruiters to POEA or the NBI. "
+            "Illegal recruitment is a criminal offense with penalties of 12 years to life imprisonment "
+            "if done in large scale.\n\n"
+            "**Step 5 — OFW family support at the barangay**\n"
+            "The barangay assists OFW families with certifications, referrals to DSWD, and "
+            "coordination with OWWA for livelihood programs.\n\n"
+            "📋 **Legal Basis:** RA 10022 (Migrant Workers and Overseas Filipinos Act, as amended); "
+            "RA 8042 (Migrant Workers Act); "
+            "RA 10801 (OWWA Act); "
+            "RA 9208 as amended — Anti-Trafficking (labor trafficking)"
+        ),
+    },
+    {
+        "triggers": {"free legal", "legal aid", "lawyer free", "pao", "public attorney", "legal assistance", "walang pera abogado", "libre abogado", "legal help", "legal advice free"},
+        "answer": (
+            "**Free Legal Assistance — Where to Get Help**\n\n"
+            "**Option 1 — Public Attorney's Office (PAO)**\n"
+            "PAO provides FREE legal representation for indigent clients in criminal, civil, "
+            "labor, and administrative cases. Go to the nearest PAO office in your city/municipality.\n"
+            "Requirements: proof of indigency (income below ₱14,000/month in NCR, varies per region).\n\n"
+            "**Option 2 — Barangay Legal Assistance**\n"
+            "The barangay (through the Lupon) provides FREE mediation for qualifying disputes. "
+            "This is the fastest and simplest form of legal help.\n\n"
+            "**Option 3 — Integrated Bar of the Philippines (IBP)**\n"
+            "IBP chapters provide free legal aid clinics. Contact your local IBP chapter.\n\n"
+            "**Option 4 — Law school legal aid clinics**\n"
+            "Many law schools operate free legal clinics open to the public.\n\n"
+            "**Option 5 — NCLA (National Committee on Legal Aid)**\n"
+            "Coordinates legal aid services nationwide through the Supreme Court's program.\n\n"
+            "**Option 6 — Specific agencies**\n"
+            "- DOLE — labor cases\n"
+            "- DSWD — family and child welfare cases\n"
+            "- CHR — human rights violations\n"
+            "- NBI — criminal investigation\n\n"
+            "📋 **Legal Basis:** RA 9999 (Free Legal Assistance Act of 2010); "
+            "RA 6035 (Public Attorney's Office Law); "
+            "Rule XIV, Rules of Court — Legal Aid"
+        ),
+    },
+    {
+        "triggers": {"unjust vexation", "oral defamation", "slander", "insult", "cursing", "mura", "pag-insulto", "minura", "nagmura", "defamation", "libel oral", "panlalait"},
+        "answer": (
+            "**Oral Defamation and Unjust Vexation**\n\n"
+            "**Oral Defamation (Slander):**\n\n"
+            "**Step 1 — Types of oral defamation**\n"
+            "- **Grave oral defamation**: Seriously insulting statements that seriously damage reputation "
+            "(e.g., calling someone a criminal, thief, prostitute)\n"
+            "- **Slight oral defamation**: Minor insults or offensive language\n\n"
+            "**Step 2 — Document the incident**\n"
+            "Note the exact words used, date, time, place, and witnesses. "
+            "If recorded, save the audio/video.\n\n"
+            "**Step 3 — File at the Barangay first**\n"
+            "Oral defamation between neighbors requires barangay mediation before court filing. "
+            "The barangay can summon the offender and facilitate an apology or settlement.\n\n"
+            "**Unjust Vexation:**\n\n"
+            "**Step 4 — What is unjust vexation?**\n"
+            "Any act that annoys, irritates, or distresses another without legal justification. "
+            "Examples: persistent stalking, repeatedly ringing doorbell, blocking a vehicle.\n\n"
+            "**Step 5 — Penalties**\n"
+            "Grave oral defamation: 6 months + 1 day to 4 years 2 months imprisonment. "
+            "Slight oral defamation: 1–30 days imprisonment or fine. "
+            "Unjust vexation: fine only (₱200 max under RPC, but courts apply updated amounts).\n\n"
+            "📋 **Legal Basis:** Revised Penal Code (RPC), Articles 358–359 — Oral Defamation; "
+            "Article 287 — Unjust Vexation; "
+            "RA 7160, Sections 399–422 — KP mandatory mediation for these offenses"
+        ),
+    },
+    {
+        "triggers": {"election", "vote buying", "voter", "candidate", "campaign", "eleksyon", "boto", "bumoto", "bilangin", "COMELEC", "vote selling", "flying voter", "dagdag bawas"},
+        "answer": (
+            "**Election Violations — Vote Buying and Voter Rights**\n\n"
+            "**Step 1 — Report vote buying/selling**\n"
+            "Vote buying (giving money/goods for votes) is a criminal offense. "
+            "Report immediately to COMELEC, the barangay, or PNP. You can report anonymously.\n\n"
+            "**Step 2 — COMELEC contact**\n"
+            "Call the COMELEC action center: 02-525-9296 or email contactus@comelec.gov.ph. "
+            "You can also report to PPCRV or Parish-BEC election watchdog.\n\n"
+            "**Step 3 — Flying voters / ghost voters**\n"
+            "Report to COMELEC with the names of suspected flying voters. "
+            "Barangays assist in verifying voter residency for COMELEC audits.\n\n"
+            "**Step 4 — Voter rights**\n"
+            "Every Filipino citizen, 18 years and above, has the right to vote. "
+            "No employer can prevent you from voting. Election Day is a special non-working holiday.\n\n"
+            "**Step 5 — Penalties for vote buying**\n"
+            "Vote buying AND vote selling: 1–6 years imprisonment + perpetual disqualification "
+            "from public office.\n\n"
+            "📋 **Legal Basis:** Omnibus Election Code (BP 881), Sections 261–262 — Election offenses; "
+            "RA 9369 (Automated Election Law); "
+            "RA 8436 — automation of elections"
+        ),
+    },
+    {
+        "triggers": {"squatting", "informal settler", "illegal occupant", "relocation", "demolition", "evicted by government", "clearing", "ISF", "slum", "demolisyon", "palipat", "relokasyon"},
+        "answer": (
+            "**Informal Settlers and Government Relocation Rights**\n\n"
+            "**Step 1 — Know your rights as an informal settler**\n"
+            "Informal settlers cannot be forcibly evicted without due process. "
+            "The government must provide adequate notice (at least 30 days) and relocation assistance.\n\n"
+            "**Step 2 — Required before demolition**\n"
+            "- Written notice at least 30 days before demolition\n"
+            "- A court order (except for danger zones)\n"
+            "- Relocation to a site with basic amenities\n"
+            "- Financial assistance for moving\n\n"
+            "**Step 3 — Report illegal eviction**\n"
+            "If government agents demolish without notice or court order, report to the "
+            "Commission on Human Rights (CHR) and the Urban Poor Affairs Office (UPAO).\n\n"
+            "**Step 4 — Barangay's role**\n"
+            "The Punong Barangay must be present during any demolition. "
+            "They coordinate with the local government unit (LGU) for relocation assistance.\n\n"
+            "**Step 5 — Socialized housing rights**\n"
+            "Qualified informal settlers may apply for socialized housing through the National Housing "
+            "Authority (NHA) or local government. Priority is given to long-term residents.\n\n"
+            "📋 **Legal Basis:** RA 7279 (Urban Development and Housing Act of 1992) — "
+            "Sections 28–29, eviction and demolition procedures; "
+            "RA 7160, Section 389 — barangay role in demolition; "
+            "CHR Resolution A2010-019 — guidelines on forced eviction"
         ),
     },
 ]
