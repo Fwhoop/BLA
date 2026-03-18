@@ -92,6 +92,7 @@ def read_users(
     search: Optional[str] = Query(None, description="Search by name, email, or phone"),
     filter_status: Optional[str] = Query(None, alias="status",
         description="pending|approved|rejected|active|inactive|all"),
+    role: Optional[str] = Query(None, description="Filter by role: user|admin|superadmin"),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -118,6 +119,10 @@ def read_users(
             models.User.phone.ilike(term),
         ))
 
+    # Filter by role
+    if role and role != "all":
+        q = q.filter(models.User.role == role)
+
     # Filter by status
     if filter_status and filter_status != "all":
         if filter_status == "active":
@@ -125,7 +130,6 @@ def read_users(
         elif filter_status == "inactive":
             q = q.filter(models.User.is_active == False)
         elif filter_status == "pending":
-            # "pending" means not yet approved: includes explicit 'pending', 'rejected', and NULL
             q = q.filter(
                 models.User.is_active == False,
                 or_(

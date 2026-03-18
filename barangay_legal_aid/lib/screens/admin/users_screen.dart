@@ -34,6 +34,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
   // Search + filter
   final _searchCtrl = TextEditingController();
   String _filterStatus = 'all'; // all, pending, approved, rejected, inactive
+  String _filterRole   = 'all'; // all, user, admin
   Timer? _debounce;
 
   // Tabs
@@ -93,6 +94,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       final results = await api.getUsers(
         search: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim(),
         status: _filterStatus == 'all' ? null : _filterStatus,
+        role:   _filterRole   == 'all' ? null : _filterRole,
         page: page,
         limit: _pageSize,
       );
@@ -276,7 +278,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(108),
+          preferredSize: const Size.fromHeight(148),
           child: Column(
             children: [
               TabBar(
@@ -291,9 +293,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                   Tab(child: _tabLabel('Active', _activeCount, _kGreen)),
                 ],
               ),
-              // Search + filter row
+              // Search + status filter row
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                 child: Row(
                   children: [
                     Expanded(
@@ -332,7 +334,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                         _reload();
                       },
                       itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'all',      child: Text('All users')),
+                        PopupMenuItem(value: 'all',      child: Text('All statuses')),
                         PopupMenuItem(value: 'pending',  child: Text('Pending')),
                         PopupMenuItem(value: 'approved', child: Text('Approved')),
                         PopupMenuItem(value: 'rejected', child: Text('Rejected')),
@@ -359,6 +361,24 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                   ],
                 ),
               ),
+              // Role filter chips
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _roleChip('all',        'All Roles',  Icons.people_outline),
+                      const SizedBox(width: 6),
+                      _roleChip('user',       'Users',      Icons.person_outline),
+                      const SizedBox(width: 6),
+                      _roleChip('admin',      'Admins',     Icons.manage_accounts_outlined),
+                      const SizedBox(width: 6),
+                      _roleChip('superadmin', 'Super Admins', Icons.admin_panel_settings_outlined),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -381,8 +401,48 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       case 'approved': return 'Approved';
       case 'rejected': return 'Rejected';
       case 'inactive': return 'Inactive';
-      default:         return 'All';
+      default:         return 'Status';
     }
+  }
+
+  Widget _roleChip(String role, String label, IconData icon) {
+    final selected = _filterRole == role;
+    return GestureDetector(
+      onTap: () {
+        if (_filterRole != role) {
+          setState(() => _filterRole = role);
+          _reload();
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? Colors.white : Colors.white30,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13,
+                color: selected ? _kPrimary : Colors.white70),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? _kPrimary : Colors.white70,
+                )),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _tabLabel(String label, int count, Color badgeColor) {

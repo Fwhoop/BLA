@@ -227,6 +227,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getUsers({
     String? search,
     String? status,
+    String? role,
     int page = 1,
     int limit = 50,
   }) async {
@@ -236,6 +237,7 @@ class ApiService {
       'limit': limit.toString(),
       if (search != null && search.isNotEmpty) 'search': search,
       if (status != null) 'status': status,
+      if (role != null && role != 'all') 'role': role,
     };
     final uri = Uri.parse('$_baseUrl/users/').replace(queryParameters: params);
     final r = await http.get(uri, headers: headers).timeout(_timeout);
