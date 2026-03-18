@@ -71,7 +71,7 @@ def create_case(
         notified_barangay_ids.add(current_user.barangay_id)
         admins = db.query(models.User).filter(
             models.User.barangay_id == current_user.barangay_id,
-            models.User.role.in_(["admin", "superadmin", "staff"]),
+            models.User.role.in_(["admin", "superadmin"]),
             models.User.is_active == True,
         ).all()
         for admin in admins:
@@ -92,7 +92,7 @@ def create_case(
     if is_cross and case.target_barangay_id and case.target_barangay_id not in notified_barangay_ids:
         target_admins = db.query(models.User).filter(
             models.User.barangay_id == case.target_barangay_id,
-            models.User.role.in_(["admin", "superadmin", "staff"]),
+            models.User.role.in_(["admin", "superadmin"]),
             models.User.is_active == True,
         ).all()
         for admin in target_admins:
@@ -120,7 +120,7 @@ def get_cases(
     _eager = joinedload(models.Case.reporter).joinedload(models.User.barangay)
     if current_user.role == "superadmin":
         cases = db.query(models.Case).options(_eager).order_by(models.Case.created_at.desc()).all()
-    elif current_user.role in ("admin", "staff"):
+    elif current_user.role == "admin":
         if not current_user.barangay_id:
             return []
         cases = (
@@ -166,7 +166,7 @@ def get_case(
         if case.reporter_id != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Not authorized to view this case")
-    elif current_user.role in ("admin", "staff"):
+    elif current_user.role == "admin":
         reporter = db.query(models.User).filter(models.User.id == case.reporter_id).first()
         reporter_match = reporter and reporter.barangay_id == current_user.barangay_id
         respondent_match = db.query(models.ComplaintRespondent).filter(
@@ -199,7 +199,7 @@ def update_case(
                                 detail="Not authorized to update this case")
         # Users cannot change status
         updated_case.status = None
-    elif current_user.role in ("admin", "staff"):
+    elif current_user.role == "admin":
         reporter = db.query(models.User).filter(models.User.id == case.reporter_id).first()
         reporter_match = reporter and reporter.barangay_id == current_user.barangay_id
         respondent_match = db.query(models.ComplaintRespondent).filter(
@@ -236,7 +236,7 @@ def update_case(
     if (
         new_status is not None
         and new_status != old_status
-        and current_user.role in ("admin", "superadmin", "staff")
+        and current_user.role in ("admin", "superadmin")
         and case.reporter_id
     ):
         labels = {
@@ -266,11 +266,6 @@ def delete_case(
     case = db.query(models.Case).filter(models.Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
-
-    # Staff cannot delete cases
-    if current_user.role == "staff":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail="Staff cannot delete cases")
 
     if current_user.role == "user":
         if case.reporter_id != current_user.id:

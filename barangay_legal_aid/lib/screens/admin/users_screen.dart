@@ -560,6 +560,22 @@ class _UserCard extends StatelessWidget {
     return 'Pending';
   }
 
+  Color _roleColor() {
+    switch ((user['role'] as String? ?? 'user').toLowerCase()) {
+      case 'admin':      return const Color(0xFF1E88E5);
+      case 'superadmin': return _kPrimary;
+      default:           return _kCharcoal;
+    }
+  }
+
+  String _roleLabel() {
+    switch ((user['role'] as String? ?? 'user').toLowerCase()) {
+      case 'admin':      return 'Admin';
+      case 'superadmin': return 'Super Admin';
+      default:           return 'User';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final first   = (user['first_name'] ?? '') as String;
@@ -630,10 +646,11 @@ class _UserCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // Status badge
+                      // Status + role badges
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
+                          // Status badge
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
@@ -644,6 +661,19 @@ class _UserCard extends StatelessWidget {
                             child: Text(_statusLabel(),
                                 style: TextStyle(
                                     fontSize: 10, fontWeight: FontWeight.w700, color: accent)),
+                          ),
+                          const SizedBox(height: 4),
+                          // Role badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _roleColor().withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _roleColor().withValues(alpha: 0.25)),
+                            ),
+                            child: Text(_roleLabel(),
+                                style: TextStyle(
+                                    fontSize: 10, fontWeight: FontWeight.w600, color: _roleColor())),
                           ),
                           if (created.isNotEmpty) ...[
                             const SizedBox(height: 4),

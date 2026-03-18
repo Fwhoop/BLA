@@ -51,10 +51,10 @@ def create_request(
     db.commit()
     db.refresh(new_request)
 
-    # Notify all active admins and staff in this barangay about the new request
+    # Notify all active admins in this barangay about the new request
     admins = db.query(models.User).filter(
         models.User.barangay_id == new_request.barangay_id,
-        models.User.role.in_(["admin", "superadmin", "staff"]),
+        models.User.role.in_(["admin", "superadmin"]),
         models.User.is_active == True,
     ).all()
     for admin in admins:
@@ -83,7 +83,7 @@ def get_requests(
     try:
         if current_user.role == "superadmin":
             reqs = db.query(models.Request).order_by(models.Request.created_at.desc()).all()
-        elif current_user.role in ("admin", "staff"):
+        elif current_user.role == "admin":
             if not current_user.barangay_id:
                 return []
             reqs = db.query(models.Request).filter(
@@ -115,7 +115,7 @@ def get_request(
     if current_user.role == "user":
         if request.requester_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorized")
-    elif current_user.role in ("admin", "staff"):
+    elif current_user.role == "admin":
         if request.barangay_id != current_user.barangay_id:
             raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -129,15 +129,15 @@ def update_request(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Update request status and/or file_url (admins and staff)"""
-    if current_user.role not in ["admin", "superadmin", "staff"]:
-        raise HTTPException(status_code=403, detail="Only admins/staff can update requests")
+    """Update request status and/or file_url (admins only)"""
+    if current_user.role not in ["admin", "superadmin"]:
+        raise HTTPException(status_code=403, detail="Only admins can update requests")
 
     request = db.query(models.Request).filter(models.Request.id == request_id).first()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.role in ("admin", "staff"):
+    if current_user.role == "admin":
         if request.barangay_id != current_user.barangay_id:
             raise HTTPException(status_code=403, detail="Not authorized for this barangay")
 
@@ -185,14 +185,14 @@ async def upload_document(
     current_user: models.User = Depends(get_current_user)
 ):
     """Admin uploads the fulfilled document file for a request."""
-    if current_user.role not in ["admin", "superadmin", "staff"]:
-        raise HTTPException(status_code=403, detail="Only admins/staff can upload documents")
+    if current_user.role not in ["admin", "superadmin"]:
+        raise HTTPException(status_code=403, detail="Only admins can upload documents")
 
     request = db.query(models.Request).filter(models.Request.id == request_id).first()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.role in ("admin", "staff"):
+    if current_user.role == "admin":
         if request.barangay_id != current_user.barangay_id:
             raise HTTPException(status_code=403, detail="Not authorized for this barangay")
 
@@ -234,9 +234,6 @@ def delete_request(
     request = db.query(models.Request).filter(models.Request.id == request_id).first()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
-
-    if current_user.role == "staff":
-        raise HTTPException(status_code=403, detail="Staff cannot delete requests")
 
     if current_user.role == "user" and request.requester_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")

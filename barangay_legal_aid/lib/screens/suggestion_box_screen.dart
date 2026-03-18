@@ -46,7 +46,7 @@ class _SuggestionBoxScreenState extends State<SuggestionBoxScreen> {
   static const List<Map<String, dynamic>> _categories = [
     {'label': 'Infrastructure',    'icon': Icons.construction,        'color': Color(0xFF0277BD)},
     {'label': 'Public Services',   'icon': Icons.manage_accounts,     'color': Color(0xFF00897B)},
-    {'label': 'Staff / Personnel', 'icon': Icons.people_alt,          'color': Color(0xFF6D4C41)},
+
     {'label': 'Programs / Events', 'icon': Icons.event,               'color': Color(0xFF7B1FA2)},
     {'label': 'Safety & Security', 'icon': Icons.shield,              'color': Color(0xFFD32F2F)},
     {'label': 'Technology',        'icon': Icons.devices,             'color': Color(0xFF1565C0)},

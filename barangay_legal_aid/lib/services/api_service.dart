@@ -696,39 +696,6 @@ class ApiService {
     return users.where((u) => u['role'] == 'user').toList();
   }
 
-  Future<List<Map<String, dynamic>>> getStaffUsers() async {
-    final users = await getUsers();
-    return users.where((u) => u['role'] == 'staff').toList();
-  }
-
-  Future<Map<String, dynamic>> createStaffMember({
-    required String email,
-    required String username,
-    required String firstName,
-    required String lastName,
-    required String password,
-  }) async {
-    final headers = await _getHeaders();
-    final r = await http
-        .post(
-          Uri.parse('$_baseUrl/users/staff-member'),
-          headers: headers,
-          body: jsonEncode({
-            'email': email,
-            'username': username,
-            'first_name': firstName,
-            'last_name': lastName,
-            'password': password,
-          }),
-        )
-        .timeout(_timeout);
-    if (r.statusCode == 200 || r.statusCode == 201) {
-      return Map<String, dynamic>.from(jsonDecode(r.body));
-    }
-    final body = jsonDecode(r.body);
-    throw Exception(body['detail'] ?? 'Failed to create staff member');
-  }
-
   // ── OTP / Verification ────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> sendEmailOtp(String email) async {

@@ -1,4 +1,4 @@
-enum UserRole { user, staff, admin, superadmin }
+enum UserRole { user, admin, superadmin }
 
 class User {
   final String id;
@@ -21,7 +21,6 @@ class User {
 
   bool get isAdmin => role == UserRole.admin || role == UserRole.superadmin;
   bool get isSuperAdmin => role == UserRole.superadmin;
-  bool get isStaff => role == UserRole.staff;
 
   String get fullName => '$firstName $lastName';
   String get roleDisplay {
@@ -30,8 +29,6 @@ class User {
         return 'Super Administrator';
       case UserRole.admin:
         return 'Administrator';
-      case UserRole.staff:
-        return 'Staff';
       case UserRole.user:
         return 'User';
     }
@@ -69,8 +66,6 @@ class User {
         return UserRole.admin;
       case 'superadmin':
         return UserRole.superadmin;
-      case 'staff':
-        return UserRole.staff;
       default:
         return UserRole.user;
     }

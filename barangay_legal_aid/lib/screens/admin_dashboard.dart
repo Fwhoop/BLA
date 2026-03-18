@@ -11,7 +11,7 @@ import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/cases_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/settings_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/requests_screen.dart';
-import 'package:barangay_legal_aid/screens/admin/staff_management_screen.dart';
+
 import 'package:barangay_legal_aid/screens/notification_screen.dart';
 
 const _kPrimary = Color(0xFF99272D);
@@ -940,13 +940,6 @@ class AdminDashboardState extends State<AdminDashboard>
                 Icons.settings_outlined,
                 const Color(0xFF7B5EA7),
                 AdminSettingsScreen(),
-              ),
-              _Nav(
-                'Staff',
-                'Manage clerk / volunteer',
-                Icons.badge_outlined,
-                const Color(0xFF00897B),
-                const StaffManagementScreen(),
               ),
             ];
             return GridView.builder(

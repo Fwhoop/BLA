@@ -735,12 +735,11 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         const SizedBox(height: 12),
         LayoutBuilder(
           builder: (_, c) {
-            final crossCount = c.maxWidth > 900 ? 5 : c.maxWidth > 600 ? 3 : 2;
+            final crossCount = c.maxWidth > 600 ? 3 : 2;
             final items = [
               _Nav('Barangays',  'Register & manage',        Icons.location_city_rounded,     _kPrimary,                 BarangaysScreen()),
               _Nav('Admins',     'Manage admin accounts',    Icons.manage_accounts_rounded,   _kCharcoal,                AdminsScreen()),
               _Nav('All Users',  'View all residents',       Icons.people_alt_rounded,        const Color(0xFF8E24AA),   const AdminUsersScreen()),
-
             ];
             return GridView.builder(
               shrinkWrap: true,
@@ -749,7 +748,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                 crossAxisCount: crossCount,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.5,
+                childAspectRatio: 1.6,
               ),
               itemCount: items.length,
               itemBuilder: (_, i) {

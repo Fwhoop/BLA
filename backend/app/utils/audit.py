@@ -18,7 +18,7 @@ def log_action(
     """
     Insert an audit log entry.
     action_type examples: "login_success", "admin_approved", "admin_rejected",
-                          "admin_self_registered", "password_reset", "staff_created"
+                          "admin_self_registered", "password_reset"
     """
     try:
         from ..models import AuditLog

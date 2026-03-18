@@ -38,7 +38,7 @@ def add_respondent(
     if not case:
         raise HTTPException(status_code=404, detail="Complaint not found")
 
-    # Only the reporter or admin/staff can add respondents
+    # Only the reporter or admin can add respondents
     if current_user.role == "user" and case.reporter_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
 

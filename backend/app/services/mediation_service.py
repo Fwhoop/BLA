@@ -90,7 +90,7 @@ def list_mediations(
 ) -> list[models.Mediation]:
     """
     Return all mediation records for a case.
-    Users can only see their own cases; admins/staff can see any.
+    Users can only see their own cases; admins can see any.
     """
     case = _get_case_or_400(db, case_id)
     if current_user.role == "user" and case.reporter_id != current_user.id:

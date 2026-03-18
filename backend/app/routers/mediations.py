@@ -23,10 +23,10 @@ router = APIRouter(tags=["mediations"])
 
 
 def _require_admin(current_user: models.User) -> None:
-    if current_user.role not in ("admin", "staff", "superadmin"):
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only staff or admins can manage mediation records",
+            detail="Only admins can manage mediation records",
         )
 
 
