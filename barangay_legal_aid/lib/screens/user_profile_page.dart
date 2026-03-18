@@ -196,7 +196,10 @@ class UserProfilePageState extends State<UserProfilePage> {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit Profile',
-              onPressed: () => setState(() => _isEditing = true),
+              onPressed: () {
+                _formKey.currentState?.reset(); // clear any previous validation state
+                setState(() => _isEditing = true);
+              },
             ),
         ],
       ),
@@ -429,7 +432,11 @@ class UserProfilePageState extends State<UserProfilePage> {
               const Spacer(),
               if (_isEditing)
                 TextButton(
-                  onPressed: () { setState(() => _isEditing = false); _loadUserData(); },
+                  onPressed: () {
+                    _formKey.currentState?.reset();
+                    setState(() => _isEditing = false);
+                    _loadUserData();
+                  },
                   child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
                 ),
             ],
@@ -440,8 +447,7 @@ class UserProfilePageState extends State<UserProfilePage> {
             children: [
               Expanded(child: _field(_firstNameCtrl, 'First Name', Icons.person_outline)),
               const SizedBox(width: 12),
-              Expanded(child: _field(_lastNameCtrl, 'Last Name', Icons.person_outline,
-                  validator: (v) => (v == null || v.isEmpty) ? 'Required' : null)),
+              Expanded(child: _field(_lastNameCtrl, 'Last Name', Icons.person_outline)),
             ],
           ),
           const SizedBox(height: 14),
@@ -456,8 +462,10 @@ class UserProfilePageState extends State<UserProfilePage> {
           _field(_phoneCtrl, 'Phone Number', Icons.phone_outlined,
               type: TextInputType.phone,
               validator: (v) {
-                if (_isEditing && (v == null || v.isEmpty)) return 'Required';
-                if (_isEditing && v != null && v.length < 10) return 'Enter a valid phone';
+                // Only validate format if something was actually typed
+                if (_isEditing && v != null && v.isNotEmpty && v.length < 10) {
+                  return 'Enter a valid phone number';
+                }
                 return null;
               }),
           const SizedBox(height: 14),
@@ -466,7 +474,6 @@ class UserProfilePageState extends State<UserProfilePage> {
             enabled: _isEditing,
             maxLines: 2,
             decoration: _inputDec('Complete Address', Icons.home_outlined),
-            validator: (v) => (_isEditing && (v == null || v.isEmpty)) ? 'Required' : null,
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
@@ -474,7 +481,6 @@ class UserProfilePageState extends State<UserProfilePage> {
             decoration: _inputDec('Barangay', Icons.location_on_outlined),
             items: _barangays.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
             onChanged: _isEditing ? (v) => setState(() => _selectedBarangay = v) : null,
-            validator: (v) => (_isEditing && v == null) ? 'Required' : null,
           ),
           if (_isEditing) ...[
             const SizedBox(height: 18),
@@ -508,7 +514,7 @@ class UserProfilePageState extends State<UserProfilePage> {
       enabled: _isEditing,
       keyboardType: type,
       decoration: _inputDec(label, icon),
-      validator: validator ?? (v) => (_isEditing && (v == null || v.isEmpty)) ? 'Required' : null,
+      validator: validator, // no blanket "Required" — fields are optional
     );
   }
 

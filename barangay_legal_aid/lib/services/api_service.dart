@@ -325,9 +325,18 @@ class ApiService {
     try {
       final headers = await _getHeaders();
       final r = await http
-          .get(Uri.parse('$_baseUrl/analytics/'), headers: headers)
+          .get(Uri.parse('$_baseUrl/analytics/summary'), headers: headers)
           .timeout(_timeout);
-      if (r.statusCode == 200) return jsonDecode(r.body);
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        // Backend uses 'total_complaints'; map it to 'total_cases' for the UI
+        return {
+          'total_users':     data['total_users']      ?? 0,
+          'total_requests':  data['total_requests']   ?? 0,
+          'total_cases':     data['total_complaints']  ?? 0,
+          'total_barangays': data['total_barangays']  ?? 0,
+        };
+      }
     } catch (_) {}
     return {
       'total_users': 0,
