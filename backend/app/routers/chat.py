@@ -186,10 +186,16 @@ def chat_with_ai(chat: schemas.AiChatCreate, db: Session = Depends(get_db)):
                 rag_message = chat.message
 
             service_text = _call_chatbot_service(rag_message, chat.history)
-            if service_text:
+            # Treat the chatbot's own fallback string as a failure so we can
+            # fall through to the KB context (step 4) instead of surfacing
+            # "I'm sorry, I couldn't process…" to the user.
+            _svc_fallback_prefix = "I'm sorry, I couldn't process"
+            if service_text and not service_text.startswith(_svc_fallback_prefix):
                 log_label = "model+RAG context" if context else "model (no context)"
                 logger.info(f"[AI_ENDPOINT] Served by {log_label}")
                 return {"message": service_text, "ui_action": None}
+            if service_text:
+                logger.warning("[AI_ENDPOINT] Chatbot service returned its own fallback — falling through to KB context")
 
         # 4 — Model unavailable: fall back to raw KB context
         if context:
