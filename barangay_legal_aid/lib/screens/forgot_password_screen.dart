@@ -1,5 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,26 +12,20 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _identifierCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _otpCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
 
-  String _method = 'email'; // 'email' or 'phone'
-  int _step = 1;            // 1 = input, 2 = code + new password
+  int _step = 1; // 1 = input email, 2 = enter code + new password
   int? _userId;
   bool _isLoading = false;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
-  // Firebase phone flow
-  String? _verificationId;
-  String? _autoVerifiedIdToken;        // set when Firebase auto-verifies on Android
-  ConfirmationResult? _webConfirmationResult; // set on web after signInWithPhoneNumber
-
   @override
   void dispose() {
-    _identifierCtrl.dispose();
+    _emailCtrl.dispose();
     _otpCtrl.dispose();
     _newPasswordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
@@ -45,64 +37,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
     try {
       final api = Provider.of<ApiService>(context, listen: false);
-      final res = await api.forgotPassword(_identifierCtrl.text.trim(), _method);
+      final res = await api.forgotPassword(_emailCtrl.text.trim(), 'email');
       _userId = res['user_id'] as int?;
-
-      if (_method == 'phone') {
-        final phone = _identifierCtrl.text.trim();
-
-        // Web: use signInWithPhoneNumber (reCAPTCHA flow)
-        if (kIsWeb) {
-          final result = await FirebaseAuth.instance.signInWithPhoneNumber(phone);
-          if (mounted) {
-            setState(() {
-              _webConfirmationResult = result;
-              _step = 2;
-              _isLoading = false;
-            });
-          }
-          return;
-        }
-
-        // Native: use verifyPhoneNumber (SMS auto-retrieval)
-        await FirebaseAuth.instance.verifyPhoneNumber(
-          phoneNumber: phone,
-          verificationCompleted: (PhoneAuthCredential cred) async {
-            try {
-              final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
-              final idToken = await userCred.user?.getIdToken();
-              await FirebaseAuth.instance.signOut();
-              if (mounted && idToken != null) {
-                setState(() {
-                  _autoVerifiedIdToken = idToken;
-                  _step = 2;
-                  _isLoading = false;
-                });
-              }
-            } catch (e) {
-              if (mounted) {
-                _showError('Auto-verification failed: $e');
-                setState(() => _isLoading = false);
-              }
-            }
-          },
-          verificationFailed: (FirebaseAuthException e) {
-            if (mounted) {
-              _showError(e.message ?? 'Phone verification failed');
-              setState(() => _isLoading = false);
-            }
-          },
-          codeSent: (String verificationId, int? resendToken) {
-            setState(() {
-              _verificationId = verificationId;
-              _step = 2;
-              _isLoading = false;
-            });
-          },
-          codeAutoRetrievalTimeout: (_) {},
-        );
-      } else {
-        // Email OTP — just move to step 2
+      if (mounted) {
         setState(() {
           _step = 2;
           _isLoading = false;
@@ -129,28 +66,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
     try {
       final api = Provider.of<ApiService>(context, listen: false);
-      if (_method == 'email') {
-        await api.resetPassword(_userId!, _otpCtrl.text.trim(), _newPasswordCtrl.text);
-      } else {
-        // Use auto-verified token, web confirmation, or manual SMS code
-        String idToken;
-        if (_autoVerifiedIdToken != null) {
-          idToken = _autoVerifiedIdToken!;
-        } else if (kIsWeb && _webConfirmationResult != null) {
-          final userCred = await _webConfirmationResult!.confirm(_otpCtrl.text.trim());
-          idToken = await userCred.user!.getIdToken() ?? '';
-          await FirebaseAuth.instance.signOut();
-        } else {
-          final credential = PhoneAuthProvider.credential(
-            verificationId: _verificationId!,
-            smsCode: _otpCtrl.text.trim(),
-          );
-          final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
-          idToken = await userCred.user!.getIdToken() ?? '';
-          await FirebaseAuth.instance.signOut();
-        }
-        await api.resetPasswordPhone(_userId!, idToken, _newPasswordCtrl.text);
-      }
+      await api.resetPassword(_userId!, _otpCtrl.text.trim(), _newPasswordCtrl.text);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -211,48 +127,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Enter your email or phone number and choose a reset method.',
+          'Enter your email address and we\'ll send you a reset code.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Color(0xFF36454F)),
         ),
         const SizedBox(height: 24),
         TextFormField(
-          controller: _identifierCtrl,
+          controller: _emailCtrl,
+          keyboardType: TextInputType.emailAddress,
           decoration: const InputDecoration(
-            labelText: 'Email or Phone Number',
-            hintText: 'you@example.com or +639XXXXXXXXX',
-            prefixIcon: Icon(Icons.person_outline),
+            labelText: 'Email Address',
+            hintText: 'you@example.com',
+            prefixIcon: Icon(Icons.email_outlined),
           ),
           validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-        ),
-        const SizedBox(height: 20),
-        const Text('Reset method:', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Email OTP'),
-                value: 'email',
-                groupValue: _method,
-                activeColor: const Color(0xFF99272D),
-                onChanged: (v) => setState(() => _method = v!),
-              ),
-            ),
-            Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Phone SMS'),
-                value: 'phone',
-                groupValue: _method,
-                activeColor: const Color(0xFF99272D),
-                onChanged: (v) => setState(() => _method = v!),
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: _isLoading ? null : _sendCode,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF99272D),
+            foregroundColor: Colors.white,
+          ),
           child: _isLoading
               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
               : const Text('Send Code'),
@@ -267,29 +163,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       children: [
         const Icon(Icons.verified_user, size: 64, color: Color(0xFF99272D)),
         const SizedBox(height: 16),
-        Text(
-          _autoVerifiedIdToken != null
-              ? 'Phone auto-verified! Set your new password.'
-              : (_method == 'email' ? 'Enter the code sent to your email' : 'Enter the SMS code'),
+        const Text(
+          'Enter the code sent to your email',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF36454F)),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF36454F)),
         ),
         const SizedBox(height: 24),
-        if (_autoVerifiedIdToken == null) ...[
-          TextFormField(
-            controller: _otpCtrl,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            decoration: const InputDecoration(
-              labelText: '6-digit Code',
-              prefixIcon: Icon(Icons.pin_outlined),
-            ),
-            validator: (v) {
-              if (_autoVerifiedIdToken != null) return null;
-              return (v == null || v.length < 6) ? 'Enter the 6-digit code' : null;
-            },
+        TextFormField(
+          controller: _otpCtrl,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            labelText: '6-digit Code',
+            prefixIcon: Icon(Icons.pin_outlined),
           ),
-        ],
+          validator: (v) => (v == null || v.length < 6) ? 'Enter the 6-digit code' : null,
+        ),
         TextFormField(
           controller: _newPasswordCtrl,
           obscureText: _obscureNew,
@@ -320,6 +209,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: _isLoading ? null : _submitReset,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF99272D),
+            foregroundColor: Colors.white,
+          ),
           child: _isLoading
               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
               : const Text('Reset Password'),

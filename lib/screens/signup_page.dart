@@ -2,12 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
-import 'package:barangay_legal_aid/screens/phone_sms_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/phone_utils.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -58,11 +55,6 @@ class SignupPageState extends State<SignupPage> {
   Uint8List? _selfieWithIdBytes;
 
   String _role               = 'user';
-  String _verificationMethod = 'email';
-
-  bool _hasEmail = false;
-  bool _hasPhone = false;
-
   // PSGC data
   List<Map<String, dynamic>> _regions      = [];
   List<Map<String, dynamic>> _provinces    = [];
@@ -240,15 +232,6 @@ class SignupPageState extends State<SignupPage> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
-
-    // Cross-field: at least one contact required
-    if (email.isEmpty && phone.isEmpty) {
-      _showError('Please provide at least an email address or phone number.');
-      return;
-    }
-
     if (_passwordController.text != _confirmPasswordController.text) {
       _showError('Passwords do not match.');
       return;
@@ -294,10 +277,7 @@ class SignupPageState extends State<SignupPage> {
         ? ''
         : normalizePhPhone(_phoneController.text.trim());
 
-    // Determine verification method automatically when only one contact given
-    String method = _verificationMethod;
-    if (email.isNotEmpty && phone.isEmpty) method = 'email';
-    if (phone.isNotEmpty && email.isEmpty) method = 'phone';
+    const method = 'email';
 
     try {
       final idPhotoPath = 'id_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -305,8 +285,8 @@ class SignupPageState extends State<SignupPage> {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api  = Provider.of<ApiService>(context, listen: false);
 
-      // Register user — returns the full user object including `id`
-      final userData = await auth.signUp(
+      // Register user
+      await auth.signUp(
         firstName:         _firstNameController.text.trim(),
         lastName:          _lastNameController.text.trim(),
         email:             email,
@@ -320,9 +300,6 @@ class SignupPageState extends State<SignupPage> {
         selfieWithIdBytes: _selfieWithIdBytes,
         role:              _role,
       );
-
-      // Capture the DB user ID for use in verification callbacks
-      final registeredUserId = userData['id'] as int?;
 
       if (!mounted) return;
 
@@ -348,105 +325,6 @@ class SignupPageState extends State<SignupPage> {
           _showError('Could not send verification code. Please try again.');
           return;
         }
-      }
-
-      // ── Phone SMS path ────────────────────────────────────────────────────
-      if (method == 'phone' && phone.isNotEmpty) {
-        // Web: use signInWithPhoneNumber (reCAPTCHA flow)
-        if (kIsWeb) {
-          try {
-            final confirmationResult =
-                await FirebaseAuth.instance.signInWithPhoneNumber(phone);
-            if (!mounted) return;
-            setState(() => _isLoading = false);
-            if (registeredUserId == null) {
-              _showError('Registration error: could not retrieve user ID.');
-              return;
-            }
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PhoneSmsVerificationScreen(
-                  verificationId: '',
-                  userId: registeredUserId,
-                  phoneNumber: phone,
-                  webConfirmationResult: confirmationResult,
-                ),
-              ),
-            );
-          } catch (e) {
-            if (mounted) {
-              _showError(e.toString().replaceFirst('Exception: ', ''));
-              setState(() => _isLoading = false);
-            }
-          }
-          return;
-        }
-
-        await FirebaseAuth.instance.verifyPhoneNumber(
-          phoneNumber: phone,
-          timeout: const Duration(seconds: 60),
-
-          // Auto-verification (some Android devices detect SMS instantly)
-          verificationCompleted: (PhoneAuthCredential cred) async {
-            try {
-              final userCred = await FirebaseAuth.instance.signInWithCredential(cred);
-              final idToken  = await userCred.user?.getIdToken();
-              if (registeredUserId != null && idToken != null) {
-                await api.verifyFirebasePhone(registeredUserId, idToken);
-                await FirebaseAuth.instance.signOut();
-              }
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Phone auto-verified! Awaiting admin approval.'),
-                  backgroundColor: _kCharcoal,
-                ));
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            } catch (e) {
-              if (mounted) _showError('Auto-verification failed: $e');
-            }
-          },
-
-          // Firebase could not send / validate
-          verificationFailed: (FirebaseAuthException e) {
-            if (mounted) {
-              final msg = switch (e.code) {
-                'invalid-phone-number' => 'Invalid phone number format. Use +639XXXXXXXXX.',
-                'too-many-requests'    => 'Too many SMS requests. Please wait and try again.',
-                'quota-exceeded'       => 'SMS quota exceeded. Please use email verification instead.',
-                'app-not-authorized'   => 'This app is not authorised for Firebase Phone Auth. '
-                    'Check SHA-1 fingerprint in the Firebase console.',
-                _                      => e.message ?? 'Phone verification failed.',
-              };
-              _showError(msg);
-              setState(() => _isLoading = false);
-            }
-          },
-
-          // SMS sent — navigate to the code-entry screen
-          codeSent: (String verificationId, int? resendToken) {
-            if (!mounted) return;
-            setState(() => _isLoading = false);
-            if (registeredUserId == null) {
-              _showError('Registration error: could not retrieve user ID. Please try again.');
-              return;
-            }
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PhoneSmsVerificationScreen(
-                  verificationId: verificationId,
-                  userId:         registeredUserId,
-                  phoneNumber:    phone,
-                ),
-              ),
-            );
-          },
-
-          codeAutoRetrievalTimeout: (_) {},
-        );
-        return; // Firebase callbacks handle navigation
       }
 
       // ── Fallback — no OTP triggered ──────────────────────────────────────
@@ -513,7 +391,7 @@ class SignupPageState extends State<SignupPage> {
                     const SizedBox(height: 20),
 
                     // ── Section 2: Contact ───────────────────────────────
-                    _sectionLabel('Contact', sub: 'At least one is required'),
+                    _sectionLabel('Contact', sub: 'Email required · Phone optional'),
                     const SizedBox(height: 10),
                     _buildEmailField(),
                     const SizedBox(height: 12),
@@ -594,15 +472,6 @@ class SignupPageState extends State<SignupPage> {
                     _sectionLabel('Account Type'),
                     const SizedBox(height: 4),
                     _buildRoleSelector(),
-
-                    // ── Section 7: Verification Method (smart) ───────────
-                    if (_hasEmail && _hasPhone) ...[
-                      const SizedBox(height: 8),
-                      _sectionLabel('Verification Method',
-                          sub: 'You provided both email and phone — choose one to verify now'),
-                      const SizedBox(height: 4),
-                      _buildVerificationMethodSelector(),
-                    ],
 
                     const SizedBox(height: 24),
 
@@ -718,15 +587,13 @@ class SignupPageState extends State<SignupPage> {
     return TextFormField(
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      onChanged: (v) => setState(() => _hasEmail = v.trim().isNotEmpty),
       decoration: const InputDecoration(
         labelText: 'Email address',
         hintText: 'you@example.com',
         prefixIcon: Icon(Icons.email_outlined),
-        helperText: 'Optional if phone is provided',
       ),
       validator: (v) {
-        if (v == null || v.trim().isEmpty) return null; // optional
+        if (v == null || v.trim().isEmpty) return 'Email is required';
         final ok = RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v.trim());
         return ok ? null : 'Enter a valid email address';
       },
@@ -738,7 +605,6 @@ class SignupPageState extends State<SignupPage> {
     return TextFormField(
       controller: _phoneController,
       keyboardType: TextInputType.phone,
-      onChanged: (v) => setState(() => _hasPhone = v.trim().isNotEmpty),
       decoration: const InputDecoration(
         labelText: 'Phone number',
         hintText: '+639XXXXXXXXX',
@@ -1003,34 +869,6 @@ class SignupPageState extends State<SignupPage> {
             activeColor: _kPrimary,
             contentPadding: EdgeInsets.zero,
             onChanged: (v) => setState(() => _role = v!),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Verification method (only shown when both email+phone are filled) ───────
-  Widget _buildVerificationMethodSelector() {
-    return Row(
-      children: [
-        Expanded(
-          child: RadioListTile<String>(
-            title: const Text('Email OTP', style: TextStyle(fontSize: 14)),
-            value: 'email',
-            groupValue: _verificationMethod,
-            activeColor: _kPrimary,
-            contentPadding: EdgeInsets.zero,
-            onChanged: (v) => setState(() => _verificationMethod = v!),
-          ),
-        ),
-        Expanded(
-          child: RadioListTile<String>(
-            title: const Text('Phone SMS', style: TextStyle(fontSize: 14)),
-            value: 'phone',
-            groupValue: _verificationMethod,
-            activeColor: _kPrimary,
-            contentPadding: EdgeInsets.zero,
-            onChanged: (v) => setState(() => _verificationMethod = v!),
           ),
         ),
       ],
