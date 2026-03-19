@@ -13,6 +13,13 @@ class ChatHistorySidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: chatProvider,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     return Container(
       color: Color(0xFF36454F),
       child: Column(
