@@ -232,15 +232,6 @@ class SignupPageState extends State<SignupPage> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
-
-    // Cross-field: at least one contact required
-    if (email.isEmpty && phone.isEmpty) {
-      _showError('Please provide at least an email address or phone number.');
-      return;
-    }
-
     if (_passwordController.text != _confirmPasswordController.text) {
       _showError('Passwords do not match.');
       return;
@@ -406,7 +397,7 @@ class SignupPageState extends State<SignupPage> {
                     const SizedBox(height: 20),
 
                     // ── Section 2: Contact ───────────────────────────────
-                    _sectionLabel('Contact', sub: 'At least one is required'),
+                    _sectionLabel('Contact'),
                     const SizedBox(height: 10),
                     _buildEmailField(),
                     const SizedBox(height: 12),
@@ -604,10 +595,9 @@ class SignupPageState extends State<SignupPage> {
         labelText: 'Email address',
         hintText: 'you@example.com',
         prefixIcon: Icon(Icons.email_outlined),
-        helperText: 'Optional if phone is provided',
       ),
       validator: (v) {
-        if (v == null || v.trim().isEmpty) return null; // optional
+        if (v == null || v.trim().isEmpty) return 'Required';
         final ok = RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v.trim());
         return ok ? null : 'Enter a valid email address';
       },
@@ -623,7 +613,6 @@ class SignupPageState extends State<SignupPage> {
         labelText: 'Phone number',
         hintText: '+639XXXXXXXXX',
         prefixIcon: Icon(Icons.phone_outlined),
-        helperText: 'Optional if email is provided. Use +63 format.',
       ),
       validator: (v) {
         if (v == null || v.trim().isEmpty) return null; // optional
