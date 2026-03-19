@@ -80,36 +80,47 @@ def retrieve_context(question: str, top_k: int = 3) -> list[str]:
 
 def build_prompt(question: str, context_chunks: list[str]) -> str:
     """
-    Build a prompt that instructs Gemma to respond STRICTLY in JSON format:
-      {"question": "<user_question>", "answer": "<generated_answer>"}
-
-    Two-rule system:
-    - Legal / procedural questions → use ONLY the provided context.
-    - Practical / health / safety questions → may use general knowledge.
+    Build a prompt that:
+    - Forces Gemma to respond ONLY with strict JSON.
+    - Prevents hallucination of RA numbers, KP rules, or any law
+      not present in the retrieved FAISS context.
+    - Allows general knowledge only for non-legal practical questions.
     """
     context_block = "\n\n".join(context_chunks)
 
     prompt = (
-        "You are a Barangay Legal Assistant that helps citizens understand "
+        "You are a Barangay Legal Assistant that helps Filipino citizens understand "
         "barangay laws, dispute procedures, and community concerns in the Philippines.\n\n"
 
-        "IMPORTANT: You must respond ONLY with a single JSON object. "
-        "Do not include any text, explanation, or markdown outside the JSON.\n\n"
+        # ── Strict JSON output ────────────────────────────────────────────────
+        "OUTPUT RULE: You must respond with ONLY a single JSON object. "
+        "No text, no markdown, no explanation before or after the JSON.\n\n"
+        "Required format:\n"
+        '{"question": "<copy the user question exactly>", "answer": "<your answer>"}\n\n'
 
-        "Response format:\n"
-        '{"question": "<repeat the user question here>", "answer": "<your answer here>"}\n\n'
+        # ── Anti-hallucination rules ──────────────────────────────────────────
+        "STRICT RULES FOR LEGAL QUESTIONS:\n"
+        "* Use ONLY the information inside the [CONTEXT] block below.\n"
+        "* NEVER invent, guess, or assume any Republic Act (RA) number, "
+        "Katarungang Pambarangay (KP) rule, barangay ordinance, or legal provision "
+        "that does not appear word-for-word in the [CONTEXT].\n"
+        "* If the specific law, RA number, or procedure is NOT mentioned in the "
+        "[CONTEXT], you MUST return this exact answer field:\n"
+        "  \"I don't have enough information from the provided barangay legal documents.\"\n"
+        "* Do not paraphrase or summarize laws from your training data. "
+        "Only quote or explain what is explicitly written in the [CONTEXT].\n\n"
 
-        "Rules:\n"
-        "* For questions about barangay laws, legal procedures, or dispute resolution: "
-        "use ONLY the information in the context below. Do not invent legal information. "
-        "If the answer is not in the context, the answer field must be exactly: "
-        "\"I don't have enough information from the provided barangay legal documents.\"\n"
-        "* For practical, health, or safety questions (such as animal bites, first aid, "
-        "emergencies, or general community concerns): answer helpfully using your general "
-        "knowledge. You may suggest contacting the barangay health center or relevant "
-        "local authority when appropriate.\n\n"
+        # ── Exception for practical questions ─────────────────────────────────
+        "RULE FOR PRACTICAL / HEALTH / SAFETY QUESTIONS:\n"
+        "* For non-legal questions (e.g. animal bites, first aid, emergencies, "
+        "general community concerns), you may use your general knowledge to help.\n"
+        "* Still return strict JSON. "
+        "You may suggest contacting the barangay health center or local authority "
+        "when relevant.\n\n"
 
-        f"Context:\n{context_block}\n\n"
+        # ── Retrieved context ─────────────────────────────────────────────────
+        f"[CONTEXT]\n{context_block}\n[END CONTEXT]\n\n"
+
         f"Question:\n{question}\n\n"
         "JSON Response:"
     )
