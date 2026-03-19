@@ -4,7 +4,7 @@ rag.py – RAG helpers for the Barangay Legal Assistant backend.
 Loads the FAISS index and chunked documents once at startup, then exposes:
   - load_rag_resources()  → called by FastAPI startup event
   - retrieve_context()    → returns top-k relevant chunks for a question
-  - build_prompt()        → builds the final prompt string for the Gemma model
+  - build_prompt()        → builds the strict JSON prompt for the Gemma model
 """
 
 import os
@@ -23,9 +23,9 @@ FAISS_PATH = os.path.join(DATA_DIR, "bla_rag_index.faiss")
 DOCS_PATH  = os.path.join(DATA_DIR, "bla_chunked_docs.pkl")
 
 # ── Module-level singletons ───────────────────────────────────────────────────
-_index:  faiss.Index        | None = None
-_chunks: list[str]          | None = None
-_model:  SentenceTransformer| None = None
+_index:  faiss.Index         | None = None
+_chunks: list[str]           | None = None
+_model:  SentenceTransformer | None = None
 
 
 def load_rag_resources() -> None:
@@ -36,7 +36,7 @@ def load_rag_resources() -> None:
     """
     global _index, _chunks, _model
 
-    # 1. Load embedding model (same model used when building the FAISS index)
+    # 1. Load embedding model (must match the model used when building the index)
     model_path = os.path.join(BASE_DIR, "bla_chatbot_model")
     if os.path.isdir(model_path):
         logger.info("Loading local embedding model from %s", model_path)
@@ -80,25 +80,37 @@ def retrieve_context(question: str, top_k: int = 3) -> list[str]:
 
 def build_prompt(question: str, context_chunks: list[str]) -> str:
     """
-    Combine retrieved context chunks with the user question into the
-    prompt string that will be sent to the Gemma model service.
+    Build a prompt that instructs Gemma to respond STRICTLY in JSON format:
+      {"question": "<user_question>", "answer": "<generated_answer>"}
+
+    Two-rule system:
+    - Legal / procedural questions → use ONLY the provided context.
+    - Practical / health / safety questions → may use general knowledge.
     """
     context_block = "\n\n".join(context_chunks)
 
     prompt = (
         "You are a Barangay Legal Assistant that helps citizens understand "
         "barangay laws, dispute procedures, and community concerns in the Philippines.\n\n"
+
+        "IMPORTANT: You must respond ONLY with a single JSON object. "
+        "Do not include any text, explanation, or markdown outside the JSON.\n\n"
+
+        "Response format:\n"
+        '{"question": "<repeat the user question here>", "answer": "<your answer here>"}\n\n'
+
         "Rules:\n"
         "* For questions about barangay laws, legal procedures, or dispute resolution: "
         "use ONLY the information in the context below. Do not invent legal information. "
-        "If the answer is not in the context, say: "
+        "If the answer is not in the context, the answer field must be exactly: "
         "\"I don't have enough information from the provided barangay legal documents.\"\n"
         "* For practical, health, or safety questions (such as animal bites, first aid, "
         "emergencies, or general community concerns): answer helpfully using your general "
-        "knowledge. You may also suggest contacting the barangay health center or relevant "
+        "knowledge. You may suggest contacting the barangay health center or relevant "
         "local authority when appropriate.\n\n"
+
         f"Context:\n{context_block}\n\n"
         f"Question:\n{question}\n\n"
-        "Answer:"
+        "JSON Response:"
     )
     return prompt
