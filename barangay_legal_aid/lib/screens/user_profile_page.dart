@@ -193,17 +193,7 @@ class UserProfilePageState extends State<UserProfilePage> {
           'email':       _currentUser!.email,
           'profile_photo_path': '',
         },
-        extraActions: [
-          if (!_isEditing && !_isChangingPw)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit Profile',
-              onPressed: () {
-                _formKey.currentState?.reset(); // clear any previous validation state
-                setState(() => _isEditing = true);
-              },
-            ),
-        ],
+        extraActions: const [],
       ),
       body: _currentUser == null
           ? const Center(child: CircularProgressIndicator(color: _kPrimary))
@@ -470,6 +460,7 @@ class UserProfilePageState extends State<UserProfilePage> {
   // ── Personal info card ────────────────────────────────────────────────────
 
   Widget _buildInfoCard() {
+    final u = _currentUser;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -487,116 +478,59 @@ class UserProfilePageState extends State<UserProfilePage> {
               const SizedBox(width: 8),
               const Text('Personal Information',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kCharcoal)),
-              const Spacer(),
-              if (_isEditing)
-                TextButton(
-                  onPressed: () {
-                    _formKey.currentState?.reset();
-                    setState(() => _isEditing = false);
-                    _loadUserData();
-                  },
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                ),
             ],
           ),
-          const SizedBox(height: 18),
-          // Name row
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _field(_firstNameCtrl, 'First Name', Icons.person_outline)),
+              Expanded(child: _infoRow(Icons.person_outline, 'First Name', u?.firstName)),
               const SizedBox(width: 12),
-              Expanded(child: _field(_lastNameCtrl, 'Last Name', Icons.person_outline)),
+              Expanded(child: _infoRow(Icons.person_outline, 'Last Name', u?.lastName)),
             ],
           ),
-          const SizedBox(height: 14),
-          // Email (read-only)
-          TextFormField(
-            controller: _emailCtrl,
-            readOnly: true,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
-            decoration: _inputDec('Email', Icons.email_outlined, helper: 'Email cannot be changed'),
-          ),
-          const SizedBox(height: 14),
-          _field(_phoneCtrl, 'Phone Number', Icons.phone_outlined,
-              type: TextInputType.phone,
-              validator: (v) {
-                // Only validate format if something was actually typed
-                if (_isEditing && v != null && v.isNotEmpty && v.length < 10) {
-                  return 'Enter a valid phone number';
-                }
-                return null;
-              }),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _addressCtrl,
-            enabled: _isEditing,
-            maxLines: 2,
-            decoration: _inputDec('Complete Address', Icons.home_outlined),
-          ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            initialValue: _barangays.contains(_selectedBarangay) ? _selectedBarangay : null,
-            decoration: _inputDec('Barangay', Icons.location_on_outlined),
-            items: _barangays.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-            onChanged: _isEditing ? (v) => setState(() => _selectedBarangay = v) : null,
-          ),
-          if (_isEditing) ...[
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _updateProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kPrimary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ],
+          const SizedBox(height: 12),
+          _infoRow(Icons.badge_outlined, 'Middle Name', u?.middleName),
+          const SizedBox(height: 12),
+          _infoRow(Icons.email_outlined, 'Email', u?.email),
+          const SizedBox(height: 12),
+          _infoRow(Icons.phone_outlined, 'Phone Number', u?.phone),
+          const SizedBox(height: 12),
+          _infoRow(Icons.home_outlined, 'Complete Address', u?.address),
+          const SizedBox(height: 12),
+          _infoRow(Icons.location_on_outlined, 'Barangay', u?.barangayName),
         ],
       ),
     );
   }
 
-  Widget _field(TextEditingController ctrl, String label, IconData icon, {
-    TextInputType? type,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: ctrl,
-      enabled: _isEditing,
-      keyboardType: type,
-      decoration: _inputDec(label, icon),
-      validator: validator, // no blanket "Required" — fields are optional
-    );
-  }
-
-  InputDecoration _inputDec(String label, IconData icon, {String? helper}) {
-    return InputDecoration(
-      labelText: label,
-      helperText: helper,
-      prefixIcon: Icon(icon, size: 18),
-      filled: true,
-      fillColor: _isEditing ? Colors.white : const Color(0xFFF8F9FA),
-      isDense: true,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFDDE3EE)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: _kPrimary, width: 2),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
-      ),
+  Widget _infoRow(IconData icon, String label, String? value) {
+    final isEmpty = value == null || value.isEmpty;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: _kPrimary.withValues(alpha: 0.7)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 2),
+              Text(
+                isEmpty ? '—' : value,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isEmpty ? Colors.grey.shade400 : _kCharcoal,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -72,6 +72,10 @@ class User(Base):
     cases = relationship("Case", back_populates="reporter", cascade="all, delete-orphan")
     requests = relationship("Request", back_populates="requester", cascade="all, delete-orphan")
 
+    @property
+    def barangay_name(self):
+        return self.barangay.name if self.barangay else None
+
 
 class Case(Base):
     __tablename__ = "cases"

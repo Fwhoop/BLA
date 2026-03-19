@@ -61,6 +61,7 @@ class UserUpdate(BaseModel):
 class UserRead(UserBase):
     id: int
     is_active: bool = True
+    barangay_name: Optional[str] = None
     id_photo_url:        Optional[str] = None
     selfie_with_id_path: Optional[str] = None
     profile_photo_path:  Optional[str] = None
