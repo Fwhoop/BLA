@@ -129,23 +129,23 @@ def build_prompt(question: str, context_chunks: list[str]) -> str:
 
     prompt = (
         "You are a Barangay Legal Assistant. "
-        "Answer questions about barangay laws and procedures using ONLY the [CONTEXT] below.\n\n"
+        "Answer using ONLY the text found in [CONTEXT] below.\n\n"
 
-        # ── Output format ─────────────────────────────────────────────────────
         "OUTPUT: Respond with ONLY this JSON object, nothing else:\n"
         '{"question": "<copy the question exactly>", "answer": "<your answer>"}\n\n'
 
-        # ── Absolute rules — no exceptions ────────────────────────────────────
         "RULES:\n"
         "1. Use ONLY the text inside [CONTEXT]. Nothing else.\n"
-        "2. Do NOT cite any Republic Act, KP article, or law "
-        "unless the exact RA number or article appears in [CONTEXT].\n"
-        "3. Do NOT use knowledge from your training data.\n"
-        "4. If the answer is not in [CONTEXT], your answer must be exactly:\n"
+        "2. Do NOT write sections like 'Legal Basis:', 'Article:', "
+        "'Under RA', 'Section', or any law citation "
+        "unless those exact words appear in [CONTEXT].\n"
+        "3. Do NOT use any knowledge from your training data.\n"
+        "4. Write the answer as plain sentences. No headers, no bullet points, "
+        "no formatted sections.\n"
+        "5. If the answer is not in [CONTEXT], your answer must be exactly:\n"
         '   "I don\'t have enough information from the provided barangay legal documents."\n'
-        "5. No extra text outside the JSON.\n\n"
+        "6. No extra text outside the JSON.\n\n"
 
-        # ── Retrieved context ─────────────────────────────────────────────────
         f"[CONTEXT]\n{context_block}\n[END CONTEXT]\n\n"
 
         f"Question: {question}\n\n"

@@ -158,15 +158,24 @@ async def ask(payload: AskRequest):
     parsed = _extract_json(raw_text)
     answer = parsed.get("answer", raw_text)
 
-    # ── Step 7: Sanity check — if Gemma still returned something suspicious ───
-    # (e.g. an answer that claims an RA number not in our chunks), log it.
-    if answer and any(kw in answer.lower() for kw in ["republic act", " ra ", "r.a."]):
-        context_combined = " ".join(chunks).lower()
-        if not any(kw in context_combined for kw in ["republic act", " ra ", "r.a."]):
+    # ── Step 7: Sanity check — catch hallucinated citations ──────────────────
+    # If the answer contains legal citation patterns (RA numbers, KP articles,
+    # Legal Basis sections) that do NOT appear in the retrieved chunks,
+    # replace with the fallback answer.
+    CITATION_PATTERNS = [
+        "legal basis", "republic act", " ra ", "r.a.", "kp article",
+        "article ", "section ", "under ra", "p.d.", "presidential decree",
+    ]
+    context_combined = " ".join(chunks).lower()
+    answer_lower = answer.lower()
+
+    for pattern in CITATION_PATTERNS:
+        if pattern in answer_lower and pattern not in context_combined:
             logger.warning(
-                "Potential hallucination detected — Gemma cited a law not in context. "
-                "Replacing with fallback. Question: %s", question
+                "Hallucination detected — Gemma used '%s' not found in context. "
+                "Replacing with fallback. Question: %s", pattern, question
             )
             answer = NO_CONTEXT_ANSWER
+            break
 
     return AskResponse(question=question, answer=answer)
