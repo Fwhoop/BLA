@@ -3,11 +3,12 @@ routers/ask.py – /ask endpoint for the Barangay Legal Assistant RAG chatbot.
 
 Pipeline:
   1. Receive { "question": "..." } from the frontend
-  2. Retrieve top-3 relevant chunks from the FAISS index
-  3. Build a strict-JSON prompt using the BLA prompt template
-  4. POST the prompt to the Gemma model service
-  5. Parse the JSON response from Gemma
-  6. Return { "answer": "..." } to the frontend
+  2. Retrieve only RELEVANT chunks from FAISS (with similarity threshold)
+  3. If no relevant chunks found → return fallback answer immediately (no Gemma call)
+  4. Build the strict-JSON prompt using only the relevant chunks
+  5. POST the prompt to the Gemma model service
+  6. Parse the JSON response from Gemma
+  7. Return { "question": "...", "answer": "..." } to the frontend
 """
 
 import json
@@ -30,6 +31,12 @@ GEMMA_URL = os.getenv(
     "https://bla-chatbot-railway-production.up.railway.app/chat"
 )
 
+# Fallback answer when no relevant chunks are found in FAISS.
+# Returned immediately — Gemma is never called, preventing hallucination.
+NO_CONTEXT_ANSWER = (
+    "I don't have enough information from the provided barangay legal documents."
+)
+
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -46,13 +53,16 @@ class AskResponse(BaseModel):
 
 def _extract_json(raw: str) -> dict:
     """
-    Attempt to parse a strict JSON object from the model's raw text output.
+    Parse a JSON object from Gemma's raw text output.
 
-    Gemma is instructed to return only JSON, but may occasionally wrap it in
-    markdown fences (```json ... ```) or add trailing text. This function
-    handles those cases gracefully before falling back to a safe error reply.
+    Gemma is instructed to return only JSON, but may occasionally:
+    - Wrap the output in markdown fences (```json ... ```)
+    - Add a short sentence before or after the JSON
+
+    This function handles those cases before falling back to returning
+    the raw text as the answer so the user is never left with nothing.
     """
-    # 1. Try direct parse first (ideal case)
+    # 1. Direct parse (ideal case — Gemma returned clean JSON)
     try:
         return json.loads(raw.strip())
     except json.JSONDecodeError:
@@ -65,16 +75,16 @@ def _extract_json(raw: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    # 3. Extract the first {...} block found in the text
-    match = re.search(r"\{.*?\}", cleaned, re.DOTALL)
+    # 3. Extract the first complete {...} block found anywhere in the text
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
     if match:
         try:
             return json.loads(match.group())
         except json.JSONDecodeError:
             pass
 
-    # 4. Nothing parseable – return as-is so the user still gets a response
-    logger.warning("Could not parse JSON from model output: %s", raw[:200])
+    # 4. Nothing parseable — return the raw text so the user gets something
+    logger.warning("Could not parse JSON from model output: %s", raw[:300])
     return {"answer": raw.strip()}
 
 
@@ -92,21 +102,27 @@ async def ask(payload: AskRequest):
     if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
-    # Step 1 – retrieve the top 3 relevant document chunks from FAISS
+    # ── Step 1: Retrieve relevant chunks from FAISS ───────────────────────────
     try:
         chunks = retrieve_context(question, top_k=3)
     except RuntimeError as e:
         logger.error("RAG retrieval failed: %s", e)
         raise HTTPException(status_code=503, detail="RAG system not ready.")
 
+    # ── Step 2: Short-circuit if no relevant chunks found ────────────────────
+    # This is the main hallucination guard.
+    # If FAISS found nothing relevant, we return the fallback answer directly
+    # without calling Gemma at all — so it has no opportunity to invent laws.
     if not chunks:
-        chunks = ["No relevant legal context found."]
+        logger.info("No relevant chunks found for question: %.80s", question)
+        return AskResponse(question=question, answer=NO_CONTEXT_ANSWER)
 
-    # Step 2 – build the strict-JSON prompt
+    # ── Step 3: Build the strict-JSON prompt ──────────────────────────────────
     prompt = build_prompt(question, chunks)
-    logger.info("Sending prompt to Gemma (%d chars) | question: %.80s", len(prompt), question)
+    logger.info("Sending prompt to Gemma (%d chars, %d chunks) | question: %.80s",
+                len(prompt), len(chunks), question)
 
-    # Step 3 – send the prompt to the Gemma model service
+    # ── Step 4: Call the Gemma model service ──────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
@@ -129,8 +145,8 @@ async def ask(payload: AskRequest):
             detail="The model service is currently unreachable. Please try again later."
         )
 
-    # Step 4 – extract the raw text from the Gemma service response
-    # Gemma service may return { "answer": "..." }, { "text": "..." }, etc.
+    # ── Step 5: Extract raw text from Gemma's response ────────────────────────
+    # The Gemma service wrapper may return different key names.
     raw_text = (
         raw_data.get("answer")
         or raw_data.get("text")
@@ -138,9 +154,19 @@ async def ask(payload: AskRequest):
         or str(raw_data)
     )
 
-    # Step 5 – parse the JSON that Gemma was instructed to produce
+    # ── Step 6: Parse the JSON Gemma was instructed to produce ────────────────
     parsed = _extract_json(raw_text)
-
     answer = parsed.get("answer", raw_text)
+
+    # ── Step 7: Sanity check — if Gemma still returned something suspicious ───
+    # (e.g. an answer that claims an RA number not in our chunks), log it.
+    if answer and any(kw in answer.lower() for kw in ["republic act", " ra ", "r.a."]):
+        context_combined = " ".join(chunks).lower()
+        if not any(kw in context_combined for kw in ["republic act", " ra ", "r.a."]):
+            logger.warning(
+                "Potential hallucination detected — Gemma cited a law not in context. "
+                "Replacing with fallback. Question: %s", question
+            )
+            answer = NO_CONTEXT_ANSWER
 
     return AskResponse(question=question, answer=answer)
