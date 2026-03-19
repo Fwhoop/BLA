@@ -33,6 +33,8 @@ class AuthService {
   Future<Map<String, dynamic>> signUp({
     required String firstName,
     required String lastName,
+    String? middleName,
+    DateTime? birthday,
     required String email,
     required String password,
     required String phone,
@@ -47,6 +49,8 @@ class AuthService {
     return await _api.register(
       firstName: firstName,
       lastName: lastName,
+      middleName: middleName,
+      birthday: birthday,
       email: email,
       password: password,
       phone: phone,
@@ -111,6 +115,7 @@ class AuthService {
       await prefs.setString('currentUserId', user.id);
       await prefs.setString('firstName', user.firstName);
       await prefs.setString('lastName', user.lastName);
+      await prefs.setString('middleName', user.middleName ?? '');
     }
     return user;
   }
@@ -148,6 +153,8 @@ class AuthService {
       email: data['email'] ?? '',
       firstName: data['first_name'] ?? '',
       lastName: data['last_name'] ?? '',
+      middleName: data['middle_name'] as String?,
+      birthday: data['birthday'] != null ? DateTime.tryParse(data['birthday']) : null,
       role: _roleFromString(roleString),
       barangay: data['barangay_id']?.toString() ?? 'System',
       createdAt: DateTime.now(),

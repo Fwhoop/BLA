@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from jose import JWTError, jwt
 from typing import Optional
 import bcrypt
@@ -144,6 +144,8 @@ def _save_upload(upload: UploadFile, subfolder: str = "id_photos") -> Optional[s
 def register(
     first_name: str = Form(...),
     last_name: str = Form(...),
+    middle_name: Optional[str] = Form(None),
+    birthday: Optional[date] = Form(None),
     email: str = Form(...),
     password: str = Form(...),
     phone: Optional[str] = Form(None),
@@ -168,6 +170,13 @@ def register(
     # Normalize phone to E.164 so login works regardless of format used
     if phone:
         phone = normalize_ph_phone(phone)
+
+    # Age gate — must be 18 or older
+    if birthday:
+        today = date.today()
+        age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+        if age < 18:
+            raise HTTPException(status_code=400, detail="You must be at least 18 years old to register.")
 
     existing = db.query(models.User).filter(models.User.email == email).first()
     if existing:
@@ -225,6 +234,8 @@ def register(
         new_user = existing
         new_user.first_name = first_name
         new_user.last_name = last_name
+        new_user.middle_name = middle_name.strip() if middle_name else None
+        new_user.birthday = birthday
         new_user.hashed_password = get_password_hash(password)
         new_user.phone = phone or ""
         new_user.address = address or ""
@@ -257,6 +268,8 @@ def register(
             hashed_password=get_password_hash(password),
             first_name=first_name,
             last_name=last_name,
+            middle_name=middle_name.strip() if middle_name else None,
+            birthday=birthday,
             phone=phone or "",
             address=address or "",
             house_number=house_number,

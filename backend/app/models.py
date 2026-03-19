@@ -24,6 +24,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
+    middle_name = Column(String(50), nullable=True)
+    birthday = Column(Date, nullable=True)
     phone = Column(String(20), nullable=True)
 
     # ── Legacy single address field (kept for backward compat) ──────────────

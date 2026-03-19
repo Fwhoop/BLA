@@ -12,6 +12,8 @@ class UserBase(BaseModel):
     username: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    birthday: Optional[date] = None
     phone: Optional[str] = None
 
     # Legacy single address field
@@ -39,6 +41,8 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    birthday: Optional[date] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     house_number: Optional[str] = None
@@ -95,6 +99,7 @@ class UserSearchResult(BaseModel):
     id: int
     first_name: str
     last_name: str
+    middle_name: Optional[str] = None
     email: str
     barangay_id: Optional[int] = None
     barangay_name: Optional[str] = None

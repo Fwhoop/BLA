@@ -42,9 +42,11 @@ class BlaAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   String _displayName() {
-    final f = (user?['first_name'] ?? '') as String;
-    final l = (user?['last_name']  ?? '') as String;
-    final full = '$f $l'.trim();
+    final f  = (user?['first_name']  ?? '') as String;
+    final l  = (user?['last_name']   ?? '') as String;
+    final mn = (user?['middle_name'] ?? '') as String;
+    final mi = mn.isNotEmpty ? '${mn[0].toUpperCase()}. ' : '';
+    final full = '$f $mi$l'.trim();
     return full.isNotEmpty ? full : (user?['email'] ?? 'User');
   }
 
@@ -330,10 +332,11 @@ String blaGreeting(String firstName, {String role = ''}) {
 Future<Map<String, dynamic>> loadUserFromPrefs() async {
   final prefs = await SharedPreferences.getInstance();
   return {
-    'first_name': prefs.getString('firstName') ?? '',
-    'last_name':  prefs.getString('lastName')  ?? '',
-    'role':       prefs.getString('currentUserRole') ?? 'user',
-    'email':      prefs.getString('currentUserEmail') ?? '',
+    'first_name':  prefs.getString('firstName')  ?? '',
+    'last_name':   prefs.getString('lastName')   ?? '',
+    'middle_name': prefs.getString('middleName') ?? '',
+    'role':        prefs.getString('currentUserRole')  ?? 'user',
+    'email':       prefs.getString('currentUserEmail') ?? '',
     'profile_photo_path': prefs.getString('profilePhotoPath') ?? '',
   };
 }

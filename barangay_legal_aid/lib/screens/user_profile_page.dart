@@ -38,6 +38,7 @@ class UserProfilePageState extends State<UserProfilePage> {
   User? _currentUser;
   Map<String, dynamic>? _stats;
   bool _statsLoading = false;
+  bool _showFullMiddleName = false;
 
   static const List<String> _barangays = [
     'Barangay 1', 'Barangay 2', 'Barangay Cabaluay', 'Barangay Cabatangan',
@@ -185,10 +186,11 @@ class UserProfilePageState extends State<UserProfilePage> {
       appBar: BlaAppBar(
         title: 'My Profile',
         user: _currentUser == null ? {} : {
-          'first_name': _currentUser!.firstName,
-          'last_name':  _currentUser!.lastName,
-          'role':       _currentUser!.role.toString().split('.').last,
-          'email':      _currentUser!.email,
+          'first_name':  _currentUser!.firstName,
+          'last_name':   _currentUser!.lastName,
+          'middle_name': _currentUser!.middleName ?? '',
+          'role':        _currentUser!.role.toString().split('.').last,
+          'email':       _currentUser!.email,
           'profile_photo_path': '',
         },
         extraActions: [
@@ -236,6 +238,62 @@ class UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
+  // ── Name display with middle-name toggle ───────────────────────────────────
+
+  Widget _buildNameDisplay() {
+    final user = _currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    final mi = user.middleInitial;
+    if (mi == null) {
+      return Text(
+        user.fullName,
+        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '${user.firstName} ',
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            GestureDetector(
+              onTap: () => setState(() => _showFullMiddleName = !_showFullMiddleName),
+              child: Text(
+                _showFullMiddleName ? '${user.middleName} ' : '$mi ',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Colors.white54,
+                ),
+              ),
+            ),
+            Flexible(
+              child: Text(
+                user.lastName,
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        GestureDetector(
+          onTap: () => setState(() => _showFullMiddleName = !_showFullMiddleName),
+          child: Text(
+            _showFullMiddleName ? 'show initial' : 'see full name',
+            style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.65)),
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Hero ──────────────────────────────────────────────────────────────────
 
   Widget _buildHero() {
@@ -273,10 +331,7 @@ class UserProfilePageState extends State<UserProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _currentUser?.fullName ?? 'User',
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
+                _buildNameDisplay(),
                 const SizedBox(height: 6),
                 Row(
                   children: [

@@ -5,6 +5,8 @@ class User {
   final String email;
   final String firstName;
   final String lastName;
+  final String? middleName;
+  final DateTime? birthday;
   final UserRole role;
   final String barangay;
   final DateTime createdAt;
@@ -14,6 +16,8 @@ class User {
     required this.email,
     required this.firstName,
     required this.lastName,
+    this.middleName,
+    this.birthday,
     required this.role,
     required this.barangay,
     required this.createdAt,
@@ -22,7 +26,20 @@ class User {
   bool get isAdmin => role == UserRole.admin || role == UserRole.superadmin;
   bool get isSuperAdmin => role == UserRole.superadmin;
 
-  String get fullName => '$firstName $lastName';
+  String? get middleInitial =>
+      (middleName != null && middleName!.isNotEmpty)
+          ? '${middleName![0].toUpperCase()}.'
+          : null;
+
+  String get fullName =>
+      middleInitial != null
+          ? '$firstName $middleInitial $lastName'
+          : '$firstName $lastName';
+
+  String get fullNameExpanded =>
+      (middleName != null && middleName!.isNotEmpty)
+          ? '$firstName $middleName $lastName'
+          : '$firstName $lastName';
   String get roleDisplay {
     switch (role) {
       case UserRole.superadmin:
@@ -40,6 +57,8 @@ class User {
       'email': email,
       'firstName': firstName,
       'lastName': lastName,
+      'middleName': middleName,
+      'birthday': birthday?.toIso8601String(),
       'role': role.toString().split('.').last,
       'barangay': barangay,
       'createdAt': createdAt.toIso8601String(),
@@ -52,10 +71,12 @@ class User {
       email: json['email'] ?? '',
       firstName: json['firstName'] ?? '',
       lastName: json['lastName'] ?? '',
+      middleName: json['middleName'] as String?,
+      birthday: json['birthday'] != null ? DateTime.tryParse(json['birthday']) : null,
       role: _getRoleFromString(json['role'] ?? 'user'),
       barangay: json['barangay'] ?? '',
-      createdAt: json['createdAt'] != null 
-          ? DateTime.parse(json['createdAt']) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
     );
   }

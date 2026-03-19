@@ -51,6 +51,8 @@ class ApiService {
   Future<Map<String, dynamic>> register({
     required String firstName,
     required String lastName,
+    String? middleName,
+    DateTime? birthday,
     required String email,
     required String password,
     required String phone,
@@ -66,6 +68,12 @@ class ApiService {
     final request = http.MultipartRequest('POST', uri);
     request.fields['first_name'] = firstName;
     request.fields['last_name'] = lastName;
+    if (middleName != null && middleName.isNotEmpty) {
+      request.fields['middle_name'] = middleName;
+    }
+    if (birthday != null) {
+      request.fields['birthday'] = '${birthday.year}-${birthday.month.toString().padLeft(2, '0')}-${birthday.day.toString().padLeft(2, '0')}';
+    }
     request.fields['email'] = email;
     request.fields['password'] = password;
     request.fields['phone'] = phone;

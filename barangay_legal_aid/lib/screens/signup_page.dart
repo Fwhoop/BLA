@@ -27,13 +27,15 @@ class SignupPageState extends State<SignupPage> {
 
   final TextEditingController _firstNameController       = TextEditingController();
   final TextEditingController _lastNameController        = TextEditingController();
+  final TextEditingController _middleNameController      = TextEditingController();
   final TextEditingController _emailController           = TextEditingController();
   final TextEditingController _passwordController        = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _phoneController           = TextEditingController();
 
+  DateTime? _selectedBirthday;
+
   // Address text fields
-  final TextEditingController _houseNoController         = TextEditingController();
   final TextEditingController _purokController           = TextEditingController();
   final TextEditingController _streetController          = TextEditingController();
   final TextEditingController _zipCodeController         = TextEditingController();
@@ -179,11 +181,11 @@ class SignupPageState extends State<SignupPage> {
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _middleNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _phoneController.dispose();
-    _houseNoController.dispose();
     _purokController.dispose();
     _streetController.dispose();
     _zipCodeController.dispose();
@@ -192,11 +194,9 @@ class SignupPageState extends State<SignupPage> {
 
   String _buildFullAddress() {
     final parts = <String>[];
-    final houseNo = _houseNoController.text.trim();
     final purok   = _purokController.text.trim();
     final street  = _streetController.text.trim();
     final zip     = _zipCodeController.text.trim();
-    if (houseNo.isNotEmpty) parts.add(houseNo);
     if (purok.isNotEmpty)   parts.add(purok);
     if (street.isNotEmpty)  parts.add(street);
     if (_selectedBarangay != null) parts.add(_selectedBarangay!);
@@ -298,6 +298,8 @@ class SignupPageState extends State<SignupPage> {
       await auth.signUp(
         firstName:         _firstNameController.text.trim(),
         lastName:          _lastNameController.text.trim(),
+        middleName:        _middleNameController.text.trim(),
+        birthday:          _selectedBirthday,
         email:             email,
         password:          _passwordController.text,
         phone:             phone,
@@ -396,6 +398,10 @@ class SignupPageState extends State<SignupPage> {
                     _sectionLabel('Identity'),
                     const SizedBox(height: 10),
                     _buildNameFields(),
+                    const SizedBox(height: 12),
+                    _buildMiddleNameField(),
+                    const SizedBox(height: 12),
+                    _buildBirthdayField(),
 
                     const SizedBox(height: 20),
 
@@ -420,11 +426,9 @@ class SignupPageState extends State<SignupPage> {
                     // ── Section 4: Location ──────────────────────────────
                     _sectionLabel('Location'),
                     const SizedBox(height: 10),
-                    _buildTextField(controller: _houseNoController, label: 'House No. / Unit / Building', hint: 'e.g. 12, Unit 3A', icon: Icons.home_outlined, optional: true),
+                    _buildTextField(controller: _purokController, label: 'Purok / Sitio', hint: 'e.g. Purok 4, Sitio Mabuhay', icon: Icons.holiday_village_outlined),
                     const SizedBox(height: 12),
-                    _buildTextField(controller: _purokController, label: 'Purok / Sitio', hint: 'e.g. Purok 4, Sitio Mabuhay', icon: Icons.holiday_village_outlined, optional: true),
-                    const SizedBox(height: 12),
-                    _buildTextField(controller: _streetController, label: 'Street Name', hint: 'e.g. Rizal St.', icon: Icons.edit_road_outlined, optional: true),
+                    _buildTextField(controller: _streetController, label: 'Street Name', hint: 'e.g. Rizal St.', icon: Icons.edit_road_outlined),
                     const SizedBox(height: 12),
                     _buildRegionDropdown(),
                     if (_selectedRegionCode != null && !_noProvinceRegion) ...[
@@ -666,7 +670,7 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Generic optional text field ────────────────────────────────────────────
+  // ── Generic text field ─────────────────────────────────────────────────────
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -682,6 +686,69 @@ class SignupPageState extends State<SignupPage> {
         labelText: optional ? '$label (Optional)' : label,
         hintText: hint,
         prefixIcon: Icon(icon),
+      ),
+      validator: optional ? null : (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+    );
+  }
+
+  // ── Middle name field ──────────────────────────────────────────────────────
+  Widget _buildMiddleNameField() {
+    return TextFormField(
+      controller: _middleNameController,
+      decoration: const InputDecoration(
+        labelText: 'Middle name',
+        hintText: 'e.g. Santos',
+        prefixIcon: Icon(Icons.person_outline),
+        helperText: 'Your initial will be shown automatically',
+      ),
+      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+    );
+  }
+
+  // ── Birthday picker ────────────────────────────────────────────────────────
+  Widget _buildBirthdayField() {
+    final now = DateTime.now();
+    final eighteenYearsAgo = DateTime(now.year - 18, now.month, now.day);
+    final displayText = _selectedBirthday == null
+        ? 'Select your date of birth'
+        : '${_selectedBirthday!.month.toString().padLeft(2, '0')}/'
+          '${_selectedBirthday!.day.toString().padLeft(2, '0')}/'
+          '${_selectedBirthday!.year}';
+
+    return FormField<DateTime>(
+      validator: (_) => _selectedBirthday == null ? 'Required' : null,
+      builder: (state) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: eighteenYearsAgo,
+                firstDate: DateTime(now.year - 100),
+                lastDate: eighteenYearsAgo,
+                helpText: 'Select your birthday (must be 18+)',
+              );
+              if (picked != null) {
+                setState(() => _selectedBirthday = picked);
+                state.didChange(picked);
+              }
+            },
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Date of birth',
+                prefixIcon: const Icon(Icons.cake_outlined),
+                errorText: state.errorText,
+              ),
+              child: Text(
+                displayText,
+                style: TextStyle(
+                  color: _selectedBirthday == null ? Colors.grey.shade500 : null,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
