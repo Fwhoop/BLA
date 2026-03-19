@@ -1,12 +1,12 @@
 """
-routers/ask.py – /ask endpoint for the RAG chatbot.
+routers/ask.py – /ask endpoint for the Barangay Legal Assistant RAG chatbot.
 
-Flow:
-  1. Receive user question via POST /ask
-  2. Retrieve top-3 relevant chunks from FAISS (via rag.py)
-  3. Build a prompt combining context + question
-  4. Forward the prompt to the Gemma LLM service (Railway-hosted)
-  5. Return Gemma's answer as JSON
+Pipeline:
+  1. Receive { "question": "..." } from the frontend
+  2. Retrieve top-3 relevant chunks from the FAISS index
+  3. Build the prompt using the BLA prompt template
+  4. POST the prompt to the Gemma model service
+  5. Return { "answer": "..." } to the frontend
 """
 
 import os
@@ -21,35 +21,35 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ask", tags=["RAG Chatbot"])
 
-# URL of the Gemma FastAPI service – set via env var GEMMA_URL on Railway
-GEMMA_URL = os.getenv("GEMMA_URL", "http://localhost:9000/generate")
+# URL of the Gemma model service – set GEMMA_URL in Railway environment variables
+GEMMA_URL = os.getenv("GEMMA_URL", "https://bla-chatbot-railway-production.up.railway.app/chat")
 
 
-# ── Request / Response schemas ───────────────────────────────────────────────
+# ── Schemas ───────────────────────────────────────────────────────────────────
 
 class AskRequest(BaseModel):
     question: str
 
 
 class AskResponse(BaseModel):
-    question: str
     answer: str
-    context_used: list[str]   # the chunks that informed the answer (for debugging)
 
 
-# ── Endpoint ─────────────────────────────────────────────────────────────────
+# ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("/", response_model=AskResponse)
 async def ask(payload: AskRequest):
     """
     Main RAG endpoint.
-    Accepts { "question": "..." } and returns the LLM's answer.
+
+    Accepts  { "question": "What is a barangay restraining order?" }
+    Returns  { "answer":   "..." }
     """
     question = payload.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
-    # Step 1 – retrieve relevant context chunks
+    # Step 1 – retrieve the top 3 relevant document chunks from FAISS
     try:
         chunks = retrieve_context(question, top_k=3)
     except RuntimeError as e:
@@ -59,11 +59,11 @@ async def ask(payload: AskRequest):
     if not chunks:
         chunks = ["No relevant legal context found."]
 
-    # Step 2 – build the prompt
+    # Step 2 – build the prompt with retrieved context
     prompt = build_prompt(question, chunks)
-    logger.info("Sending prompt to Gemma (%d chars)", len(prompt))
+    logger.info("Built prompt (%d chars) for question: %s", len(prompt), question[:80])
 
-    # Step 3 – call the Gemma LLM service
+    # Step 3 – send the prompt to the Gemma model service
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
@@ -71,15 +71,29 @@ async def ask(payload: AskRequest):
                 json={"prompt": prompt},
             )
             response.raise_for_status()
-            gemma_data = response.json()
+            data = response.json()
+
     except httpx.HTTPStatusError as e:
-        logger.error("Gemma returned HTTP %s: %s", e.response.status_code, e.response.text)
-        raise HTTPException(status_code=502, detail=f"Gemma service error: {e.response.status_code}")
+        logger.error("Gemma service returned HTTP %s: %s",
+                     e.response.status_code, e.response.text)
+        raise HTTPException(
+            status_code=502,
+            detail="The model service returned an error. Please try again."
+        )
     except httpx.RequestError as e:
         logger.error("Could not reach Gemma service: %s", e)
-        raise HTTPException(status_code=503, detail="Gemma LLM service is unreachable.")
+        raise HTTPException(
+            status_code=503,
+            detail="The model service is currently unreachable. Please try again later."
+        )
 
-    # Step 4 – extract answer (Gemma service returns { "answer": "..." })
-    answer = gemma_data.get("answer") or gemma_data.get("text") or str(gemma_data)
+    # Step 4 – extract the answer from the model response
+    # Gemma service is expected to return { "answer": "..." }
+    answer = (
+        data.get("answer")
+        or data.get("text")
+        or data.get("generated_text")
+        or str(data)
+    )
 
-    return AskResponse(question=question, answer=answer, context_used=chunks)
+    return AskResponse(answer=answer)
