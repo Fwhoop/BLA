@@ -33,14 +33,20 @@ class FormsHubPageState extends State<FormsHubPage> {
 
   Future<void> _loadCurrentUser() async {
     final user = await _authService.getCurrentUser();
-    if (mounted) setState(() { _currentUser = user; });
+    if (mounted)
+      setState(() {
+        _currentUser = user;
+      });
   }
 
   Future<void> _loadUnreadCount() async {
     try {
       final api = Provider.of<ApiService>(context, listen: false);
       final count = await api.getUnreadNotificationCount();
-      if (mounted) setState(() { _unreadCount = count; });
+      if (mounted)
+        setState(() {
+          _unreadCount = count;
+        });
     } catch (_) {}
   }
 
@@ -49,13 +55,15 @@ class FormsHubPageState extends State<FormsHubPage> {
     return Scaffold(
       appBar: BlaAppBar(
         title: 'Forms & Services',
-        user: _currentUser == null ? null : {
-          'first_name': _currentUser!.firstName,
-          'last_name':  _currentUser!.lastName,
-          'role':       _currentUser!.role.toString().split('.').last,
-          'email':      _currentUser!.email,
-          'profile_photo_path': '',
-        },
+        user: _currentUser == null
+            ? null
+            : {
+                'first_name': _currentUser!.firstName,
+                'last_name': _currentUser!.lastName,
+                'role': _currentUser!.role.toString().split('.').last,
+                'email': _currentUser!.email,
+                'profile_photo_path': '',
+              },
         notificationBell: NotificationBell(
           count: _unreadCount,
           onTap: () => Navigator.push(
@@ -129,7 +137,7 @@ class FormsHubPageState extends State<FormsHubPage> {
               'Access all forms and services in one place. Complete your profile, submit requests, and manage your account easily.',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withValues(alpha:0.9),
+                color: Colors.white.withValues(alpha: 0.9),
               ),
             ),
           ],
@@ -145,35 +153,55 @@ class FormsHubPageState extends State<FormsHubPage> {
         subtitle: 'View & Edit',
         icon: Icons.person,
         color: const Color(0xFF99272D),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfilePage())),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => UserProfilePage()),
+        ),
       ),
       _QuickActionItem(
         title: 'My Requests',
         subtitle: 'Track & Download',
         icon: Icons.folder_open,
         color: const Color(0xFF1565C0),
-        onTap: () { if (_currentUser != null) Navigator.push(context, MaterialPageRoute(builder: (_) => MyRequestsScreen(currentUser: _currentUser!))); },
+        onTap: () {
+          if (_currentUser != null)
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MyRequestsScreen(currentUser: _currentUser!),
+              ),
+            );
+        },
       ),
       _QuickActionItem(
         title: 'File a Complaint',
         subtitle: 'Submit Now',
         icon: Icons.report_problem_rounded,
         color: const Color(0xFFF44336),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComplaintFormScreen())),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ComplaintFormScreen()),
+        ),
       ),
       _QuickActionItem(
         title: 'Suggestion',
         subtitle: 'Share Ideas',
         icon: Icons.lightbulb,
         color: const Color(0xFFFFC107),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuggestionBoxScreen())),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SuggestionBoxScreen()),
+        ),
       ),
       _QuickActionItem(
         title: 'My Complaints',
         subtitle: 'Track Status',
         icon: Icons.assignment_outlined,
         color: const Color(0xFF6A1B9A),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyCasesScreen())),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MyCasesScreen()),
+        ),
       ),
     ];
 
@@ -182,7 +210,11 @@ class FormsHubPageState extends State<FormsHubPage> {
       children: [
         const Text(
           'Quick Actions',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF36454F)),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF36454F),
+          ),
         ),
         const SizedBox(height: 16),
         GridView.count(
@@ -192,13 +224,17 @@ class FormsHubPageState extends State<FormsHubPage> {
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           childAspectRatio: 0.82,
-          children: actions.map((a) => _buildQuickActionCard(
-            title: a.title,
-            subtitle: a.subtitle,
-            icon: a.icon,
-            color: a.color,
-            onTap: a.onTap,
-          )).toList(),
+          children: actions
+              .map(
+                (a) => _buildQuickActionCard(
+                  title: a.title,
+                  subtitle: a.subtitle,
+                  icon: a.icon,
+                  color: a.color,
+                  onTap: a.onTap,
+                ),
+              )
+              .toList(),
         ),
       ],
     );
@@ -238,7 +274,8 @@ class FormsHubPageState extends State<FormsHubPage> {
           description: 'Request a good moral character certificate',
           icon: Icons.star,
           color: Color(0xFFFF9800),
-          onTap: () => _navigateToRequestForm('Certificate of Good Moral Character'),
+          onTap: () =>
+              _navigateToRequestForm('Certificate of Good Moral Character'),
         ),
         SizedBox(height: 12),
         _buildFormCard(
@@ -263,30 +300,6 @@ class FormsHubPageState extends State<FormsHubPage> {
           icon: Icons.money_off,
           color: Color(0xFF795548),
           onTap: () => _navigateToRequestForm('Certificate of No Income'),
-        ),
-        SizedBox(height: 12),
-        _buildFormCard(
-          title: 'Certificate of Live Birth',
-          description: 'Barangay certification for birth registration',
-          icon: Icons.child_care,
-          color: Color(0xFF00BCD4),
-          onTap: () => _navigateToRequestForm('Certificate of Live Birth'),
-        ),
-        SizedBox(height: 12),
-        _buildFormCard(
-          title: 'Certificate of Death',
-          description: 'Barangay certification for death registration',
-          icon: Icons.person_off_outlined,
-          color: Color(0xFF9E9E9E),
-          onTap: () => _navigateToRequestForm('Certificate of Death'),
-        ),
-        SizedBox(height: 12),
-        _buildFormCard(
-          title: 'Certificate of Marriage',
-          description: 'Barangay certification supporting marriage documents',
-          icon: Icons.favorite_outline,
-          color: Color(0xFFE91E63),
-          onTap: () => _navigateToRequestForm('Certificate of Marriage'),
         ),
         SizedBox(height: 12),
         _buildFormCard(
@@ -376,7 +389,7 @@ class FormsHubPageState extends State<FormsHubPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha:0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -399,13 +412,17 @@ class FormsHubPageState extends State<FormsHubPage> {
                       description,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF36454F).withValues(alpha:0.7),
+                        color: Color(0xFF36454F).withValues(alpha: 0.7),
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: Color(0xFF36454F).withValues(alpha:0.5), size: 16),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Color(0xFF36454F).withValues(alpha: 0.5),
+                size: 16,
+              ),
             ],
           ),
         ),
@@ -424,7 +441,6 @@ class FormsHubPageState extends State<FormsHubPage> {
       ),
     );
   }
-
 }
 
 class _QuickActionItem {
