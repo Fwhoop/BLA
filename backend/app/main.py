@@ -178,13 +178,38 @@ async def upload_signature(
     current: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Admin uploads or replaces their digital signature image."""
+    """Admin uploads or replaces their digital signature image.
+    The image is processed with OpenCV to extract only the ink strokes
+    on a transparent background before saving."""
     _sig_dir = "uploads/signatures"
     os.makedirs(_sig_dir, exist_ok=True)
-    ext = os.path.splitext(file.filename or "signature.png")[1] or ".png"
-    fname = f"sig_{current.id}_{uuid.uuid4().hex[:8]}{ext}"
-    fpath = os.path.join(_sig_dir, fname)
     contents = await file.read()
+
+    # Apply signature cleaning: remove background, keep ink strokes on transparent PNG
+    try:
+        import cv2
+        import numpy as np
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is not None:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            blur = cv2.GaussianBlur(gray, (5, 5), 0)
+            _, thresh = cv2.threshold(
+                blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+            )
+            kernel = np.ones((2, 2), np.uint8)
+            clean = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+            h, w = clean.shape
+            rgba = np.zeros((h, w, 4), dtype=np.uint8)
+            rgba[:, :, 3] = clean  # alpha = ink mask; RGB stays 0 (black strokes)
+            _, buf = cv2.imencode(".png", rgba)
+            contents = buf.tobytes()
+    except Exception:
+        pass  # fall back to saving the raw file if cv2 is unavailable
+
+    # Always save as .png (output is always PNG after cleaning)
+    fname = f"sig_{current.id}_{uuid.uuid4().hex[:8]}.png"
+    fpath = os.path.join(_sig_dir, fname)
     with open(fpath, "wb") as f:
         f.write(contents)
     current.signature_path = f"/uploads/signatures/{fname}"

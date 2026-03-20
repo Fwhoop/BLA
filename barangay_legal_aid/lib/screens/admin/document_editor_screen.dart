@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
+import 'package:signature/signature.dart';
 import 'package:barangay_legal_aid/config/env_config.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/document_templates.dart';
@@ -31,16 +33,20 @@ class DocumentEditorScreen extends StatefulWidget {
   DocumentEditorScreenState createState() => DocumentEditorScreenState();
 }
 
-class DocumentEditorScreenState extends State<DocumentEditorScreen> {
+class DocumentEditorScreenState extends State<DocumentEditorScreen>
+    with TickerProviderStateMixin {
   bool _loading = true;
   bool _generating = false;
   bool _showPreview = false;
-  Uint8List? _previewBytes;
 
   // Asset bytes
   Uint8List? _logoLeftBytes;
   Uint8List? _logoRightBytes;
   Uint8List? _signatureBytes;
+
+  // Stamps placed interactively on the preview
+  final List<SignatureStamp> _stamps = [];
+  Uint8List? _rasterizedPage; // rasterized base page for interactive preview
 
   // Requester data (loaded from API)
   String _fullName = '';
@@ -197,23 +203,37 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen> {
         receiptIssuedOn: _receiptIssuedOnCtrl.text,
       );
 
+  /// Generates the final PDF with stamps baked in (used when sending).
   Future<Uint8List> _generatePdf() => generateDocument(
         _documentType,
         _buildDocumentData(),
         logoLeftBytes: _logoLeftBytes,
         logoRightBytes: _logoRightBytes,
         signatureBytes: _signatureBytes,
+        stamps: _stamps,
       );
 
+  /// Generates the base PDF (no stamps) and rasterizes it for the interactive preview.
   Future<void> _preview() async {
     setState(() => _generating = true);
     try {
-      final bytes = await _generatePdf();
+      final baseBytes = await generateDocument(
+        _documentType,
+        _buildDocumentData(),
+        logoLeftBytes: _logoLeftBytes,
+        logoRightBytes: _logoRightBytes,
+        signatureBytes: _signatureBytes,
+      );
+      final pages = await Printing.raster(baseBytes, dpi: 150).toList();
       if (!mounted) return;
-      setState(() {
-        _previewBytes = bytes;
-        _showPreview = true;
-      });
+      if (pages.isNotEmpty) {
+        final png = await pages.first.toPng();
+        if (!mounted) return;
+        setState(() {
+          _rasterizedPage = png;
+          _showPreview = true;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       showTopSnack(context,
@@ -253,6 +273,154 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen> {
     }
   }
 
+  // ─── Stamp picker ──────────────────────────────────────────────────────────
+
+  Future<void> _showAddStampSheet() async {
+    final sigCtrl = SignatureController(
+      penStrokeWidth: 2,
+      penColor: Colors.black,
+      exportBackgroundColor: Colors.white,
+    );
+    Uint8List? uploadedBytes;
+    final tabCtrl = TabController(length: 2, vsync: this);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('Add Signature Stamp',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const Text(
+                'Draw or upload a signature. It will appear in the center — drag it anywhere on the document.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              TabBar(
+                controller: tabCtrl,
+                labelColor: const Color(0xFF99272D),
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: const Color(0xFF99272D),
+                tabs: const [Tab(text: 'Draw'), Tab(text: 'Upload')],
+              ),
+              SizedBox(
+                height: 180,
+                child: TabBarView(
+                  controller: tabCtrl,
+                  children: [
+                    // Draw tab
+                    Column(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Signature(
+                                controller: sigCtrl,
+                                backgroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: sigCtrl.clear,
+                          icon: const Icon(Icons.clear, size: 14),
+                          label: const Text('Clear'),
+                          style: TextButton.styleFrom(foregroundColor: Colors.grey),
+                        ),
+                      ],
+                    ),
+                    // Upload tab
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (uploadedBytes != null)
+                          Image.memory(uploadedBytes!, height: 80, fit: BoxFit.contain),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.upload_file, size: 16),
+                          label: Text(uploadedBytes == null ? 'Choose Image' : 'Replace'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF99272D),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () async {
+                            final picked = await ImagePicker().pickImage(
+                                source: ImageSource.gallery, imageQuality: 90);
+                            if (picked != null) {
+                              final b = await picked.readAsBytes();
+                              setSheet(() => uploadedBytes = b);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Stamp'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF99272D),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    Uint8List? bytes;
+                    if (tabCtrl.index == 1 && uploadedBytes != null) {
+                      bytes = uploadedBytes;
+                    } else if (tabCtrl.index == 0 && sigCtrl.isNotEmpty) {
+                      bytes = await sigCtrl.toPngBytes();
+                    }
+                    if (bytes == null || !ctx.mounted) return;
+                    setState(() {
+                      _stamps.add(SignatureStamp(
+                        bytes: bytes!,
+                        xFraction: 0.5,
+                        yFraction: 0.5,
+                      ));
+                    });
+                    Navigator.pop(ctx);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    sigCtrl.dispose();
+    tabCtrl.dispose();
+  }
+
   // ─── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -269,29 +437,99 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen> {
       );
     }
 
-    if (_showPreview && _previewBytes != null) {
+    if (_showPreview && _rasterizedPage != null) {
+      final displayW = MediaQuery.of(context).size.width;
+      final displayH = displayW * 1.4142; // A4 aspect ratio
+
       return Scaffold(
         appBar: AppBar(
           title: const Text('Preview'),
           backgroundColor: const Color(0xFF99272D),
           foregroundColor: Colors.white,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.draw),
+              tooltip: 'Add Signature Stamp',
+              onPressed: _showAddStampSheet,
+            ),
             TextButton(
               onPressed: () => setState(() => _showPreview = false),
-              child:
-                  const Text('Edit', style: TextStyle(color: Colors.white)),
+              child: const Text('Edit', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
         body: Column(
           children: [
             Expanded(
-              child: PdfPreview(
-                build: (_) => _previewBytes!,
-                canChangePageFormat: false,
-                canDebug: false,
-                allowPrinting: false,
-                allowSharing: false,
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  width: displayW,
+                  height: displayH,
+                  child: Stack(
+                    children: [
+                      // Rasterized base page
+                      Image.memory(
+                        _rasterizedPage!,
+                        width: displayW,
+                        height: displayH,
+                        fit: BoxFit.fill,
+                      ),
+                      // Draggable stamp overlays
+                      ..._stamps.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final s = entry.value;
+                        const stampW = 110.0;
+                        final left = (s.xFraction * displayW - stampW / 2)
+                            .clamp(0.0, displayW - stampW);
+                        final top = (s.yFraction * displayH - 20.0)
+                            .clamp(0.0, displayH - 50.0);
+                        return Positioned(
+                          left: left,
+                          top: top,
+                          child: GestureDetector(
+                            onPanUpdate: (d) {
+                              setState(() {
+                                _stamps[idx] = SignatureStamp(
+                                  bytes: s.bytes,
+                                  xFraction: (s.xFraction + d.delta.dx / displayW)
+                                      .clamp(0.0, 1.0),
+                                  yFraction: (s.yFraction + d.delta.dy / displayH)
+                                      .clamp(0.0, 1.0),
+                                  widthPoints: s.widthPoints,
+                                );
+                              });
+                            },
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Image.memory(s.bytes,
+                                    width: stampW, fit: BoxFit.contain),
+                                Positioned(
+                                  top: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        setState(() => _stamps.removeAt(idx)),
+                                    child: Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close,
+                                          size: 13, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
             ),
             Padding(

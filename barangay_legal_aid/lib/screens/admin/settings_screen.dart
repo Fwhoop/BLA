@@ -193,20 +193,25 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
             _buildSignatureCard(),
             const SizedBox(height: 16),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Settings saved'),
-                      backgroundColor: Color(0xFF36454F)),
-                );
-              },
-              icon: const Icon(Icons.save),
-              label: const Text('Save Settings'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF99272D),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+            Center(
+              child: SizedBox(
+                width: 220,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Settings saved'),
+                          backgroundColor: Color(0xFF36454F)),
+                    );
+                  },
+                  icon: const Icon(Icons.save),
+                  label: const Text('Save Settings'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF99272D),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
               ),
             ),
           ],

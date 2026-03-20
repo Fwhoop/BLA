@@ -59,6 +59,50 @@ class DocumentData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Signature stamp — placed at arbitrary position on the PDF page
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SignatureStamp {
+  /// Fraction of the full page width/height (0.0–1.0, including margins).
+  final double xFraction;
+  final double yFraction;
+  final Uint8List bytes;
+  final double widthPoints; // stamp width in PDF points
+  const SignatureStamp({
+    required this.bytes,
+    required this.xFraction,
+    required this.yFraction,
+    this.widthPoints = 110,
+  });
+}
+
+// Converts stamp fractions → positioned overlays on the PDF page.
+// All templates share the same A4 size + margins (h:60, v:48).
+pw.Widget _wrapWithStamps(pw.Widget base, List<SignatureStamp> stamps) {
+  if (stamps.isEmpty) return base;
+  const pageW = 595.28;
+  const pageH = 841.89;
+  const mH = 60.0; // horizontal margin
+  const mV = 48.0; // vertical margin
+  const availW = pageW - 2 * mH; // 475.28
+  const availH = pageH - 2 * mV; // 745.89
+  return pw.Stack(
+    children: [
+      pw.SizedBox(width: availW, height: availH, child: base),
+      ...stamps.map((s) {
+        final left = (s.xFraction * pageW - mH).clamp(0.0, availW - s.widthPoints);
+        final top  = (s.yFraction * pageH - mV).clamp(0.0, availH - 40.0);
+        return pw.Positioned(
+          left: left,
+          top: top,
+          child: pw.Image(pw.MemoryImage(s.bytes), width: s.widthPoints),
+        );
+      }),
+    ],
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -179,6 +223,7 @@ pw.Widget _buildSignatureBlock({
   );
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Barangay Clearance
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,6 +233,7 @@ Future<Uint8List> generateBarangayClearance(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) async {
   final doc = pw.Document();
   final bold = pw.Font.helveticaBold();
@@ -197,7 +243,7 @@ Future<Uint8List> generateBarangayClearance(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-      build: (ctx) => pw.Column(
+      build: (ctx) => _wrapWithStamps(pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _buildDocumentHeader(
@@ -334,7 +380,7 @@ Future<Uint8List> generateBarangayClearance(
             ],
           ),
         ],
-      ),
+      ), stamps),
     ),
   );
   return doc.save();
@@ -349,6 +395,7 @@ Future<Uint8List> generateCertificateOfResidency(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) async {
   final doc = pw.Document();
   final bold = pw.Font.helveticaBold();
@@ -358,7 +405,7 @@ Future<Uint8List> generateCertificateOfResidency(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-      build: (ctx) => pw.Column(
+      build: (ctx) => _wrapWithStamps(pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _buildDocumentHeader(
@@ -465,7 +512,7 @@ Future<Uint8List> generateCertificateOfResidency(
           pw.Text('"Not valid without official seal"',
               style: pw.TextStyle(font: pw.Font.helveticaOblique(), fontSize: 9, color: PdfColors.grey700)),
         ],
-      ),
+      ), stamps),
     ),
   );
   return doc.save();
@@ -480,6 +527,7 @@ Future<Uint8List> generateCertificateOfGoodMoral(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) async {
   final doc = pw.Document();
   final bold = pw.Font.helveticaBold();
@@ -489,7 +537,7 @@ Future<Uint8List> generateCertificateOfGoodMoral(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-      build: (ctx) => pw.Column(
+      build: (ctx) => _wrapWithStamps(pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _buildDocumentHeader(
@@ -555,7 +603,7 @@ Future<Uint8List> generateCertificateOfGoodMoral(
             bold: bold, regular: regular,
           ),
         ],
-      ),
+      ), stamps),
     ),
   );
   return doc.save();
@@ -570,6 +618,7 @@ Future<Uint8List> generateCertificateOfIndigency(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) async {
   final doc = pw.Document();
   final bold = pw.Font.helveticaBold();
@@ -579,7 +628,7 @@ Future<Uint8List> generateCertificateOfIndigency(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-      build: (ctx) => pw.Column(
+      build: (ctx) => _wrapWithStamps(pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _buildDocumentHeader(
@@ -653,7 +702,7 @@ Future<Uint8List> generateCertificateOfIndigency(
             bold: bold, regular: regular,
           ),
         ],
-      ),
+      ), stamps),
     ),
   );
   return doc.save();
@@ -668,6 +717,7 @@ Future<Uint8List> generateCertificateOfNoIncome(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) async {
   final doc = pw.Document();
   final bold = pw.Font.helveticaBold();
@@ -677,7 +727,7 @@ Future<Uint8List> generateCertificateOfNoIncome(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-      build: (ctx) => pw.Column(
+      build: (ctx) => _wrapWithStamps(pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _buildDocumentHeader(
@@ -748,7 +798,7 @@ Future<Uint8List> generateCertificateOfNoIncome(
             bold: bold, regular: regular,
           ),
         ],
-      ),
+      ), stamps),
     ),
   );
   return doc.save();
@@ -763,6 +813,7 @@ Future<Uint8List> generateCertificateOfNoProperty(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) async {
   final doc = pw.Document();
   final bold = pw.Font.helveticaBold();
@@ -772,7 +823,7 @@ Future<Uint8List> generateCertificateOfNoProperty(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-      build: (ctx) => pw.Column(
+      build: (ctx) => _wrapWithStamps(pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _buildDocumentHeader(
@@ -839,7 +890,7 @@ Future<Uint8List> generateCertificateOfNoProperty(
             bold: bold, regular: regular,
           ),
         ],
-      ),
+      ), stamps),
     ),
   );
   return doc.save();
@@ -854,6 +905,7 @@ Future<Uint8List> generateCertificateOfSingleStatus(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) async {
   final doc = pw.Document();
   final bold = pw.Font.helveticaBold();
@@ -863,7 +915,7 @@ Future<Uint8List> generateCertificateOfSingleStatus(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-      build: (ctx) => pw.Column(
+      build: (ctx) => _wrapWithStamps(pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _buildDocumentHeader(
@@ -941,7 +993,7 @@ Future<Uint8List> generateCertificateOfSingleStatus(
             style: pw.TextStyle(font: pw.Font.helveticaOblique(), fontSize: 9, color: PdfColors.grey700),
           ),
         ],
-      ),
+      ), stamps),
     ),
   );
   return doc.save();
@@ -957,29 +1009,37 @@ Future<Uint8List> generateDocument(
   Uint8List? logoLeftBytes,
   Uint8List? logoRightBytes,
   Uint8List? signatureBytes,
+  List<SignatureStamp> stamps = const [],
 }) {
   switch (documentType) {
     case 'Certificate of Residency':
       return generateCertificateOfResidency(data,
-          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes, signatureBytes: signatureBytes);
+          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes,
+          signatureBytes: signatureBytes, stamps: stamps);
     case 'Certificate of Good Moral Character':
       return generateCertificateOfGoodMoral(data,
-          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes, signatureBytes: signatureBytes);
+          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes,
+          signatureBytes: signatureBytes, stamps: stamps);
     case 'Certificate of Indigency':
       return generateCertificateOfIndigency(data,
-          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes, signatureBytes: signatureBytes);
+          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes,
+          signatureBytes: signatureBytes, stamps: stamps);
     case 'Certificate of No Income':
       return generateCertificateOfNoIncome(data,
-          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes, signatureBytes: signatureBytes);
+          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes,
+          signatureBytes: signatureBytes, stamps: stamps);
     case 'Certificate of No Property':
       return generateCertificateOfNoProperty(data,
-          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes, signatureBytes: signatureBytes);
+          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes,
+          signatureBytes: signatureBytes, stamps: stamps);
     case 'Certificate of Single Status':
       return generateCertificateOfSingleStatus(data,
-          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes, signatureBytes: signatureBytes);
+          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes,
+          signatureBytes: signatureBytes, stamps: stamps);
     case 'Barangay Clearance':
     default:
       return generateBarangayClearance(data,
-          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes, signatureBytes: signatureBytes);
+          logoLeftBytes: logoLeftBytes, logoRightBytes: logoRightBytes,
+          signatureBytes: signatureBytes, stamps: stamps);
   }
 }
