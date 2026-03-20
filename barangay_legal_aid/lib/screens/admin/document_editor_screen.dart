@@ -42,15 +42,15 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
   // Asset bytes
   Uint8List? _logoLeftBytes;
   Uint8List? _logoRightBytes;
-  Uint8List? _signatureBytes;
 
   // Stamps and text overlays placed interactively on the preview
   final List<SignatureStamp> _stamps = [];
   final List<TextOverlay> _textOverlays = [];
   Uint8List? _rasterizedPage; // rasterized base page for interactive preview
 
-  // Zoom controller for the preview
-  late final TransformationController _transformCtrl;
+  // Zoom for the preview
+  double _zoomLevel = 1.0;
+  double _baseZoom = 1.0;
 
   // Requester data (loaded from API)
   String _fullName = '';
@@ -84,8 +84,6 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
   @override
   void initState() {
     super.initState();
-    _transformCtrl = TransformationController();
-    _transformCtrl.addListener(() => setState(() {}));
     final now = DateTime.now();
     _dateDayCtrl.text = ordinalDate(now.day);
     _dateMonthCtrl.text = _monthName(now.month);
@@ -105,17 +103,13 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
     ]) {
       c.dispose();
     }
-    _transformCtrl.dispose();
     super.dispose();
   }
 
-  double get _currentZoom => _transformCtrl.value.getMaxScaleOnAxis();
+  double get _currentZoom => _zoomLevel;
 
   void _zoomBy(double factor) {
-    final next = (_currentZoom * factor).clamp(0.5, 3.0);
-    final scale = next / _currentZoom;
-    _transformCtrl.value =
-        Matrix4.diagonal3Values(scale, scale, 1.0) * _transformCtrl.value;
+    setState(() => _zoomLevel = (_zoomLevel * factor).clamp(0.5, 3.0));
   }
 
   String _monthName(int m) => const [
@@ -144,10 +138,6 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
           if (logoSecUrl != null && logoSecUrl.isNotEmpty) {
             _logoRightBytes = await _fetchImageBytes('$apiBaseUrl$logoSecUrl');
           }
-        }
-        final sigPath = me['signature_path'] as String?;
-        if (sigPath != null && sigPath.isNotEmpty) {
-          _signatureBytes = await _fetchImageBytes('$apiBaseUrl$sigPath');
         }
       }
 
@@ -225,7 +215,6 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
         _buildDocumentData(),
         logoLeftBytes: _logoLeftBytes,
         logoRightBytes: _logoRightBytes,
-        signatureBytes: _signatureBytes,
         stamps: _stamps,
         textOverlays: _textOverlays,
       );
@@ -239,7 +228,6 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
         _buildDocumentData(),
         logoLeftBytes: _logoLeftBytes,
         logoRightBytes: _logoRightBytes,
-        signatureBytes: _signatureBytes,
       );
       final pages = await Printing.raster(baseBytes, dpi: 150).toList();
       if (!mounted) return;
@@ -594,16 +582,28 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
         body: Column(
           children: [
             Expanded(
-              child: InteractiveViewer(
-                transformationController: _transformCtrl,
-                minScale: 0.5,
-                maxScale: 3.0,
-                constrained: false,
-                child: SizedBox(
-                  width: displayW,
-                  height: displayH,
-                  child: Stack(
-                    children: [
+              child: GestureDetector(
+                onScaleStart: (d) {
+                  if (d.pointerCount >= 2) _baseZoom = _zoomLevel;
+                },
+                onScaleUpdate: (d) {
+                  if (d.pointerCount >= 2) {
+                    setState(() =>
+                        _zoomLevel = (_baseZoom * d.scale).clamp(0.5, 3.0));
+                  }
+                },
+                child: SingleChildScrollView(
+                  child: Center(
+                    child: SizedBox(
+                      width: displayW * _zoomLevel,
+                      height: displayH * _zoomLevel,
+                      child: FittedBox(
+                        fit: BoxFit.fill,
+                        child: SizedBox(
+                          width: displayW,
+                          height: displayH,
+                          child: Stack(
+                            children: [
                       // Rasterized base page
                       Image.memory(
                         _rasterizedPage!,
@@ -773,26 +773,35 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _generating ? null : _generateAndSend,
-                  icon: _generating
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.send),
-                  label: const Text('Generate & Send'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF99272D),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _generating ? null : _generateAndSend,
+                      icon: _generating
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.send),
+                      label: const Text('Generate & Send'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF99272D),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
                   ),
                 ),
               ),
