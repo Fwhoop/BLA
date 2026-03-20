@@ -11,6 +11,7 @@ import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/cases_screen.dart';
 
 import 'package:barangay_legal_aid/screens/admin/requests_screen.dart';
+import 'package:barangay_legal_aid/screens/admin/settings_screen.dart';
 
 import 'package:barangay_legal_aid/screens/notification_screen.dart';
 
@@ -156,6 +157,14 @@ class AdminDashboardState extends State<AdminDashboard>
           ).then((_) => _pollUnreadCount()),
         ),
         extraActions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminSettingsScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -933,7 +942,13 @@ class AdminDashboardState extends State<AdminDashboard>
                 _kCharcoal,
                 AdminUsersScreen(),
               ),
-
+              _Nav(
+                'Settings',
+                'Logos & signature',
+                Icons.settings_outlined,
+                const Color(0xFF8E24AA),
+                const AdminSettingsScreen(),
+              ),
             ];
             return GridView.builder(
               shrinkWrap: true,
