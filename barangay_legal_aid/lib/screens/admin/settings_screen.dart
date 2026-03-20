@@ -17,8 +17,6 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
     with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
 
-  bool _notificationsEnabled = true;
-  bool _autoApprove = false;
   String? _barangayName;
   int? _barangayId;
 
@@ -194,9 +192,6 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
             const SizedBox(height: 16),
             _buildSignatureCard(),
             const SizedBox(height: 16),
-            _buildRequestSettingsCard(),
-            const SizedBox(height: 16),
-            _buildNotificationsCard(),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
@@ -526,61 +521,4 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
     );
   }
 
-  Widget _buildRequestSettingsCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Request Settings',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF99272D))),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Auto-approve Requests'),
-              subtitle:
-                  const Text('Automatically approve document requests'),
-              value: _autoApprove,
-              activeThumbColor: const Color(0xFF99272D),
-              onChanged: (value) {
-                setState(() => _autoApprove = value);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationsCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Notifications',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF99272D))),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Email Notifications'),
-              subtitle: const Text(
-                  'Receive email notifications for new requests'),
-              value: _notificationsEnabled,
-              activeThumbColor: const Color(0xFF99272D),
-              onChanged: (value) {
-                setState(() => _notificationsEnabled = value);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
