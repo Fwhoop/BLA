@@ -34,14 +34,52 @@ def create_user(
     if db.query(models.User).filter(models.User.username == user.username).first():
         raise HTTPException(status_code=400, detail="Username already registered")
 
+    # Resolve barangay: use barangay_id if provided, otherwise look up/create by name
+    barangay_id = user.barangay_id
+    if barangay_id is None and user.barangay_name:
+        name = user.barangay_name.strip()
+        brgy = db.query(models.Barangay).filter(
+            models.Barangay.name.ilike(name)
+        ).first()
+        if brgy is None:
+            # Auto-create the barangay
+            brgy = models.Barangay(name=name)
+            try:
+                db.add(brgy)
+                db.commit()
+                db.refresh(brgy)
+            except Exception:
+                db.rollback()
+                # Race condition: another request created it — re-query
+                brgy = db.query(models.Barangay).filter(
+                    models.Barangay.name.ilike(name)
+                ).first()
+                if brgy is None:
+                    raise HTTPException(status_code=500, detail="Failed to create barangay.")
+        barangay_id = brgy.id
+
+    # Duplicate active admin guard — only one active admin per barangay
+    if (user.role or "user") == "admin" and barangay_id is not None:
+        existing_admin = db.query(models.User).filter(
+            models.User.barangay_id == barangay_id,
+            models.User.role == "admin",
+            models.User.is_active == True,
+        ).first()
+        if existing_admin:
+            raise HTTPException(
+                status_code=400,
+                detail="An active admin already exists for this barangay.",
+            )
+
     new_user = models.User(
         email=user.email,
         username=user.username,
         hashed_password=hash_password(user.password),
         first_name=user.first_name or "",
         last_name=user.last_name or "",
+        gender=user.gender or 'prefer_not_to_say',
         role=user.role or "user",
-        barangay_id=user.barangay_id,
+        barangay_id=barangay_id,
         is_active=True,
         verification_status="approved",
         created_at=datetime.utcnow(),

@@ -17,6 +17,7 @@ from app.models import User
 from app.routers import auth, barangays, cases, chat, users, requests, notifications
 from app.routers import respondents, mediations, analytics
 from app.routers import ask as ask_router          # RAG chatbot router
+from app.routers import admin_tools
 from app.schemas import UserRead, UserUpdate
 from app.utils.db_ready import wait_for_database
 from app.utils.schema_guard import validate_schema
@@ -84,12 +85,19 @@ async def startup():
 
 
 def _backfill_users():
-    """One-time data fix: mark all previously active users as approved."""
+    """One-time data fix: mark all previously active users as approved and add missing columns."""
     with engine.begin() as conn:
         conn.execute(text(
             "UPDATE users SET verification_status='approved' "
             "WHERE is_active=1 AND (verification_status IS NULL OR verification_status='')"
         ))
+        # Add gender column if it doesn't exist yet
+        try:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN gender VARCHAR(30) NULL DEFAULT 'prefer_not_to_say'"
+            ))
+        except Exception:
+            pass  # Column already exists
 
 
 # ── Global exception handlers ─────────────────────────────────────────────────
@@ -230,6 +238,7 @@ app.include_router(respondents.router)
 app.include_router(mediations.router)
 app.include_router(analytics.router)
 app.include_router(ask_router.router)   # POST /ask  – RAG chatbot
+app.include_router(admin_tools.router)
 
 
 # ── Static Files (ID photos, selfies, profile photos) ────────────────────────

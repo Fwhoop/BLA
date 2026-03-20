@@ -161,6 +161,7 @@ def register(
     province:     Optional[str] = Form(None),
     zip_code:     Optional[str] = Form(None),
     barangay: Optional[str] = Form(None),
+    gender: Optional[str] = Form('prefer_not_to_say'),
     # Photo uploads
     id_photo:        Optional[UploadFile] = File(None),
     selfie_with_id:  Optional[UploadFile] = File(None),
@@ -196,8 +197,14 @@ def register(
         if not can_reregister:
             raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Sanitize role — only "user" and "admin" are allowed via self-registration
-    safe_role = "admin" if role == "admin" else "user"
+    # Block admin self-registration — admins must be created by a SuperAdmin
+    if role == "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin accounts can only be created by a Super Administrator.",
+        )
+
+    safe_role = "user"
 
     base_username = re.sub(r'[^a-z0-9]', '', email.split('@')[0].lower()) or "user"
     username = base_username
@@ -246,6 +253,7 @@ def register(
         new_user.city = city
         new_user.province = province
         new_user.zip_code = zip_code
+        new_user.gender = gender or 'prefer_not_to_say'
         new_user.role = safe_role
         new_user.barangay_id = barangay_id
         new_user.is_active = False
@@ -272,6 +280,7 @@ def register(
             middle_name=middle_name.strip() if middle_name else None,
             birthday=birthday,
             phone=phone or "",
+            gender=gender or 'prefer_not_to_say',
             address=address or "",
             house_number=house_number,
             street_name=street_name,

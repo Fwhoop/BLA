@@ -56,7 +56,7 @@ class SignupPageState extends State<SignupPage> {
   Uint8List? _idPhotoBytes;
   Uint8List? _selfieWithIdBytes;
 
-  String _role               = 'user';
+  String _selectedGender = 'prefer_not_to_say';
   // PSGC data
   List<Map<String, dynamic>> _regions      = [];
   List<Map<String, dynamic>> _provinces    = [];
@@ -299,8 +299,9 @@ class SignupPageState extends State<SignupPage> {
         idPhotoPath:       idPhotoPath,
         idPhotoBytes:      _idPhotoBytes,
         selfiePhotoBytes:  _selfieBytes,
+        gender:            _selectedGender,
         selfieWithIdBytes: _selfieWithIdBytes,
-        role:              _role,
+        role:              'user',
       );
 
       if (!mounted) return;
@@ -472,10 +473,10 @@ class SignupPageState extends State<SignupPage> {
 
                     const SizedBox(height: 20),
 
-                    // ── Section 6: Account Type ──────────────────────────
-                    _sectionLabel('Account Type'),
+                    // ── Section 6: Gender ────────────────────────────────
+                    _sectionLabel('Gender'),
                     const SizedBox(height: 4),
-                    _buildRoleSelector(),
+                    _buildGenderSelector(),
 
                     const SizedBox(height: 24),
 
@@ -913,28 +914,38 @@ class SignupPageState extends State<SignupPage> {
     );
   }
 
-  // ── Role selector ──────────────────────────────────────────────────────────
-  Widget _buildRoleSelector() {
+  // ── Gender selector ────────────────────────────────────────────────────────
+  Widget _buildGenderSelector() {
     return Row(
       children: [
         Expanded(
           child: RadioListTile<String>(
-            title: const Text('Resident', style: TextStyle(fontSize: 14)),
-            value: 'user',
-            groupValue: _role,
+            title: const Text('Male', style: TextStyle(fontSize: 14)),
+            value: 'male',
+            groupValue: _selectedGender,
             activeColor: _kPrimary,
             contentPadding: EdgeInsets.zero,
-            onChanged: (v) => setState(() => _role = v!),
+            onChanged: (v) => setState(() => _selectedGender = v!),
           ),
         ),
         Expanded(
           child: RadioListTile<String>(
-            title: const Text('Barangay Admin', style: TextStyle(fontSize: 14)),
-            value: 'admin',
-            groupValue: _role,
+            title: const Text('Female', style: TextStyle(fontSize: 14)),
+            value: 'female',
+            groupValue: _selectedGender,
             activeColor: _kPrimary,
             contentPadding: EdgeInsets.zero,
-            onChanged: (v) => setState(() => _role = v!),
+            onChanged: (v) => setState(() => _selectedGender = v!),
+          ),
+        ),
+        Expanded(
+          child: RadioListTile<String>(
+            title: const Text('Prefer not\nto say', style: TextStyle(fontSize: 12)),
+            value: 'prefer_not_to_say',
+            groupValue: _selectedGender,
+            activeColor: _kPrimary,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setState(() => _selectedGender = v!),
           ),
         ),
       ],

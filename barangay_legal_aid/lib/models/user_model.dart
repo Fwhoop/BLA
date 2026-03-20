@@ -8,6 +8,7 @@ class User {
   final String? middleName;
   final DateTime? birthday;
   final String? phone;
+  final String? gender;
   final String? address;
   final String? barangayName;
   final UserRole role;
@@ -22,6 +23,7 @@ class User {
     this.middleName,
     this.birthday,
     this.phone,
+    this.gender,
     this.address,
     this.barangayName,
     required this.role,
@@ -66,6 +68,7 @@ class User {
       'middleName': middleName,
       'birthday': birthday?.toIso8601String(),
       'phone': phone,
+      'gender': gender,
       'address': address,
       'barangayName': barangayName,
       'role': role.toString().split('.').last,
@@ -83,6 +86,7 @@ class User {
       middleName: json['middleName'] as String?,
       birthday: json['birthday'] != null ? DateTime.tryParse(json['birthday']) : null,
       phone: json['phone'] as String?,
+      gender: json['gender'] as String?,
       address: json['address'] as String?,
       barangayName: json['barangayName'] as String?,
       role: _getRoleFromString(json['role'] ?? 'user'),

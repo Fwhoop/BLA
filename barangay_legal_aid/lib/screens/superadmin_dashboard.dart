@@ -9,6 +9,7 @@ import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 import 'package:barangay_legal_aid/screens/superadmin/barangays_screen.dart';
 import 'package:barangay_legal_aid/screens/superadmin/admins_screen.dart';
+import 'package:barangay_legal_aid/screens/superadmin/system_screen.dart';
 
 import 'package:barangay_legal_aid/screens/superadmin/analytics_screen.dart';
 import 'package:barangay_legal_aid/screens/admin/users_screen.dart';
@@ -740,6 +741,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
               _Nav('Barangays',  'Register & manage',        Icons.location_city_rounded,     _kPrimary,                 BarangaysScreen()),
               _Nav('Admins',     'Manage admin accounts',    Icons.manage_accounts_rounded,   _kCharcoal,                AdminsScreen()),
               _Nav('All Users',  'View all residents',       Icons.people_alt_rounded,        const Color(0xFF8E24AA),   const AdminUsersScreen()),
+              _Nav('System',     'Settings & data reset',    Icons.settings_rounded,          const Color(0xFF1E88E5),   const SystemScreen()),
             ];
             return GridView.builder(
               shrinkWrap: true,

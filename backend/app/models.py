@@ -29,6 +29,7 @@ class User(Base):
     middle_name = Column(String(50), nullable=True)
     birthday = Column(Date, nullable=True)
     phone = Column(String(20), nullable=True)
+    gender = Column(String(30), nullable=True, server_default='prefer_not_to_say')
 
     # ── Legacy single address field (kept for backward compat) ──────────────
     address = Column(Text, nullable=True)

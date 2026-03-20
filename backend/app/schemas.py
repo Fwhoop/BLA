@@ -29,10 +29,12 @@ class UserBase(BaseModel):
 
     barangay_id: Optional[int] = None
     role: Optional[str] = "user"
+    gender: Optional[str] = 'prefer_not_to_say'
 
 
 class UserCreate(UserBase):
     password: str
+    barangay_name: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -54,6 +56,7 @@ class UserUpdate(BaseModel):
     barangay_id: Optional[int] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
+    gender: Optional[str] = None
     verification_status: Optional[str] = None
     profile_photo_path: Optional[str] = None
 
@@ -465,3 +468,12 @@ class AuditLogRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN TOOLS SCHEMAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DatabaseResetRequest(BaseModel):
+    password: str
+    confirmation: str

@@ -58,6 +58,7 @@ class ApiService {
     required String phone,
     required String address,
     required String barangay,
+    String gender = 'prefer_not_to_say',
     required String idPhotoPath,
     dynamic idPhotoBytes,
     dynamic profilePhotoBytes,
@@ -79,6 +80,7 @@ class ApiService {
     request.fields['phone'] = phone;
     request.fields['address'] = address;
     request.fields['barangay'] = barangay;
+    request.fields['gender'] = gender;
     request.fields['role'] = role;
 
     // Attach government ID photo
@@ -326,13 +328,14 @@ class ApiService {
   }
 
   /// Create admin. Password sent over HTTPS only; backend must hash and never log.
+  /// [barangayName] is the PSGC barangay name; the backend auto-creates it if needed.
   Future<Map<String, dynamic>> createAdmin({
     required String email,
     required String username,
     required String password,
     required String firstName,
     required String lastName,
-    required int? barangayId,
+    String? barangayName,
   }) async {
     final headers = await _getHeaders();
     final r = await http
@@ -346,12 +349,39 @@ class ApiService {
             'first_name': firstName,
             'last_name': lastName,
             'role': 'admin',
-            'barangay_id': barangayId,
+            'barangay_name': barangayName,
           }),
         )
         .timeout(_timeout);
     if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
-    throw Exception('Failed to create admin: ${r.body}');
+    final body = r.body;
+    try {
+      final d = jsonDecode(body) as Map<String, dynamic>;
+      throw Exception(d['error'] ?? d['detail'] ?? 'Failed to create admin: ${r.statusCode}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to create admin: $body');
+    }
+  }
+
+  Future<void> resetDatabase(String password, String confirmation) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/admin/reset-database'),
+          headers: headers,
+          body: jsonEncode({'password': password, 'confirmation': confirmation}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 200) return;
+    final body = r.body;
+    try {
+      final d = jsonDecode(body) as Map<String, dynamic>;
+      throw Exception(d['error'] ?? d['detail'] ?? 'Reset failed: ${r.statusCode}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Reset failed: $body');
+    }
   }
 
   Future<Map<String, dynamic>?> getUser(int id) async {
