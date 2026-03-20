@@ -152,24 +152,86 @@ class UserProfilePageState extends State<UserProfilePage> {
     setState(() => _isLoading = true);
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
-      final ok = await auth.changePassword(_curPassCtrl.text, _newPassCtrl.text);
+      final result = await auth.initiateChangePassword(_curPassCtrl.text, _newPassCtrl.text);
       if (!mounted) return;
-      if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Password changed successfully!'),
-          backgroundColor: Color(0xFF36454F),
-        ));
-        setState(() => _isChangingPw = false);
-        _curPassCtrl.clear(); _newPassCtrl.clear(); _confirmPassCtrl.clear();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Current password is incorrect'), backgroundColor: _kPrimary,
-        ));
-      }
+      final userId = result['user_id'] as int;
+      _showChangePasswordOtpDialog(userId, _newPassCtrl.text);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: _kPrimary),
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: _kPrimary,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showChangePasswordOtpDialog(int userId, String newPassword) {
+    final otpCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verify OTP'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter the 6-digit code sent to your email to confirm the password change.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'OTP Code',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kPrimary),
+            onPressed: () async {
+              final otp = otpCtrl.text.trim();
+              Navigator.pop(ctx);
+              await _confirmChangePassword(userId, otp, newPassword);
+            },
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmChangePassword(int userId, String otp, String newPassword) async {
+    setState(() => _isLoading = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.resetPassword(userId, otp, newPassword);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Password changed successfully!'),
+        backgroundColor: Color(0xFF36454F),
+      ));
+      setState(() => _isChangingPw = false);
+      _curPassCtrl.clear(); _newPassCtrl.clear(); _confirmPassCtrl.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: _kPrimary,
+          ),
         );
       }
     } finally {

@@ -160,7 +160,7 @@ class ApiService {
     return r.statusCode == 200;
   }
 
-  Future<bool> changePassword(String currentPassword, String newPassword) async {
+  Future<Map<String, dynamic>> initiateChangePassword(String currentPassword, String newPassword) async {
     final r = await http
         .post(
           Uri.parse('$_baseUrl/auth/change-password'),
@@ -172,15 +172,10 @@ class ApiService {
         )
         .timeout(_timeout);
     if (r.statusCode != 200) {
-      try {
-        final d = json.decode(r.body) as Map<String, dynamic>;
-        throw Exception(d['detail'] ?? 'Change password failed');
-      } catch (e) {
-        if (e is Exception) rethrow;
-        throw Exception('Change password failed: ${r.body}');
-      }
+      final d = json.decode(r.body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? 'Change password failed');
     }
-    return true;
+    return json.decode(r.body) as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> getBarangays() async {

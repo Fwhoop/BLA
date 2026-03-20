@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
+from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone, date
@@ -460,6 +461,46 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
         "display_name": display_name,
         "masked_contact": masked_contact,
     }
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+def change_password(
+    req: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
+):
+    """Verify current password, then email an OTP to confirm the change."""
+    credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
+    try:
+        payload_jwt = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload_jwt.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise credentials_exception
+
+    if not verify_password(req.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+
+    otp = generate_otp()
+    user.otp_code = hash_otp(otp)
+    user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    user.otp_attempts = 0
+    db.commit()
+
+    email_sent = send_otp_email(user.email, otp)
+    return {"user_id": user.id, "email_sent": email_sent, "message": "OTP sent to your email."}
 
 
 @router.post("/reset-password")

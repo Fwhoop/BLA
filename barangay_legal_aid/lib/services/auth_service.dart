@@ -240,9 +240,9 @@ class AuthService {
     return success;
   }
 
-  /// Change password via backend (current + new). No local password check.
-  Future<bool> changePassword(String currentPassword, String newPassword) async {
-    return _api.changePassword(currentPassword, newPassword);
+  /// Step 1: verify current password, send OTP to email. Returns { user_id, email_sent }.
+  Future<Map<String, dynamic>> initiateChangePassword(String currentPassword, String newPassword) async {
+    return _api.initiateChangePassword(currentPassword, newPassword);
   }
 
   /// For API service / interceptors: read token without exposing storage.
