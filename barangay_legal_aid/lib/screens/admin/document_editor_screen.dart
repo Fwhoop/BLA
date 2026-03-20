@@ -44,8 +44,9 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
   Uint8List? _logoRightBytes;
   Uint8List? _signatureBytes;
 
-  // Stamps placed interactively on the preview
+  // Stamps and text overlays placed interactively on the preview
   final List<SignatureStamp> _stamps = [];
+  final List<TextOverlay> _textOverlays = [];
   Uint8List? _rasterizedPage; // rasterized base page for interactive preview
 
   // Requester data (loaded from API)
@@ -203,7 +204,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
         receiptIssuedOn: _receiptIssuedOnCtrl.text,
       );
 
-  /// Generates the final PDF with stamps baked in (used when sending).
+  /// Generates the final PDF with stamps + text overlays baked in (used when sending).
   Future<Uint8List> _generatePdf() => generateDocument(
         _documentType,
         _buildDocumentData(),
@@ -211,6 +212,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
         logoRightBytes: _logoRightBytes,
         signatureBytes: _signatureBytes,
         stamps: _stamps,
+        textOverlays: _textOverlays,
       );
 
   /// Generates the base PDF (no stamps) and rasterizes it for the interactive preview.
@@ -273,13 +275,108 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
     }
   }
 
+  // ─── Text overlay editor ───────────────────────────────────────────────────
+
+  Future<void> _showAddTextSheet({TextOverlay? existing, int? index}) async {
+    final textCtrl = TextEditingController(text: existing?.text ?? '');
+    double fontSize = existing?.fontSize ?? 10;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(existing == null ? 'Add Text' : 'Edit Text',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              TextField(
+                controller: textCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Text (e.g. Juan dela Cruz)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text('Font size: ', style: TextStyle(fontSize: 13)),
+                  Text('${fontSize.round()} pt',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              Slider(
+                value: fontSize,
+                min: 7,
+                max: 24,
+                divisions: 17,
+                activeColor: const Color(0xFF99272D),
+                onChanged: (v) => setSheet(() => fontSize = v),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF99272D),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final t = textCtrl.text.trim();
+                    if (t.isEmpty) return;
+                    setState(() {
+                      final overlay = TextOverlay(
+                        text: t,
+                        xFraction: existing?.xFraction ?? 0.5,
+                        yFraction: existing?.yFraction ?? 0.5,
+                        fontSize: fontSize,
+                      );
+                      if (index != null) {
+                        _textOverlays[index] = overlay;
+                      } else {
+                        _textOverlays.add(overlay);
+                      }
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  child: Text(existing == null ? 'Add' : 'Save'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    textCtrl.dispose();
+  }
+
   // ─── Stamp picker ──────────────────────────────────────────────────────────
 
   Future<void> _showAddStampSheet() async {
     final sigCtrl = SignatureController(
       penStrokeWidth: 2,
       penColor: Colors.black,
-      exportBackgroundColor: Colors.white,
+      exportBackgroundColor: Colors.transparent,
     );
     Uint8List? uploadedBytes;
     final tabCtrl = TabController(length: 2, vsync: this);
@@ -452,6 +549,11 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
               tooltip: 'Add Signature Stamp',
               onPressed: _showAddStampSheet,
             ),
+            IconButton(
+              icon: const Icon(Icons.text_fields),
+              tooltip: 'Add Text',
+              onPressed: () => _showAddTextSheet(),
+            ),
             TextButton(
               onPressed: () => setState(() => _showPreview = false),
               child: const Text('Edit', style: TextStyle(color: Colors.white)),
@@ -474,6 +576,70 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                         height: displayH,
                         fit: BoxFit.fill,
                       ),
+                      // Draggable text overlays
+                      ..._textOverlays.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final o = entry.value;
+                        final scale = displayW / 595.28;
+                        final flutterSize = o.fontSize * scale;
+                        final left = (o.xFraction * displayW)
+                            .clamp(0.0, displayW - 160);
+                        final top = (o.yFraction * displayH)
+                            .clamp(0.0, displayH - flutterSize * 2);
+                        return Positioned(
+                          left: left,
+                          top: top,
+                          child: GestureDetector(
+                            onPanUpdate: (d) {
+                              setState(() {
+                                _textOverlays[idx] = TextOverlay(
+                                  text: o.text,
+                                  xFraction: (o.xFraction + d.delta.dx / displayW).clamp(0.0, 1.0),
+                                  yFraction: (o.yFraction + d.delta.dy / displayH).clamp(0.0, 1.0),
+                                  fontSize: o.fontSize,
+                                );
+                              });
+                            },
+                            onDoubleTap: () => _showAddTextSheet(existing: o, index: idx),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: Colors.blue.withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    o.text,
+                                    style: TextStyle(
+                                      fontSize: flutterSize,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _textOverlays.removeAt(idx)),
+                                    child: Container(
+                                      width: 18,
+                                      height: 18,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
                       // Draggable stamp overlays
                       ..._stamps.asMap().entries.map((entry) {
                         final idx = entry.key;
