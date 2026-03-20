@@ -65,6 +65,7 @@ class UserRead(UserBase):
     id_photo_url:        Optional[str] = None
     selfie_with_id_path: Optional[str] = None
     profile_photo_path:  Optional[str] = None
+    signature_path:      Optional[str] = None
     verification_status: Optional[str] = "pending"
     verification_method: Optional[str] = None
     email_verified:  Optional[bool] = False
@@ -272,6 +273,8 @@ class BarangayCreate(BarangayBase):
 
 class BarangayRead(BarangayBase):
     id: int
+    logo_url: Optional[str] = None
+    logo_url_secondary: Optional[str] = None
 
     class Config:
         from_attributes = True

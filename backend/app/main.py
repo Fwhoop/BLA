@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, UploadFile, File
+import uuid
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -171,6 +172,27 @@ async def update_me(
     return current
 
 
+@app.post("/auth/me/signature", response_model=UserRead)
+async def upload_signature(
+    file: UploadFile = File(...),
+    current: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin uploads or replaces their digital signature image."""
+    _sig_dir = "uploads/signatures"
+    os.makedirs(_sig_dir, exist_ok=True)
+    ext = os.path.splitext(file.filename or "signature.png")[1] or ".png"
+    fname = f"sig_{current.id}_{uuid.uuid4().hex[:8]}{ext}"
+    fpath = os.path.join(_sig_dir, fname)
+    contents = await file.read()
+    with open(fpath, "wb") as f:
+        f.write(contents)
+    current.signature_path = f"/uploads/signatures/{fname}"
+    db.commit()
+    db.refresh(current)
+    return current
+
+
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(users.router)
@@ -187,7 +209,7 @@ app.include_router(ask_router.router)   # POST /ask  – RAG chatbot
 
 # ── Static Files (ID photos, selfies, profile photos) ────────────────────────
 try:
-    for _dir in ["uploads/id_photos", "uploads/documents", "uploads/resolution_photos"]:
+    for _dir in ["uploads/id_photos", "uploads/documents", "uploads/resolution_photos", "uploads/logos", "uploads/signatures"]:
         os.makedirs(_dir, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 except Exception as e:

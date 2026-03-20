@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:barangay_legal_aid/screens/admin/document_editor_screen.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/top_snack.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
@@ -898,7 +899,37 @@ class _RequestDetailSheetState extends State<_RequestDetailSheet> {
                     ),
 
                   const SizedBox(height: 10),
-                  // Upload button
+                  // Generate Document button (for supported types)
+                  if (isGeneratableDocumentType(widget.request['document_type'] as String?))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final refreshed = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DocumentEditorScreen(
+                                request: widget.request,
+                              ),
+                            ),
+                          );
+                          if (refreshed == true && context.mounted) {
+                            Navigator.pop(context);
+                            widget.onUploaded();
+                          }
+                        },
+                        icon: const Icon(Icons.auto_awesome),
+                        label: const Text('Generate Document'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _kPrimary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  // Upload button (manual fallback)
                   _uploading
                       ? const Center(
                           child: Padding(

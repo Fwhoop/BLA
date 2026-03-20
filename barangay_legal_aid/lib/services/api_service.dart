@@ -135,6 +135,16 @@ class ApiService {
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    try {
+      final r = await http
+          .get(Uri.parse('$_baseUrl/auth/me'), headers: await _getHeaders())
+          .timeout(_timeout);
+      if (r.statusCode == 200) return json.decode(r.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
+  }
+
   Future<bool> updateProfile({
     String? firstName,
     String? lastName,
@@ -189,6 +199,47 @@ class ApiService {
     if (r.statusCode == 401) throw Exception('Authentication required. Please login again.');
     if (r.statusCode == 403) throw Exception('You do not have permission to access barangays.');
     throw Exception('Failed to load barangays: ${r.statusCode} - ${r.body}');
+  }
+
+  Future<Map<String, dynamic>> getBarangay(int barangayId) async {
+    final r = await http
+        .get(Uri.parse('$_baseUrl/barangays/$barangayId'), headers: await _getHeaders())
+        .timeout(_timeout);
+    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    throw Exception('Failed to load barangay: ${r.statusCode}');
+  }
+
+  Future<Map<String, dynamic>> uploadBarangayLogo(int barangayId, Uint8List bytes, String filename) async {
+    final token = await _getToken();
+    final req = http.MultipartRequest('POST', Uri.parse('$_baseUrl/barangays/$barangayId/logo'));
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+    req.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await req.send().timeout(_timeout);
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode == 200) return jsonDecode(body) as Map<String, dynamic>;
+    throw Exception('Failed to upload logo: $body');
+  }
+
+  Future<Map<String, dynamic>> uploadBarangayLogoSecondary(int barangayId, Uint8List bytes, String filename) async {
+    final token = await _getToken();
+    final req = http.MultipartRequest('POST', Uri.parse('$_baseUrl/barangays/$barangayId/logo-secondary'));
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+    req.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await req.send().timeout(_timeout);
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode == 200) return jsonDecode(body) as Map<String, dynamic>;
+    throw Exception('Failed to upload secondary logo: $body');
+  }
+
+  Future<Map<String, dynamic>> uploadAdminSignature(Uint8List bytes, String filename) async {
+    final token = await _getToken();
+    final req = http.MultipartRequest('POST', Uri.parse('$_baseUrl/auth/me/signature'));
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+    req.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    final streamed = await req.send().timeout(_timeout);
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode == 200) return jsonDecode(body) as Map<String, dynamic>;
+    throw Exception('Failed to upload signature: $body');
   }
 
   Future<Map<String, dynamic>> createBarangay(String name) async {
@@ -301,6 +352,16 @@ class ApiService {
         .timeout(_timeout);
     if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body);
     throw Exception('Failed to create admin: ${r.body}');
+  }
+
+  Future<Map<String, dynamic>?> getUser(int id) async {
+    try {
+      final r = await http
+          .get(Uri.parse('$_baseUrl/users/$id'), headers: await _getHeaders())
+          .timeout(_timeout);
+      if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
   }
 
   Future<Map<String, dynamic>> updateUser(int id, Map<String, dynamic> data) async {

@@ -95,9 +95,6 @@ class RequestFormState extends State<RequestForm> {
     'Certificate of Indigency',
     'Certificate of No Property',
     'Certificate of No Income',
-    'Certificate of Live Birth',
-    'Certificate of Death',
-    'Certificate of Marriage',
     'Certificate of Single Status',
   ];
 

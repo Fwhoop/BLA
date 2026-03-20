@@ -9,6 +9,8 @@ class Barangay(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), unique=True, nullable=False)
+    logo_url = Column(String(500), nullable=True)
+    logo_url_secondary = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     users = relationship("User", back_populates="barangay")
@@ -47,6 +49,7 @@ class User(Base):
     id_photo_url       = Column(String(500), nullable=True)   # Government ID
     selfie_with_id_path = Column(String(500), nullable=True)  # Selfie holding ID
     profile_photo_path  = Column(String(500), nullable=True)  # Profile/avatar photo
+    signature_path      = Column(String(500), nullable=True)  # Admin digital signature
 
     # ── Verification ─────────────────────────────────────────────────────────
     verification_status = Column(String(20), default="pending")  # pending|approved|rejected
