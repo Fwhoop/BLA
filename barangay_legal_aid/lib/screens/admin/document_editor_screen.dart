@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
@@ -24,8 +26,41 @@ const _kGeneratableTypes = {
 bool isGeneratableDocumentType(String? type) =>
     type != null && _kGeneratableTypes.contains(type);
 
-// Session-level saved signatures — persists across DocumentEditorScreen instances
+// Saved signatures — loaded from and persisted to SharedPreferences
 final List<SignatureStamp> _savedSignatures = [];
+
+const _kSavedSigsKey = 'bla_saved_signatures';
+
+Future<void> _loadSavedSignatures() async {
+  if (_savedSignatures.isNotEmpty) return; // already loaded
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kSavedSigsKey);
+    if (raw == null) return;
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    for (final item in list) {
+      _savedSignatures.add(SignatureStamp(
+        bytes: base64Decode(item['bytes'] as String),
+        name: item['name'] as String? ?? '',
+        widthPoints: (item['widthPoints'] as num?)?.toDouble() ?? 110,
+        xFraction: 0.5,
+        yFraction: 0.5,
+      ));
+    }
+  } catch (_) {}
+}
+
+Future<void> _persistSavedSignatures() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final list = _savedSignatures.map((s) => {
+      'name': s.name,
+      'bytes': base64Encode(s.bytes),
+      'widthPoints': s.widthPoints,
+    }).toList();
+    await prefs.setString(_kSavedSigsKey, jsonEncode(list));
+  } catch (_) {}
+}
 
 class DocumentEditorScreen extends StatefulWidget {
   final Map<String, dynamic> request;
@@ -95,6 +130,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
     _purposeCtrl.text =
         widget.request['purpose'] as String? ?? 'FOR ANY LEGAL PURPOSE';
     _loadData();
+    _loadSavedSignatures().then((_) { if (mounted) setState(() {}); });
   }
 
   @override
@@ -256,6 +292,32 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
   }
 
   Future<void> _generateAndSend() async {
+    // Warn if no signature stamp has been placed
+    if (_stamps.isEmpty) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No Signature Added'),
+          content: const Text(
+              'You haven\'t added a signature stamp to this document. '
+              'Are you sure you want to send it without a signature?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF99272D),
+                  foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Send Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+    }
     setState(() => _generating = true);
     // Capture context-dependent refs before async
     final api = Provider.of<ApiService>(context, listen: false);
@@ -441,45 +503,72 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (ctx2, i) {
                       final saved = _savedSignatures[i];
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _stamps.add(SignatureStamp(
-                              bytes: saved.bytes,
-                              name: saved.name,
-                              xFraction: 0.5,
-                              yFraction: 0.5,
-                              widthPoints: saved.widthPoints,
-                            ));
-                          });
-                          Navigator.pop(ctx);
-                        },
-                        child: Container(
-                          width: 100,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.grey[50],
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _stamps.add(SignatureStamp(
+                                  bytes: saved.bytes,
+                                  name: saved.name,
+                                  xFraction: 0.5,
+                                  yFraction: 0.5,
+                                  widthPoints: saved.widthPoints,
+                                ));
+                              });
+                              Navigator.pop(ctx);
+                            },
+                            child: Container(
+                              width: 100,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.grey[50],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.memory(saved.bytes,
+                                      height: 44, fit: BoxFit.contain),
+                                  if (saved.name.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      saved.name,
+                                      style: const TextStyle(
+                                          fontSize: 9, color: Colors.black87),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.memory(saved.bytes,
-                                  height: 44, fit: BoxFit.contain),
-                              if (saved.name.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  saved.name,
-                                  style: const TextStyle(
-                                      fontSize: 9, color: Colors.black87),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                          // Delete button
+                          Positioned(
+                            top: -6,
+                            right: -6,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() => _savedSignatures.removeAt(i));
+                                setSheet(() {});
+                                _persistSavedSignatures();
+                              },
+                              child: Container(
+                                width: 18,
+                                height: 18,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
                                 ),
-                              ],
-                            ],
+                                child: const Icon(Icons.close,
+                                    size: 11, color: Colors.white),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       );
                     },
                   ),
@@ -591,9 +680,10 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                       yFraction: 0.5,
                       name: name,
                     );
-                    // Save to session library if name provided
+                    // Persist to device storage if name provided
                     if (name.isNotEmpty) {
                       _savedSignatures.add(stamp);
+                      _persistSavedSignatures();
                     }
                     setState(() => _stamps.add(stamp));
                     Navigator.pop(ctx);
@@ -652,6 +742,16 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
               icon: const Icon(Icons.zoom_in),
               tooltip: 'Zoom In',
               onPressed: () => _zoomBy(1.25),
+            ),
+            IconButton(
+              icon: const Icon(Icons.print),
+              tooltip: 'Print',
+              onPressed: _generating
+                  ? null
+                  : () async {
+                      final bytes = await _generatePdf();
+                      await Printing.layoutPdf(onLayout: (_) async => bytes);
+                    },
             ),
             IconButton(
               icon: const Icon(Icons.draw),
