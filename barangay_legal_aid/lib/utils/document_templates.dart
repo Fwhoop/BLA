@@ -68,11 +68,13 @@ class SignatureStamp {
   final double yFraction;
   final Uint8List bytes;
   final double widthPoints; // stamp width in PDF points
+  final String name; // UI label for saved stamp picker (not rendered in PDF)
   const SignatureStamp({
     required this.bytes,
     required this.xFraction,
     required this.yFraction,
     this.widthPoints = 110,
+    this.name = '',
   });
 }
 
