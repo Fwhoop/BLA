@@ -24,6 +24,9 @@ const _kGeneratableTypes = {
 bool isGeneratableDocumentType(String? type) =>
     type != null && _kGeneratableTypes.contains(type);
 
+// Session-level saved signatures — persists across DocumentEditorScreen instances
+final List<SignatureStamp> _savedSignatures = [];
+
 class DocumentEditorScreen extends StatefulWidget {
   final Map<String, dynamic> request;
 
@@ -55,6 +58,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
   // Requester data (loaded from API)
   String _fullName = '';
   String _firstName = '';
+  String _lastName = '';
   String _barangayName = '';
   String _municipality = '';
   String _province = '';
@@ -154,6 +158,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
               .where((p) => p.isNotEmpty)
               .join(' ');
           _firstName = fn;
+          _lastName = ln;
 
           final purok = user['purok'] as String? ?? '';
           final street = user['street_name'] as String? ?? '';
@@ -257,8 +262,14 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
     final requestId = widget.request['id'] as int;
     try {
       final bytes = await _generatePdf();
-      final filename =
-          '${_documentType.toLowerCase().replaceAll(' ', '_')}.pdf';
+      final now = DateTime.now();
+      final dateStr = '${now.year}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}';
+      final docType = _documentType.replaceAll(' ', '_');
+      final lastName = _lastName.isNotEmpty ? _lastName : 'Unknown';
+      final firstName = _firstName.isNotEmpty ? _firstName : 'Unknown';
+      final filename = '${docType}_${lastName}_${firstName}_${dateStr}_$requestId.pdf';
       await api.uploadRequestDocument(requestId, bytes, filename);
       if (!mounted) return;
       showTopSnack(context,
@@ -383,6 +394,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
     );
     Uint8List? uploadedBytes;
     final tabCtrl = TabController(length: 2, vsync: this);
+    final nameCtrl = TextEditingController();
 
     await showModalBottomSheet(
       context: context,
@@ -390,7 +402,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
+        builder: (ctx, setSheet) => SingleChildScrollView(
           padding: EdgeInsets.only(
             left: 16, right: 16, top: 16,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
@@ -399,6 +411,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header
               Row(
                 children: [
                   const Text('Add Signature Stamp',
@@ -411,10 +424,70 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                 ],
               ),
               const Text(
-                'Draw or upload a signature. It will appear in the center — drag it anywhere on the document.',
+                'Draw or upload a signature. Drag to reposition, drag corner to resize.',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
-              const SizedBox(height: 12),
+              // ── Saved signatures section ──
+              if (_savedSignatures.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('Saved Signatures',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 80,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _savedSignatures.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (ctx2, i) {
+                      final saved = _savedSignatures[i];
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _stamps.add(SignatureStamp(
+                              bytes: saved.bytes,
+                              name: saved.name,
+                              xFraction: 0.5,
+                              yFraction: 0.5,
+                              widthPoints: saved.widthPoints,
+                            ));
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        child: Container(
+                          width: 100,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.grey[50],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Image.memory(saved.bytes,
+                                  height: 44, fit: BoxFit.contain),
+                              if (saved.name.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  saved.name,
+                                  style: const TextStyle(
+                                      fontSize: 9, color: Colors.black87),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(height: 20),
+              ],
+              const SizedBox(height: 4),
+              // ── Draw / Upload tabs ──
               TabBar(
                 controller: tabCtrl,
                 labelColor: const Color(0xFF99272D),
@@ -483,6 +556,17 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                 ),
               ),
               const SizedBox(height: 12),
+              // ── Name field ──
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Name (optional, e.g. ACE JAMILON)',
+                  helperText: 'If filled, signature is saved for reuse this session.',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -500,13 +584,18 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                       bytes = await sigCtrl.toPngBytes();
                     }
                     if (bytes == null || !ctx.mounted) return;
-                    setState(() {
-                      _stamps.add(SignatureStamp(
-                        bytes: bytes!,
-                        xFraction: 0.5,
-                        yFraction: 0.5,
-                      ));
-                    });
+                    final name = nameCtrl.text.trim();
+                    final stamp = SignatureStamp(
+                      bytes: bytes,
+                      xFraction: 0.5,
+                      yFraction: 0.5,
+                      name: name,
+                    );
+                    // Save to session library if name provided
+                    if (name.isNotEmpty) {
+                      _savedSignatures.add(stamp);
+                    }
+                    setState(() => _stamps.add(stamp));
                     Navigator.pop(ctx);
                   },
                 ),
@@ -519,6 +608,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
 
     sigCtrl.dispose();
     tabCtrl.dispose();
+    nameCtrl.dispose();
   }
 
   // ─── Build ─────────────────────────────────────────────────────────────────
@@ -719,25 +809,43 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                       ..._stamps.asMap().entries.map((entry) {
                         final idx = entry.key;
                         final s = entry.value;
-                        const stampW = 110.0;
+                        // Convert PDF points → screen pixels (matches text overlay scaling)
+                        final stampW = s.widthPoints * displayW / 595.28;
+                        final stampH = stampW * 0.45;
                         final left = (s.xFraction * displayW - stampW / 2)
                             .clamp(0.0, displayW - stampW);
-                        final top = (s.yFraction * displayH - 20.0)
-                            .clamp(0.0, displayH - 50.0);
+                        final top = (s.yFraction * displayH - stampH / 2)
+                            .clamp(0.0, displayH - stampH);
                         return Positioned(
                           left: left,
                           top: top,
                           child: GestureDetector(
-                            onPanUpdate: (d) {
+                            onScaleUpdate: (d) {
                               setState(() {
-                                _stamps[idx] = SignatureStamp(
-                                  bytes: s.bytes,
-                                  xFraction: (s.xFraction + d.delta.dx / displayW)
-                                      .clamp(0.0, 1.0),
-                                  yFraction: (s.yFraction + d.delta.dy / displayH)
-                                      .clamp(0.0, 1.0),
-                                  widthPoints: s.widthPoints,
-                                );
+                                if (d.pointerCount >= 2) {
+                                  // Pinch to resize
+                                  _stamps[idx] = SignatureStamp(
+                                    bytes: s.bytes,
+                                    name: s.name,
+                                    xFraction: s.xFraction,
+                                    yFraction: s.yFraction,
+                                    widthPoints: (s.widthPoints * d.scale)
+                                        .clamp(20.0, 300.0),
+                                  );
+                                } else {
+                                  // Single-finger drag to move
+                                  _stamps[idx] = SignatureStamp(
+                                    bytes: s.bytes,
+                                    name: s.name,
+                                    xFraction: (s.xFraction +
+                                            d.focalPointDelta.dx / displayW)
+                                        .clamp(0.0, 1.0),
+                                    yFraction: (s.yFraction +
+                                            d.focalPointDelta.dy / displayH)
+                                        .clamp(0.0, 1.0),
+                                    widthPoints: s.widthPoints,
+                                  );
+                                }
                               });
                             },
                             child: Stack(
@@ -745,6 +853,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                               children: [
                                 Image.memory(s.bytes,
                                     width: stampW, fit: BoxFit.contain),
+                                // × delete button (top-right)
                                 Positioned(
                                   top: -8,
                                   right: -8,
@@ -760,6 +869,40 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                                       ),
                                       child: const Icon(Icons.close,
                                           size: 13, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                                // Resize handle (bottom-right)
+                                Positioned(
+                                  bottom: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onPanUpdate: (d) {
+                                      final delta =
+                                          (d.delta.dx + d.delta.dy) / 2;
+                                      final pdfDelta =
+                                          delta * 595.28 / displayW;
+                                      setState(() {
+                                        _stamps[idx] = SignatureStamp(
+                                          bytes: s.bytes,
+                                          name: s.name,
+                                          xFraction: s.xFraction,
+                                          yFraction: s.yFraction,
+                                          widthPoints:
+                                              (s.widthPoints + pdfDelta)
+                                                  .clamp(20.0, 300.0),
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: const Icon(Icons.open_in_full,
+                                          size: 10, color: Colors.white),
                                     ),
                                   ),
                                 ),
