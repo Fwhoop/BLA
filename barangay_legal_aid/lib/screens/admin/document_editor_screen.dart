@@ -49,6 +49,9 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
   final List<TextOverlay> _textOverlays = [];
   Uint8List? _rasterizedPage; // rasterized base page for interactive preview
 
+  // Zoom controller for the preview
+  late final TransformationController _transformCtrl;
+
   // Requester data (loaded from API)
   String _fullName = '';
   String _firstName = '';
@@ -81,6 +84,8 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
   @override
   void initState() {
     super.initState();
+    _transformCtrl = TransformationController();
+    _transformCtrl.addListener(() => setState(() {}));
     final now = DateTime.now();
     _dateDayCtrl.text = ordinalDate(now.day);
     _dateMonthCtrl.text = _monthName(now.month);
@@ -100,7 +105,17 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
     ]) {
       c.dispose();
     }
+    _transformCtrl.dispose();
     super.dispose();
+  }
+
+  double get _currentZoom => _transformCtrl.value.getMaxScaleOnAxis();
+
+  void _zoomBy(double factor) {
+    final next = (_currentZoom * factor).clamp(0.5, 3.0);
+    final scale = next / _currentZoom;
+    _transformCtrl.value =
+        Matrix4.diagonal3Values(scale, scale, 1.0) * _transformCtrl.value;
   }
 
   String _monthName(int m) => const [
@@ -545,6 +560,22 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
           foregroundColor: Colors.white,
           actions: [
             IconButton(
+              icon: const Icon(Icons.zoom_out),
+              tooltip: 'Zoom Out',
+              onPressed: () => _zoomBy(1 / 1.25),
+            ),
+            Center(
+              child: Text(
+                '${(_currentZoom * 100).round()}%',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.zoom_in),
+              tooltip: 'Zoom In',
+              onPressed: () => _zoomBy(1.25),
+            ),
+            IconButton(
               icon: const Icon(Icons.draw),
               tooltip: 'Add Signature Stamp',
               onPressed: _showAddStampSheet,
@@ -563,7 +594,11 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
         body: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
+              child: InteractiveViewer(
+                transformationController: _transformCtrl,
+                minScale: 0.5,
+                maxScale: 3.0,
+                constrained: false,
                 child: SizedBox(
                   width: displayW,
                   height: displayH,
@@ -590,14 +625,25 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                           left: left,
                           top: top,
                           child: GestureDetector(
-                            onPanUpdate: (d) {
+                            onScaleUpdate: (d) {
                               setState(() {
-                                _textOverlays[idx] = TextOverlay(
-                                  text: o.text,
-                                  xFraction: (o.xFraction + d.delta.dx / displayW).clamp(0.0, 1.0),
-                                  yFraction: (o.yFraction + d.delta.dy / displayH).clamp(0.0, 1.0),
-                                  fontSize: o.fontSize,
-                                );
+                                if (d.pointerCount >= 2) {
+                                  // Pinch to resize
+                                  _textOverlays[idx] = TextOverlay(
+                                    text: o.text,
+                                    xFraction: o.xFraction,
+                                    yFraction: o.yFraction,
+                                    fontSize: (o.fontSize * d.scale).clamp(6.0, 48.0),
+                                  );
+                                } else {
+                                  // Single-finger drag to move
+                                  _textOverlays[idx] = TextOverlay(
+                                    text: o.text,
+                                    xFraction: (o.xFraction + d.focalPointDelta.dx / displayW).clamp(0.0, 1.0),
+                                    yFraction: (o.yFraction + d.focalPointDelta.dy / displayH).clamp(0.0, 1.0),
+                                    fontSize: o.fontSize,
+                                  );
+                                }
                               });
                             },
                             onDoubleTap: () => _showAddTextSheet(existing: o, index: idx),
@@ -619,6 +665,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                                     ),
                                   ),
                                 ),
+                                // × delete button (top-right)
                                 Positioned(
                                   top: -8,
                                   right: -8,
@@ -632,6 +679,34 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                                // Resize handle (bottom-right)
+                                Positioned(
+                                  bottom: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onPanUpdate: (d) {
+                                      final delta = (d.delta.dx + d.delta.dy) / 2;
+                                      final pdfDelta = delta * 595.28 / displayW;
+                                      setState(() {
+                                        _textOverlays[idx] = TextOverlay(
+                                          text: o.text,
+                                          xFraction: o.xFraction,
+                                          yFraction: o.yFraction,
+                                          fontSize: (o.fontSize + pdfDelta).clamp(6.0, 48.0),
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: const Icon(Icons.open_in_full, size: 10, color: Colors.white),
                                     ),
                                   ),
                                 ),

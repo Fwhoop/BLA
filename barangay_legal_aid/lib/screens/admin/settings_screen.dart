@@ -1,7 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:signature/signature.dart';
 import 'package:barangay_legal_aid/config/env_config.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/utils/top_snack.dart';
@@ -13,8 +11,7 @@ class AdminSettingsScreen extends StatefulWidget {
   AdminSettingsScreenState createState() => AdminSettingsScreenState();
 }
 
-class AdminSettingsScreenState extends State<AdminSettingsScreen>
-    with SingleTickerProviderStateMixin {
+class AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final ApiService _apiService = ApiService();
 
   String? _barangayName;
@@ -26,39 +23,19 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
   bool _uploadingLogo = false;
   bool _uploadingLogoSecondary = false;
 
-  // Signature state
-  String? _signaturePath;
-  bool _uploadingSignature = false;
-  late TabController _sigTabController;
-  final SignatureController _signatureController = SignatureController(
-    penStrokeWidth: 2,
-    penColor: Colors.black,
-    exportBackgroundColor: Colors.white,
-  );
-
   @override
   void initState() {
     super.initState();
-    _sigTabController = TabController(length: 2, vsync: this);
     _loadSettings();
-  }
-
-  @override
-  void dispose() {
-    _sigTabController.dispose();
-    _signatureController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadSettings() async {
     try {
-      // Fetch current user from /auth/me to get barangay_id and signature_path
       final me = await _apiService.getCurrentUser();
       if (me != null) {
         final bid = me['barangay_id'] as int?;
         setState(() {
           _barangayId = bid;
-          _signaturePath = me['signature_path'] as String?;
         });
         if (bid != null) {
           final bd = await _apiService.getBarangay(bid);
@@ -123,47 +100,6 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
     }
   }
 
-  // ─── Signature helpers ─────────────────────────────────────────────────────
-
-  Future<void> _saveDrawnSignature() async {
-    if (_signatureController.isEmpty) {
-      _showError('Please draw your signature first.');
-      return;
-    }
-    final data = await _signatureController.toPngBytes();
-    if (data == null) return;
-    await _uploadSignatureBytes(data, 'signature.png');
-  }
-
-  Future<void> _pickAndUploadSignature() async {
-    final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    final filename = picked.name.isNotEmpty ? picked.name : 'signature.png';
-    await _uploadSignatureBytes(bytes, filename);
-  }
-
-  Future<void> _uploadSignatureBytes(Uint8List bytes, String filename) async {
-    setState(() => _uploadingSignature = true);
-    try {
-      final result = await _apiService.uploadAdminSignature(bytes, filename);
-      setState(() => _signaturePath = result['signature_path'] as String?);
-      if (mounted) {
-        showTopSnack(context,
-            message: 'Signature saved!',
-            backgroundColor: const Color(0xFF36454F),
-            icon: Icons.check_circle_outline);
-        _signatureController.clear();
-      }
-    } catch (e) {
-      if (mounted) _showError(e.toString().replaceAll('Exception: ', ''));
-    } finally {
-      setState(() => _uploadingSignature = false);
-    }
-  }
-
   void _showError(String msg) {
     showTopSnack(context,
         message: msg,
@@ -189,9 +125,6 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
             _buildBarangayInfoCard(),
             const SizedBox(height: 16),
             _buildLogosCard(),
-            const SizedBox(height: 16),
-            _buildSignatureCard(),
-            const SizedBox(height: 16),
             const SizedBox(height: 24),
             Center(
               child: SizedBox(
@@ -381,149 +314,4 @@ class AdminSettingsScreenState extends State<AdminSettingsScreen>
       ),
     );
   }
-
-  Widget _buildSignatureCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Your Digital Signature',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF99272D))),
-            const SizedBox(height: 4),
-            const Text(
-              'This signature will be placed on all documents you generate.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            // Current signature preview
-            if (_signaturePath != null && _signaturePath!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text('Current signature:',
-                  style:
-                      TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 6),
-              Container(
-                height: 70,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    '$apiBaseUrl$_signaturePath',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Center(
-                        child: Icon(Icons.broken_image, color: Colors.grey)),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            // Tabs: Draw | Upload
-            TabBar(
-              controller: _sigTabController,
-              labelColor: const Color(0xFF99272D),
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: const Color(0xFF99272D),
-              tabs: const [
-                Tab(text: 'Draw Signature'),
-                Tab(text: 'Upload Image'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 200,
-              child: TabBarView(
-                controller: _sigTabController,
-                children: [
-                  // ── Draw tab ──
-                  Column(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Signature(
-                              controller: _signatureController,
-                              backgroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          TextButton.icon(
-                            onPressed: _signatureController.clear,
-                            icon: const Icon(Icons.clear, size: 16),
-                            label: const Text('Clear'),
-                            style: TextButton.styleFrom(
-                                foregroundColor: Colors.grey),
-                          ),
-                          const Spacer(),
-                          _uploadingSignature
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFF99272D)))
-                              : ElevatedButton.icon(
-                                  onPressed: _saveDrawnSignature,
-                                  icon: const Icon(Icons.save, size: 16),
-                                  label: const Text('Save Signature'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF99272D),
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  // ── Upload tab ──
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.draw, size: 48, color: Colors.grey),
-                      const SizedBox(height: 12),
-                      const Text('Upload a signature image (PNG/JPG)',
-                          style: TextStyle(color: Colors.grey)),
-                      const SizedBox(height: 16),
-                      _uploadingSignature
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Color(0xFF99272D)))
-                          : ElevatedButton.icon(
-                              onPressed: _pickAndUploadSignature,
-                              icon:
-                                  const Icon(Icons.upload_file, size: 16),
-                              label: const Text('Choose Image'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF99272D),
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
 }
