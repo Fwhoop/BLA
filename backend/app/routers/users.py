@@ -471,6 +471,8 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == "superadmin":
         raise HTTPException(status_code=403, detail="Superadmin accounts cannot be deleted")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot delete your own account")
     if current_user.role == "admin" and user.barangay_id != current_user.barangay_id:
         raise HTTPException(status_code=403, detail="Admins can only delete users from their own barangay")
 

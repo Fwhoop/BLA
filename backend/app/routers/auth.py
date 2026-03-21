@@ -528,6 +528,21 @@ def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(
     return {"message": "Password reset successfully"}
 
 
+class VerifyPasswordRequest(BaseModel):
+    password: str
+
+
+@router.post("/verify-password")
+def verify_password_endpoint(
+    req: VerifyPasswordRequest,
+    current_user: models.User = Depends(get_current_user),
+):
+    """Check if the provided password matches the current user's password."""
+    if not verify_password(req.password, current_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    return {"valid": True}
+
+
 @router.post("/reset-password-phone")
 def reset_password_phone(payload: schemas.ResetPasswordFirebaseRequest, db: Session = Depends(get_db)):
     """Reset password after Firebase phone OTP verification."""

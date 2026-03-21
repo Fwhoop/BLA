@@ -417,6 +417,20 @@ class ApiService {
     }
   }
 
+  /// Returns true if password is correct, throws Exception if wrong.
+  Future<void> verifyPassword(String password) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/verify-password'),
+          headers: headers,
+          body: jsonEncode({'password': password}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode == 401) throw Exception('Incorrect password.');
+    if (r.statusCode != 200) throw Exception('Password verification failed.');
+  }
+
   Future<Map<String, dynamic>> getAnalytics() async {
     try {
       final headers = await _getHeaders();

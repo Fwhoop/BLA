@@ -463,30 +463,154 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
   Future<void> _deleteAdmin(Map<String, dynamic> admin) async {
     final name = '${admin['first_name'] ?? ''} ${admin['last_name'] ?? ''}'.trim();
-    final confirm = await showDialog<bool>(
+    final displayName = name.isNotEmpty ? name : (admin['email'] ?? 'this admin');
+
+    // Step 1 — Warning dialog explaining cascading effects
+    final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Admin'),
-        content: Text(
-          'Remove "${name.isNotEmpty ? name : admin['email']}"? This cannot be undone.',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 22),
+            SizedBox(width: 8),
+            Text('Destructive Action', style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('You are about to remove "$displayName" as admin.', style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            const Text('This will permanently delete:', style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 6),
+            const _BulletItem('The admin account and login access'),
+            const _BulletItem('All cases managed under this barangay'),
+            const _BulletItem('All legal aid requests and documents'),
+            const _BulletItem('All staff accounts assigned to this barangay'),
+            const _BulletItem('All other associated barangay data'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'This action cannot be undone.',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Continue →'),
           ),
         ],
       ),
     );
-    if (confirm != true || !mounted) return;
+    if (proceed != true || !mounted) return;
+
+    // Step 2 — Credential confirmation dialog
+    final passwordCtrl = TextEditingController();
+    final confirmCtrl  = TextEditingController();
+    bool obscure = true;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final canDelete = passwordCtrl.text.isNotEmpty && confirmCtrl.text == 'CONFIRM';
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Confirm Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    children: [
+                      const TextSpan(text: 'You are permanently deleting '),
+                      TextSpan(text: '"$displayName"', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const TextSpan(text: ' and all data in their barangay.'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: obscure,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Enter your password',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                    suffixIcon: IconButton(
+                      icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setState(() => obscure = !obscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmCtrl,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Type CONFIRM to proceed',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: canDelete ? () => Navigator.pop(ctx, true) : null,
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final enteredPassword = passwordCtrl.text;
+    passwordCtrl.dispose();
+    confirmCtrl.dispose();
+
+    if (confirmed != true || !mounted) return;
+
+    final api = Provider.of<ApiService>(context, listen: false);
+
+    // Verify password then delete
+    try {
+      await api.verifyPassword(enteredPassword);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
     try {
-      final api = Provider.of<ApiService>(context, listen: false);
       await api.deleteUser(admin['id'] as int);
       await _loadData();
       if (mounted) {
@@ -556,6 +680,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
           if (idx < offset + section.admins.length) {
             return _AdminCard(
               admin: section.admins[idx - offset],
+              currentUserId: _userMap['id'] as int?,
               onDelete: _deleteAdmin,
             );
           }
@@ -683,8 +808,9 @@ class _SectionHeader extends StatelessWidget {
 
 class _AdminCard extends StatelessWidget {
   final Map<String, dynamic> admin;
+  final int? currentUserId;
   final Future<void> Function(Map<String, dynamic>) onDelete;
-  const _AdminCard({required this.admin, required this.onDelete});
+  const _AdminCard({required this.admin, this.currentUserId, required this.onDelete});
 
   String _initials(String first, String last, String username) {
     if (first.isNotEmpty && last.isNotEmpty) return '${first[0]}${last[0]}'.toUpperCase();
@@ -703,6 +829,7 @@ class _AdminCard extends StatelessWidget {
     final display  = fullName.isNotEmpty ? fullName : username;
     final role     = (admin['role'] ?? 'admin') as String;
     final isSuperAdmin = role == 'superadmin';
+    final isSelf = admin['id'] == currentUserId;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -767,7 +894,7 @@ class _AdminCard extends StatelessWidget {
                 ),
               ),
             ),
-            if (!isSuperAdmin) ...[
+            if (!isSuperAdmin && !isSelf) ...[
               const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.person_remove_outlined, color: Colors.red, size: 20),
@@ -777,6 +904,25 @@ class _AdminCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _BulletItem extends StatelessWidget {
+  final String text;
+  const _BulletItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(fontSize: 13, color: Colors.red)),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+        ],
       ),
     );
   }

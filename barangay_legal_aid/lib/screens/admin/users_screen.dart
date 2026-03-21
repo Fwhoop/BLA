@@ -191,6 +191,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
   }
 
   Future<void> _deleteUser(Map<String, dynamic> user) async {
+    if (user['id'] == _userMap['id']) return;
     final confirm = await _confirm(
       'Delete Account',
       'Permanently delete ${_name(user)}? This cannot be undone.',
