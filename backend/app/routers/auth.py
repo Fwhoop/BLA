@@ -218,6 +218,11 @@ def register(
         brgy = db.query(models.Barangay).filter(models.Barangay.name == barangay).first()
         if brgy:
             barangay_id = brgy.id
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="No administrator has been set up for this barangay yet. Please contact your local barangay office.",
+            )
 
     # ── Anti-spam: block duplicate pending admin per barangay ─────────────────
     if safe_role == "admin" and barangay_id:
