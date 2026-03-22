@@ -4,6 +4,13 @@ from sqlalchemy.sql import func
 from .db import Base
 
 
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+
+    key   = Column(String(50), primary_key=True)
+    value = Column(String(500), nullable=False)
+
+
 class Barangay(Base):
     __tablename__ = "barangays"
 
