@@ -334,9 +334,10 @@ Future<Map<String, dynamic>> loadUserFromPrefs() async {
   return {
     'first_name':  prefs.getString('firstName')  ?? '',
     'last_name':   prefs.getString('lastName')   ?? '',
-    'middle_name': prefs.getString('middleName') ?? '',
-    'role':        prefs.getString('currentUserRole')  ?? 'user',
-    'email':       prefs.getString('currentUserEmail') ?? '',
+    'middle_name':   prefs.getString('middleName') ?? '',
+    'role':          prefs.getString('currentUserRole')  ?? 'user',
+    'email':         prefs.getString('currentUserEmail') ?? '',
     'profile_photo_path': prefs.getString('profilePhotoPath') ?? '',
+    'barangay_name': prefs.getString('barangayName') ?? '',
   };
 }

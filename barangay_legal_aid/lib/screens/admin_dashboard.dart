@@ -242,6 +242,17 @@ class AdminDashboardState extends State<AdminDashboard>
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if ((_currentUserMap['barangay_name'] as String?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Barangay ${_currentUserMap['barangay_name']}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
                   date,

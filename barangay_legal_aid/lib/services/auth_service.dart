@@ -118,6 +118,7 @@ class AuthService {
       await prefs.setString('firstName', user.firstName);
       await prefs.setString('lastName', user.lastName);
       await prefs.setString('middleName', user.middleName ?? '');
+      await prefs.setString('barangayName', user.barangayName ?? '');
     }
     return user;
   }
