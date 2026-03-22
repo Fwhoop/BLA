@@ -19,6 +19,7 @@ import 'package:barangay_legal_aid/screens/superadmin_dashboard.dart';
 import 'package:barangay_legal_aid/screens/user_profile_page.dart';
 import 'package:barangay_legal_aid/screens/forms_hub_page.dart';
 import 'package:barangay_legal_aid/screens/forgot_password_page.dart';
+import 'package:barangay_legal_aid/screens/maintenance_page.dart';
 import 'package:barangay_legal_aid/widgets/bla_app_bar.dart';
 
 void main() async {
@@ -36,9 +37,15 @@ void main() async {
   final isLoggedIn = await authService.isLoggedIn();
 
   final apiService = ApiService(secure);
+  final isMaintenance = await apiService.getSystemStatus();
+  final userMap = await loadUserFromPrefs();
+  final isSuperAdmin = (userMap['role'] as String? ?? '') == 'superadmin';
+
   runApp(
     MyApp(
       isLoggedIn: isLoggedIn,
+      isMaintenance: isMaintenance,
+      isSuperAdmin: isSuperAdmin,
       authService: authService,
       apiService: apiService,
     ),
@@ -47,12 +54,16 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   final bool isLoggedIn;
+  final bool isMaintenance;
+  final bool isSuperAdmin;
   final AuthService authService;
   final ApiService apiService;
 
   const MyApp({
     super.key,
     required this.isLoggedIn,
+    required this.isMaintenance,
+    required this.isSuperAdmin,
     required this.authService,
     required this.apiService,
   });
@@ -109,7 +120,9 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: isLoggedIn ? HomeScreen() : LoginPage(),
+        home: isMaintenance && !isSuperAdmin
+            ? const MaintenancePage()
+            : isLoggedIn ? HomeScreen() : LoginPage(),
         routes: {
           '/login': (context) => LoginPage(),
           '/signup': (context) => SignupPage(),

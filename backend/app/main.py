@@ -67,6 +67,12 @@ async def startup():
         except Exception as e:
             logger.warning(f"Users backfill skipped: {e}")
 
+        # Step 4 — seed default system settings
+        try:
+            _seed_system_settings()
+        except Exception as e:
+            logger.warning(f"System settings seed skipped: {e}")
+
         validate_schema()
         logger.info("Schema validation OK")
 
@@ -98,6 +104,15 @@ def _backfill_users():
             ))
         except Exception:
             pass  # Column already exists
+
+
+def _seed_system_settings():
+    """Ensure default system settings exist in the DB (idempotent)."""
+    from app.db import SessionLocal
+    with SessionLocal() as db:
+        if not db.query(models.SystemSetting).filter_by(key="maintenance_mode").first():
+            db.add(models.SystemSetting(key="maintenance_mode", value="false"))
+            db.commit()
 
 
 # ── Global exception handlers ─────────────────────────────────────────────────
@@ -153,6 +168,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "BLA Backend"}
+
+@app.get("/system/status")
+async def system_status(db: Session = Depends(get_db)):
+    """Public endpoint — returns current maintenance mode flag."""
+    row = db.query(models.SystemSetting).filter_by(key="maintenance_mode").first()
+    return {"maintenance": row.value == "true" if row else False}
 
 @app.get("/")
 async def root():

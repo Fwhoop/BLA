@@ -13,6 +13,48 @@ class SystemScreen extends StatefulWidget {
 }
 
 class SystemScreenState extends State<SystemScreen> {
+  bool _maintenanceEnabled = false;
+  bool _maintenanceLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMaintenanceStatus();
+  }
+
+  Future<void> _loadMaintenanceStatus() async {
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final enabled = await api.getSystemStatus();
+      if (mounted) setState(() { _maintenanceEnabled = enabled; _maintenanceLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _maintenanceLoading = false);
+    }
+  }
+
+  Future<void> _toggleMaintenance(bool value) async {
+    setState(() => _maintenanceLoading = true);
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.setMaintenanceMode(value);
+      if (mounted) {
+        setState(() { _maintenanceEnabled = value; });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(value ? 'Maintenance mode enabled.' : 'Maintenance mode disabled.'),
+          backgroundColor: _kCharcoal,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _maintenanceLoading = false);
+    }
+  }
 
   Future<void> _showResetConfirmationDialog() async {
     final passwordCtrl      = TextEditingController();
@@ -172,6 +214,40 @@ class SystemScreenState extends State<SystemScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── System Settings card ───────────────────────────────────────
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'System Settings',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _kPrimary),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_maintenanceLoading)
+                      const LinearProgressIndicator()
+                    else
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Maintenance Mode',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        subtitle: const Text(
+                          'Block all non-superadmin access to the app',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        value: _maintenanceEnabled,
+                        activeThumbColor: _kPrimary,
+                        onChanged: _toggleMaintenance,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),

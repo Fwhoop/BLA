@@ -453,6 +453,33 @@ class ApiService {
     }
   }
 
+  Future<bool> getSystemStatus() async {
+    try {
+      final r = await http
+          .get(Uri.parse('$_baseUrl/system/status'))
+          .timeout(_timeout);
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body)['maintenance'] as bool? ?? false;
+      }
+    } catch (_) {}
+    return false; // fail open — don't block users if backend unreachable
+  }
+
+  Future<void> setMaintenanceMode(bool enabled) async {
+    final headers = await _getHeaders();
+    final r = await http
+        .post(
+          Uri.parse('$_baseUrl/auth/maintenance'),
+          headers: headers,
+          body: jsonEncode({'enabled': enabled}),
+        )
+        .timeout(_timeout);
+    if (r.statusCode != 200) {
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      throw Exception(d['error'] ?? d['detail'] ?? 'Failed to update maintenance mode');
+    }
+  }
+
   Future<Map<String, dynamic>?> getUser(int id) async {
     try {
       final r = await http

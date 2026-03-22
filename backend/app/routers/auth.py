@@ -676,3 +676,25 @@ def reset_password_phone(payload: schemas.ResetPasswordFirebaseRequest, db: Sess
     db.commit()
     log_action(db, "password_reset", user.id, user.id, {"method": "phone"})
     return {"message": "Password reset successfully"}
+
+
+# ── Maintenance Mode ──────────────────────────────────────────────────────────
+class MaintenanceRequest(BaseModel):
+    enabled: bool
+
+@router.post("/maintenance")
+def toggle_maintenance(
+    body: MaintenanceRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin-only: enable or disable maintenance mode."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin only")
+    row = db.query(models.SystemSetting).filter_by(key="maintenance_mode").first()
+    if row is None:
+        row = models.SystemSetting(key="maintenance_mode", value="false")
+        db.add(row)
+    row.value = "true" if body.enabled else "false"
+    db.commit()
+    return {"maintenance": row.value == "true"}
