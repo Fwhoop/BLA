@@ -113,8 +113,9 @@ pw.Widget _wrapWithStamps(
     children: [
       pw.SizedBox(width: availW, height: availH, child: base),
       ...stamps.map((s) {
-        final left = (s.xFraction * pageW - mH).clamp(0.0, availW - s.widthPoints);
-        final top  = (s.yFraction * pageH - mV).clamp(0.0, availH - 40.0);
+        final stampH = s.widthPoints * 0.45;
+        final left = (s.xFraction * pageW - mH - s.widthPoints / 2).clamp(0.0, availW - s.widthPoints);
+        final top  = (s.yFraction * pageH - mV - stampH / 2).clamp(0.0, availH - stampH);
         return pw.Positioned(
           left: left,
           top: top,
