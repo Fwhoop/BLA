@@ -11,7 +11,6 @@ Pipeline:
   7. Return { "question": "...", "answer": "..." } to the frontend
 """
 
-import json
 import re
 import logging
 import os
@@ -51,41 +50,17 @@ class AskResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _extract_json(raw: str) -> dict:
-    """
-    Parse a JSON object from Gemma's raw text output.
-
-    Gemma is instructed to return only JSON, but may occasionally:
-    - Wrap the output in markdown fences (```json ... ```)
-    - Add a short sentence before or after the JSON
-
-    This function handles those cases before falling back to returning
-    the raw text as the answer so the user is never left with nothing.
-    """
-    # 1. Direct parse (ideal case — Gemma returned clean JSON)
-    try:
-        return json.loads(raw.strip())
-    except json.JSONDecodeError:
-        pass
-
-    # 2. Strip markdown fences and retry
-    cleaned = re.sub(r"```(?:json)?|```", "", raw).strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
-
-    # 3. Extract the first complete {...} block found anywhere in the text
-    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError:
-            pass
-
-    # 4. Nothing parseable — return the raw text so the user gets something
-    logger.warning("Could not parse JSON from model output: %s", raw[:300])
-    return {"answer": raw.strip()}
+def _strip_markdown(text: str) -> str:
+    """Remove markdown formatting so plain-text frontends display cleanly."""
+    # Remove bold (**text** or __text__)
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"__(.+?)__", r"\1", text)
+    # Remove italic (*text* or _text_)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"_(.+?)_", r"\1", text)
+    # Remove horizontal rules
+    text = re.sub(r"\n---+\n", "\n\n", text)
+    return text.strip()
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
@@ -148,34 +123,15 @@ async def ask(payload: AskRequest):
     # ── Step 5: Extract raw text from Gemma's response ────────────────────────
     # The Gemma service wrapper may return different key names.
     raw_text = (
-        raw_data.get("answer")
+        raw_data.get("reply")
+        or raw_data.get("answer")
         or raw_data.get("text")
         or raw_data.get("generated_text")
         or str(raw_data)
     )
 
-    # ── Step 6: Parse the JSON Gemma was instructed to produce ────────────────
-    parsed = _extract_json(raw_text)
-    answer = parsed.get("answer", raw_text)
-
-    # ── Step 7: Sanity check — catch hallucinated citations ──────────────────
-    # If the answer contains legal citation patterns (RA numbers, KP articles,
-    # Legal Basis sections) that do NOT appear in the retrieved chunks,
-    # replace with the fallback answer.
-    CITATION_PATTERNS = [
-        "legal basis", "republic act", " ra ", "r.a.", "kp article",
-        "article ", "section ", "under ra", "p.d.", "presidential decree",
-    ]
-    context_combined = " ".join(chunks).lower()
-    answer_lower = answer.lower()
-
-    for pattern in CITATION_PATTERNS:
-        if pattern in answer_lower and pattern not in context_combined:
-            logger.warning(
-                "Hallucination detected — Gemma used '%s' not found in context. "
-                "Replacing with fallback. Question: %s", pattern, question
-            )
-            answer = NO_CONTEXT_ANSWER
-            break
+    # ── Step 6: The chatbot returns plain text (not JSON) ─────────────────────
+    # Strip markdown formatting since the frontend renders plain text.
+    answer = _strip_markdown(raw_text)
 
     return AskResponse(question=question, answer=answer)
