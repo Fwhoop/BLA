@@ -177,6 +177,17 @@ class _MaintenancePageState extends State<MaintenancePage> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                            child: const Text(
+                              'Go back to Login',
+                              style: TextStyle(color: _kCharcoal, fontSize: 14),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
