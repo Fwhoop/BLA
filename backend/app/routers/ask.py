@@ -149,6 +149,7 @@ async def ask(payload: AskRequest):
     # The Gemma service wrapper may return different key names.
     raw_text = (
         raw_data.get("answer")
+        or raw_data.get("reply")
         or raw_data.get("text")
         or raw_data.get("generated_text")
         or str(raw_data)
