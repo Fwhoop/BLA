@@ -179,66 +179,10 @@ class SystemScreenState extends State<SystemScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'System Settings',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _kPrimary),
-                    ),
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                      title: const Text('Maintenance Mode'),
-                      subtitle: const Text('Enable maintenance mode'),
-                      value: false,
-                      onChanged: (value) {
-                        // TODO: Implement maintenance mode toggle
-                      },
-                    ),
-                    const Divider(),
-                    SwitchListTile(
-                      title: const Text('Email Notifications'),
-                      subtitle: const Text('Send email notifications'),
-                      value: true,
-                      onChanged: (value) {
-                        // TODO: Implement email notifications toggle
-                      },
-                    ),
-                    const Divider(),
-                    SwitchListTile(
-                      title: const Text('Auto Backup'),
-                      subtitle: const Text('Enable automatic backups'),
-                      value: true,
-                      onChanged: (value) {
-                        // TODO: Implement auto backup toggle
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
                       'Database',
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _kPrimary),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Implement database optimization
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Database optimization feature coming soon')),
-                        );
-                      },
-                      icon: const Icon(Icons.tune),
-                      label: const Text('Optimize Database'),
-                      style: ElevatedButton.styleFrom(backgroundColor: _kCharcoal),
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(),
-                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -273,35 +217,6 @@ class SystemScreenState extends State<SystemScreen> {
                           ),
                         ),
                       ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'API Configuration',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _kPrimary),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('API Base URL: http://127.0.0.1:8000'),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Implement API test
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('API test feature coming soon')),
-                        );
-                      },
-                      icon: const Icon(Icons.network_check),
-                      label: const Text('Test API Connection'),
-                      style: ElevatedButton.styleFrom(backgroundColor: _kCharcoal),
                     ),
                   ],
                 ),
