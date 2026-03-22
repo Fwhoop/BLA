@@ -334,6 +334,8 @@ class _AddAdminPageState extends State<AddAdminPage> {
                     _buildMiddleNameField(),
                     const SizedBox(height: 12),
                     _buildBirthdayField(),
+                    const SizedBox(height: 8),
+                    _buildGenderSelector(),
 
                     const SizedBox(height: 20),
 
@@ -412,13 +414,6 @@ class _AddAdminPageState extends State<AddAdminPage> {
                       onPick: () => _pickPhoto(onPicked: (b) => setState(() => _selfieWithIdBytes = b)),
                       onRemove: () => setState(() => _selfieWithIdBytes = null),
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // ── Section 6: Gender ────────────────────────────────
-                    _sectionLabel('Gender'),
-                    const SizedBox(height: 4),
-                    _buildGenderSelector(),
 
                     const SizedBox(height: 28),
 
