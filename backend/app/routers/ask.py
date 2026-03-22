@@ -84,14 +84,6 @@ async def ask(payload: AskRequest):
         logger.error("RAG retrieval failed: %s", e)
         raise HTTPException(status_code=503, detail="RAG system not ready.")
 
-    # ── Step 2: Short-circuit if no relevant chunks found ────────────────────
-    # This is the main hallucination guard.
-    # If FAISS found nothing relevant, we return the fallback answer directly
-    # without calling Gemma at all — so it has no opportunity to invent laws.
-    if not chunks:
-        logger.info("No relevant chunks found for question: %.80s", question)
-        return AskResponse(question=question, answer=NO_CONTEXT_ANSWER)
-
     # ── Step 3: Build the strict-JSON prompt ──────────────────────────────────
     prompt = build_prompt(question, chunks)
     logger.info("Sending prompt to Gemma (%d chars, %d chunks) | question: %.80s",
@@ -102,7 +94,7 @@ async def ask(payload: AskRequest):
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 GEMMA_URL,
-                json={"prompt": prompt},
+                json={"message": prompt},
             )
             response.raise_for_status()
             raw_data = response.json()
