@@ -9,12 +9,14 @@ class OtpVerificationScreen extends StatefulWidget {
   final int userId;
   final String email;
   final bool emailSent;
+  final VoidCallback? onSuccess;
 
   const OtpVerificationScreen({
     super.key,
     required this.userId,
     required this.email,
     this.emailSent = true,
+    this.onSuccess,
   });
 
   @override
@@ -72,14 +74,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       final api = Provider.of<ApiService>(context, listen: false);
       await api.verifyEmailOtp(widget.userId, otp);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email verified! Your account is pending admin approval.'),
-          backgroundColor: Color(0xFF36454F),
-          duration: Duration(seconds: 4),
-        ),
-      );
-      Navigator.pushReplacementNamed(context, '/login');
+      if (widget.onSuccess != null) {
+        widget.onSuccess!();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email verified! Your account is pending admin approval.'),
+            backgroundColor: Color(0xFF36454F),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     } catch (e) {
       if (mounted) {
         _showError(e.toString().replaceFirst('Exception: ', ''));

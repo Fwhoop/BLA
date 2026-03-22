@@ -312,6 +312,120 @@ def register(
     return new_user
 
 
+# ── SUPERADMIN: CREATE ADMIN (authenticated, multipart) ───────────────────────
+
+@router.post("/create-admin", response_model=schemas.UserRead)
+def create_admin_by_superadmin(
+    first_name:    str            = Form(...),
+    last_name:     str            = Form(...),
+    middle_name:   Optional[str]  = Form(None),
+    birthday:      Optional[date] = Form(None),
+    email:         str            = Form(...),
+    username:      str            = Form(...),
+    password:      str            = Form(...),
+    phone:         Optional[str]  = Form(None),
+    gender:        Optional[str]  = Form('prefer_not_to_say'),
+    purok:         Optional[str]  = Form(None),
+    street_name:   Optional[str]  = Form(None),
+    city:          Optional[str]  = Form(None),
+    province:      Optional[str]  = Form(None),
+    zip_code:      Optional[str]  = Form(None),
+    barangay_name: Optional[str]  = Form(None),
+    id_photo:       Optional[UploadFile] = File(None),
+    selfie_with_id: Optional[UploadFile] = File(None),
+    profile_photo:  Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin-only: create a barangay admin with full details, photos, and email OTP."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    if db.query(models.User).filter(models.User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(models.User).filter(models.User.username == username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    if birthday:
+        today = date.today()
+        age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+        if age < 18:
+            raise HTTPException(status_code=400, detail="Admin must be at least 18 years old.")
+
+    if phone:
+        phone = normalize_ph_phone(phone)
+
+    # Auto-create barangay if needed
+    barangay_id = None
+    if barangay_name:
+        name = barangay_name.strip()
+        brgy = db.query(models.Barangay).filter(models.Barangay.name.ilike(name)).first()
+        if brgy is None:
+            brgy = models.Barangay(name=name)
+            try:
+                db.add(brgy)
+                db.commit()
+                db.refresh(brgy)
+            except Exception:
+                db.rollback()
+                brgy = db.query(models.Barangay).filter(models.Barangay.name.ilike(name)).first()
+                if brgy is None:
+                    raise HTTPException(status_code=500, detail="Failed to create barangay.")
+        barangay_id = brgy.id
+
+    if barangay_id:
+        existing = db.query(models.User).filter(
+            models.User.barangay_id == barangay_id,
+            models.User.role == "admin",
+            models.User.is_active == True,
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="An active admin already exists for this barangay.")
+
+    new_user = models.User(
+        email=email,
+        username=username,
+        hashed_password=get_password_hash(password),
+        first_name=first_name,
+        last_name=last_name,
+        middle_name=middle_name.strip() if middle_name else None,
+        birthday=birthday,
+        phone=phone or "",
+        gender=gender or 'prefer_not_to_say',
+        purok=purok,
+        street_name=street_name,
+        city=city,
+        province=province,
+        zip_code=zip_code,
+        role="admin",
+        barangay_id=barangay_id,
+        is_active=True,
+        verification_status="approved",
+        email_verified=False,
+        id_photo_url=_save_upload(id_photo),
+        selfie_with_id_path=_save_upload(selfie_with_id),
+        profile_photo_path=_save_upload(profile_photo),
+        created_at=datetime.utcnow(),
+    )
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create admin: {str(e)}")
+
+    # Send email OTP for on-the-spot verification
+    otp = generate_otp()
+    new_user.otp_code = hash_otp(otp)
+    new_user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+    new_user.otp_attempts = 0
+    db.commit()
+    send_otp_email(new_user.email, otp)
+
+    return new_user
+
+
 # ── OTP ENDPOINTS ─────────────────────────────────────────────────────────────
 
 @router.post("/send-email-otp")

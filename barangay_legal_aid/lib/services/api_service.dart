@@ -364,6 +364,75 @@ class ApiService {
     }
   }
 
+  /// Create admin with full details and photos (superadmin only).
+  /// Returns the created user map including `id` and `email`.
+  Future<Map<String, dynamic>> createAdminWithPhotos({
+    required String firstName,
+    required String lastName,
+    String? middleName,
+    DateTime? birthday,
+    required String email,
+    required String username,
+    required String password,
+    String? phone,
+    String gender = 'prefer_not_to_say',
+    String? purok,
+    String? streetName,
+    String? city,
+    String? province,
+    String? zipCode,
+    String? barangayName,
+    Uint8List? idPhotoBytes,
+    Uint8List? profilePhotoBytes,
+    Uint8List? selfieWithIdBytes,
+  }) async {
+    final token = await _getToken();
+    final uri = Uri.parse('$_baseUrl/auth/create-admin');
+    final request = http.MultipartRequest('POST', uri);
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.fields['first_name'] = firstName;
+    request.fields['last_name']  = lastName;
+    if (middleName != null && middleName.isNotEmpty) request.fields['middle_name'] = middleName;
+    if (birthday != null) {
+      request.fields['birthday'] = '${birthday.year}-${birthday.month.toString().padLeft(2, '0')}-${birthday.day.toString().padLeft(2, '0')}';
+    }
+    request.fields['email']    = email;
+    request.fields['username'] = username;
+    request.fields['password'] = password;
+    if (phone != null && phone.isNotEmpty) request.fields['phone'] = phone;
+    request.fields['gender'] = gender;
+    if (purok      != null) request.fields['purok']       = purok;
+    if (streetName != null) request.fields['street_name'] = streetName;
+    if (city       != null) request.fields['city']        = city;
+    if (province   != null) request.fields['province']    = province;
+    if (zipCode    != null) request.fields['zip_code']    = zipCode;
+    if (barangayName != null) request.fields['barangay_name'] = barangayName;
+
+    if (idPhotoBytes != null && idPhotoBytes.isNotEmpty) {
+      request.files.add(http.MultipartFile.fromBytes('id_photo', idPhotoBytes, filename: 'id_photo.jpg'));
+    }
+    if (profilePhotoBytes != null && profilePhotoBytes.isNotEmpty) {
+      request.files.add(http.MultipartFile.fromBytes('profile_photo', profilePhotoBytes, filename: 'profile_photo.jpg'));
+    }
+    if (selfieWithIdBytes != null && selfieWithIdBytes.isNotEmpty) {
+      request.files.add(http.MultipartFile.fromBytes('selfie_with_id', selfieWithIdBytes, filename: 'selfie_with_id.jpg'));
+    }
+
+    final streamed = await request.send().timeout(_timeout);
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 200 || response.statusCode == 201) return jsonDecode(response.body);
+    final body = response.body;
+    try {
+      final d = jsonDecode(body) as Map<String, dynamic>;
+      throw Exception(d['detail'] ?? d['error'] ?? 'Failed to create admin: ${response.statusCode}');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to create admin: $body');
+    }
+  }
+
   Future<void> resetDatabase(String password, String confirmation) async {
     final headers = await _getHeaders();
     final r = await http
