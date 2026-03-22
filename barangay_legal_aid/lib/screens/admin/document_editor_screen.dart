@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:signature/signature.dart';
@@ -26,27 +24,6 @@ const _kGeneratableTypes = {
 
 bool isGeneratableDocumentType(String? type) =>
     type != null && _kGeneratableTypes.contains(type);
-
-/// Removes white/near-white background from an image, making it transparent.
-/// Runs via [compute] so it won't block the UI thread.
-Uint8List _removeWhiteBackground(Uint8List bytes) {
-  final decoded = img.decodeImage(bytes);
-  if (decoded == null) return bytes;
-  const threshold = 230;
-  final out = img.Image(
-      width: decoded.width, height: decoded.height, numChannels: 4);
-  for (int y = 0; y < decoded.height; y++) {
-    for (int x = 0; x < decoded.width; x++) {
-      final pixel = decoded.getPixel(x, y);
-      final r = pixel.r.toInt();
-      final g = pixel.g.toInt();
-      final b = pixel.b.toInt();
-      final a = (r >= threshold && g >= threshold && b >= threshold) ? 0 : 255;
-      out.setPixelRgba(x, y, r, g, b, a);
-    }
-  }
-  return Uint8List.fromList(img.encodePng(out));
-}
 
 // Saved signatures — loaded from and persisted to SharedPreferences
 final List<SignatureStamp> _savedSignatures = [];
@@ -476,8 +453,6 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
       penColor: Colors.black,
       exportBackgroundColor: Colors.transparent,
     );
-    Uint8List? uploadedBytes;
-    final tabCtrl = TabController(length: 2, vsync: this);
     final nameCtrl = TextEditingController();
 
     await showModalBottomSheet(
@@ -508,7 +483,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                 ],
               ),
               const Text(
-                'Draw or upload a signature. Drag to reposition, drag corner to resize.',
+                'Draw a signature. Drag to reposition, drag corner to resize.',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               // ── Saved signatures section ──
@@ -598,72 +573,32 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                 const Divider(height: 20),
               ],
               const SizedBox(height: 4),
-              // ── Draw / Upload tabs ──
-              TabBar(
-                controller: tabCtrl,
-                labelColor: const Color(0xFF99272D),
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: const Color(0xFF99272D),
-                tabs: const [Tab(text: 'Draw'), Tab(text: 'Upload')],
-              ),
+              // ── Draw canvas ──
               SizedBox(
                 height: 180,
-                child: TabBarView(
-                  controller: tabCtrl,
+                child: Column(
                   children: [
-                    // Draw tab
-                    Column(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            margin: const EdgeInsets.only(top: 8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Signature(
-                                controller: sigCtrl,
-                                backgroundColor: Colors.white,
-                              ),
-                            ),
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Signature(
+                            controller: sigCtrl,
+                            backgroundColor: Colors.white,
                           ),
                         ),
-                        TextButton.icon(
-                          onPressed: sigCtrl.clear,
-                          icon: const Icon(Icons.clear, size: 14),
-                          label: const Text('Clear'),
-                          style: TextButton.styleFrom(foregroundColor: Colors.grey),
-                        ),
-                      ],
+                      ),
                     ),
-                    // Upload tab
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (uploadedBytes != null)
-                          Image.memory(uploadedBytes!, height: 80, fit: BoxFit.contain),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.upload_file, size: 16),
-                          label: Text(uploadedBytes == null ? 'Choose Image' : 'Replace'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF99272D),
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () async {
-                            final picked = await ImagePicker().pickImage(
-                                source: ImageSource.gallery, imageQuality: 90);
-                            if (picked != null) {
-                              final b = await picked.readAsBytes();
-                              final processed =
-                                  await compute(_removeWhiteBackground, b);
-                              setSheet(() => uploadedBytes = processed);
-                            }
-                          },
-                        ),
-                      ],
+                    TextButton.icon(
+                      onPressed: sigCtrl.clear,
+                      icon: const Icon(Icons.clear, size: 14),
+                      label: const Text('Clear'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.grey),
                     ),
                   ],
                 ),
@@ -690,12 +625,8 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
-                    Uint8List? bytes;
-                    if (tabCtrl.index == 1 && uploadedBytes != null) {
-                      bytes = uploadedBytes;
-                    } else if (tabCtrl.index == 0 && sigCtrl.isNotEmpty) {
-                      bytes = await sigCtrl.toPngBytes();
-                    }
+                    if (!sigCtrl.isNotEmpty || !ctx.mounted) return;
+                    final bytes = await sigCtrl.toPngBytes();
                     if (bytes == null || !ctx.mounted) return;
                     final name = nameCtrl.text.trim();
                     final stamp = SignatureStamp(
@@ -721,7 +652,6 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
     );
 
     sigCtrl.dispose();
-    tabCtrl.dispose();
     nameCtrl.dispose();
   }
 

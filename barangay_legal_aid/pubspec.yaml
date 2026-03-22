@@ -53,8 +53,6 @@ dependencies:
   printing: ^5.13.2
   # Digital signature canvas for admin document signing
   signature: ^5.4.0
-  # Image pixel manipulation — used to remove white background from uploaded signatures
-  image: ^4.2.0
 
   # Firebase — phone OTP verification and auth
   firebase_core: ^3.13.1
