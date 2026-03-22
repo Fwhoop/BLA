@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:barangay_legal_aid/screens/maintenance_page.dart';
+import 'package:barangay_legal_aid/services/api_service.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/models/user_model.dart';
 
@@ -43,10 +45,23 @@ class LoginPageState extends State<LoginPage> {
       if (user != null) {
         if (user.isSuperAdmin) {
           Navigator.pushReplacementNamed(context, '/superadmin');
-        } else if (user.isAdmin) {
-          Navigator.pushReplacementNamed(context, '/admin');
         } else {
-          Navigator.pushReplacementNamed(context, '/home');
+          // Non-superadmin: check maintenance before allowing entry
+          final api = Provider.of<ApiService>(context, listen: false);
+          final isMaintenance = await api.getSystemStatus();
+          if (!mounted) return;
+          if (isMaintenance) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const MaintenancePage()),
+            );
+            return;
+          }
+          if (user.isAdmin) {
+            Navigator.pushReplacementNamed(context, '/admin');
+          } else {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
