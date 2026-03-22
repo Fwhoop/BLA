@@ -779,6 +779,12 @@ class _UserCard extends StatelessWidget {
                         ),
                       ],
                     )
+                  else if ((user['role'] as String? ?? '').toLowerCase() == 'superadmin')
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: Text('Tap for details',
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    )
                   else
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -1068,7 +1074,7 @@ class _UserDetailSheet extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ] else ...[
+                  ] else if ((user['role'] as String? ?? '').toLowerCase() != 'superadmin') ...[
                     Row(
                       children: [
                         Expanded(

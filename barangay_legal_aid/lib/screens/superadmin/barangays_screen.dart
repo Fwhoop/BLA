@@ -13,26 +13,31 @@ class BarangaysScreenState extends State<BarangaysScreen> {
   final ApiService _apiService = ApiService();
   Map<String, dynamic> _userMap = {};
   List<Map<String, dynamic>> _barangays = [];
+  List<Map<String, dynamic>> _admins = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadBarangays();
+    _loadData();
     loadUserFromPrefs().then((m) { if (mounted) setState(() => _userMap = m); });
   }
 
-  Future<void> _loadBarangays() async {
+  Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final barangays = await _apiService.getBarangays();
+      final results = await Future.wait([
+        _apiService.getBarangays(),
+        _apiService.getAdmins(),
+      ]);
       setState(() {
-        _barangays = barangays;
+        _barangays = results[0];
+        _admins = results[1].where((u) => u['role'] == 'admin').toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -41,6 +46,54 @@ class BarangaysScreenState extends State<BarangaysScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Map<String, dynamic>? _adminForBarangay(int barangayId) {
+    try {
+      return _admins.firstWhere((a) => a['barangay_id'] == barangayId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _showAdminInfo(BuildContext context, Map<String, dynamic> barangay) {
+    final admin = _adminForBarangay(barangay['id'] as int);
+    final name = admin == null
+        ? 'No admin assigned'
+        : '${admin['first_name'] ?? ''} ${admin['last_name'] ?? ''}'.trim();
+    final email = admin?['email'] as String? ?? '';
+    final phone = admin?['phone'] as String? ?? '';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(barangay['name'] ?? 'Barangay'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Admin', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            if (admin == null)
+              const Text('No admin assigned yet.', style: TextStyle(color: Colors.grey))
+            else ...[
+              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              if (email.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(email, style: const TextStyle(fontSize: 13, color: Color(0xFF36454F))),
+              ],
+              if (phone.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(phone, style: const TextStyle(fontSize: 13, color: Color(0xFF36454F))),
+              ],
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -52,7 +105,7 @@ class BarangaysScreenState extends State<BarangaysScreen> {
         extraActions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadBarangays,
+            onPressed: _loadData,
             tooltip: 'Refresh',
           ),
         ],
@@ -69,7 +122,7 @@ class BarangaysScreenState extends State<BarangaysScreen> {
                       Text(_error!, style: const TextStyle(color: Color(0xFF36454F))),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: _loadBarangays,
+                        onPressed: _loadData,
                         child: const Text('Retry'),
                       ),
                     ],
@@ -96,12 +149,16 @@ class BarangaysScreenState extends State<BarangaysScreen> {
                       ),
                     )
                   : RefreshIndicator(
-                      onRefresh: _loadBarangays,
+                      onRefresh: _loadData,
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _barangays.length,
                         itemBuilder: (context, index) {
                           final barangay = _barangays[index];
+                          final admin = _adminForBarangay(barangay['id'] as int);
+                          final adminName = admin == null
+                              ? 'No admin assigned'
+                              : '${admin['first_name'] ?? ''} ${admin['last_name'] ?? ''}'.trim();
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             child: ListTile(
@@ -113,7 +170,13 @@ class BarangaysScreenState extends State<BarangaysScreen> {
                                 barangay['name'] ?? 'Unknown',
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              subtitle: Text('ID: ${barangay['id']}'),
+                              subtitle: Text(adminName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: admin == null ? Colors.grey : const Color(0xFF36454F),
+                                  )),
+                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                              onTap: () => _showAdminInfo(context, barangay),
                             ),
                           );
                         },
