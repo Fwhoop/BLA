@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -25,6 +26,27 @@ const _kGeneratableTypes = {
 
 bool isGeneratableDocumentType(String? type) =>
     type != null && _kGeneratableTypes.contains(type);
+
+/// Removes white/near-white background from an image, making it transparent.
+/// Runs via [compute] so it won't block the UI thread.
+Uint8List _removeWhiteBackground(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return bytes;
+  const threshold = 230;
+  final out = img.Image(
+      width: decoded.width, height: decoded.height, numChannels: 4);
+  for (int y = 0; y < decoded.height; y++) {
+    for (int x = 0; x < decoded.width; x++) {
+      final pixel = decoded.getPixel(x, y);
+      final r = pixel.r.toInt();
+      final g = pixel.g.toInt();
+      final b = pixel.b.toInt();
+      final a = (r >= threshold && g >= threshold && b >= threshold) ? 0 : 255;
+      out.setPixelRgba(x, y, r, g, b, a);
+    }
+  }
+  return Uint8List.fromList(img.encodePng(out));
+}
 
 // Saved signatures — loaded from and persisted to SharedPreferences
 final List<SignatureStamp> _savedSignatures = [];
@@ -635,7 +657,9 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                                 source: ImageSource.gallery, imageQuality: 90);
                             if (picked != null) {
                               final b = await picked.readAsBytes();
-                              setSheet(() => uploadedBytes = b);
+                              final processed =
+                                  await compute(_removeWhiteBackground, b);
+                              setSheet(() => uploadedBytes = processed);
                             }
                           },
                         ),
