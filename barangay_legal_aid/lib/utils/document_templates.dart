@@ -123,7 +123,7 @@ pw.Widget _wrapWithStamps(
         );
       }),
       ...textOverlays.map((o) {
-        final left = (o.xFraction * pageW - mH).clamp(0.0, availW - 200.0);
+        final left = (o.xFraction * pageW - mH).clamp(0.0, pageW * 0.88 - mH);
         final top  = (o.yFraction * pageH - mV).clamp(0.0, availH - o.fontSize * 2);
         return pw.Positioned(
           left: left,

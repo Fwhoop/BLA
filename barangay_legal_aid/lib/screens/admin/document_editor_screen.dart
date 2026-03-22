@@ -808,7 +808,7 @@ class DocumentEditorScreenState extends State<DocumentEditorScreen>
                         final scale = displayW / 595.28;
                         final flutterSize = o.fontSize * scale;
                         final left = (o.xFraction * displayW)
-                            .clamp(0.0, displayW - 160);
+                            .clamp(0.0, displayW * 0.88);
                         final top = (o.yFraction * displayH)
                             .clamp(0.0, displayH - flutterSize * 2);
                         return Positioned(
