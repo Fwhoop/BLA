@@ -31,6 +31,23 @@ GEMMA_URL = os.getenv(
     "https://bla-chatbot-railway-production.up.railway.app/chat"
 )
 
+# Shared async client — created once, reused across all requests.
+# Reusing the client keeps the TCP/TLS connection alive between calls
+# (HTTP keep-alive), avoiding the overhead of a new handshake every request.
+_http_client = httpx.AsyncClient(
+    timeout=httpx.Timeout(
+        connect=5.0,   # fail fast if Railway service is unreachable
+        read=30.0,     # wait up to 30 s for the model to finish generating
+        write=10.0,
+        pool=5.0,
+    ),
+    limits=httpx.Limits(
+        max_keepalive_connections=5,
+        max_connections=10,
+        keepalive_expiry=30.0,
+    ),
+)
+
 # Fallback answer when no relevant chunks are found in FAISS.
 # Returned immediately — Gemma is never called, preventing hallucination.
 NO_CONTEXT_ANSWER = (
@@ -122,24 +139,29 @@ async def ask(payload: AskRequest):
     logger.info("Sending prompt to Gemma (%d chars, %d chunks) | question: %.80s",
                 len(prompt), len(chunks), question)
 
-    # ── Step 4: Call the Gemma model service ──────────────────────────────────
+    # ── Step 4: Call the model service (shared async client) ─────────────────
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                GEMMA_URL,
-                json={"prompt": prompt},
-            )
-            response.raise_for_status()
-            raw_data = response.json()
+        response = await _http_client.post(
+            GEMMA_URL,
+            json={"prompt": prompt},
+        )
+        response.raise_for_status()
+        raw_data = response.json()
 
     except httpx.HTTPStatusError as e:
-        logger.error("Gemma returned HTTP %s: %s", e.response.status_code, e.response.text)
+        logger.error("Model service returned HTTP %s: %s", e.response.status_code, e.response.text)
         raise HTTPException(
             status_code=502,
             detail="The model service returned an error. Please try again."
         )
+    except httpx.TimeoutException as e:
+        logger.error("Model service timed out: %s", e)
+        raise HTTPException(
+            status_code=504,
+            detail="The model took too long to respond. Please try again."
+        )
     except httpx.RequestError as e:
-        logger.error("Could not reach Gemma service: %s", e)
+        logger.error("Could not reach model service: %s", e)
         raise HTTPException(
             status_code=503,
             detail="The model service is currently unreachable. Please try again later."
