@@ -120,7 +120,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: isMaintenance && !isSuperAdmin
+        home: isMaintenance && isLoggedIn && !isSuperAdmin
             ? const MaintenancePage()
             : isLoggedIn ? HomeScreen() : LoginPage(),
         routes: {

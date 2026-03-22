@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:barangay_legal_aid/screens/maintenance_page.dart';
 import 'package:barangay_legal_aid/screens/otp_verification_screen.dart';
 import 'package:barangay_legal_aid/services/auth_service.dart';
 import 'package:barangay_legal_aid/services/api_service.dart';
@@ -71,7 +72,19 @@ class SignupPageState extends State<SignupPage> {
   @override
   void initState() {
     super.initState();
+    _checkMaintenance();
     _loadRegions();
+  }
+
+  Future<void> _checkMaintenance() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    final isMaintenance = await api.getSystemStatus();
+    if (isMaintenance && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MaintenancePage()),
+      );
+    }
   }
 
   Future<void> _loadRegions() async {
