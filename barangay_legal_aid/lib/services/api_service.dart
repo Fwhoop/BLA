@@ -372,7 +372,6 @@ class ApiService {
     String? middleName,
     DateTime? birthday,
     required String email,
-    required String username,
     required String password,
     String? phone,
     String gender = 'prefer_not_to_say',
@@ -398,8 +397,7 @@ class ApiService {
     if (birthday != null) {
       request.fields['birthday'] = '${birthday.year}-${birthday.month.toString().padLeft(2, '0')}-${birthday.day.toString().padLeft(2, '0')}';
     }
-    request.fields['email']    = email;
-    request.fields['username'] = username;
+    request.fields['email'] = email;
     request.fields['password'] = password;
     if (phone != null && phone.isNotEmpty) request.fields['phone'] = phone;
     request.fields['gender'] = gender;

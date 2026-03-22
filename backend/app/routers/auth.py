@@ -321,7 +321,6 @@ def create_admin_by_superadmin(
     middle_name:   Optional[str]  = Form(None),
     birthday:      Optional[date] = Form(None),
     email:         str            = Form(...),
-    username:      str            = Form(...),
     password:      str            = Form(...),
     phone:         Optional[str]  = Form(None),
     gender:        Optional[str]  = Form('prefer_not_to_say'),
@@ -343,8 +342,14 @@ def create_admin_by_superadmin(
 
     if db.query(models.User).filter(models.User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    if db.query(models.User).filter(models.User.username == username).first():
-        raise HTTPException(status_code=400, detail="Username already taken")
+
+    # Auto-generate a unique username from the email (same logic as /register)
+    base_username = re.sub(r'[^a-z0-9]', '', email.split('@')[0].lower()) or "admin"
+    username = base_username
+    counter = 1
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
 
     if birthday:
         today = date.today()

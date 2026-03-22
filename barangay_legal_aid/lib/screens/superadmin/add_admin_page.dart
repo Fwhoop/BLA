@@ -30,7 +30,6 @@ class _AddAdminPageState extends State<AddAdminPage> {
   final _middleNameCtrl       = TextEditingController();
   final _emailCtrl            = TextEditingController();
   final _phoneCtrl            = TextEditingController();
-  final _usernameCtrl         = TextEditingController();
   final _passwordCtrl         = TextEditingController();
   final _confirmPasswordCtrl  = TextEditingController();
   final _purokCtrl            = TextEditingController();
@@ -77,7 +76,6 @@ class _AddAdminPageState extends State<AddAdminPage> {
     _middleNameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
-    _usernameCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     _purokCtrl.dispose();
@@ -249,7 +247,6 @@ class _AddAdminPageState extends State<AddAdminPage> {
         middleName:       _middleNameCtrl.text.trim(),
         birthday:         _selectedBirthday,
         email:            _emailCtrl.text.trim(),
-        username:         _usernameCtrl.text.trim(),
         password:         _passwordCtrl.text,
         phone:            phone,
         gender:           _selectedGender,
@@ -351,8 +348,6 @@ class _AddAdminPageState extends State<AddAdminPage> {
                     // ── Section 3: Credentials ───────────────────────────
                     _sectionLabel('Credentials'),
                     const SizedBox(height: 10),
-                    _buildTextField(ctrl: _usernameCtrl, label: 'Username', hint: 'e.g. jdelacruz', icon: Icons.alternate_email),
-                    const SizedBox(height: 12),
                     _buildPasswordField(),
                     const SizedBox(height: 12),
                     _buildConfirmPasswordField(),
