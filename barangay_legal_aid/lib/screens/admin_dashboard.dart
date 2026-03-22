@@ -106,10 +106,13 @@ class AdminDashboardState extends State<AdminDashboard>
         api.getCases(),
         api.getRequests().catchError((_) => <Map<String, dynamic>>[]),
         api.getRegularUsers().catchError((_) => <Map<String, dynamic>>[]),
+        api.getCurrentUser().then((v) => v ?? <String, dynamic>{}),
       ]);
       if (!mounted) return;
+      final meData = results[3] as Map<String, dynamic>;
+      final mergedMap = {...userMap, ...meData};
       setState(() {
-        _currentUserMap = userMap;
+        _currentUserMap = mergedMap;
         _cases    = List<Map<String, dynamic>>.from(results[0] as List);
         _requests = List<Map<String, dynamic>>.from(results[1] as List);
         _users    = List<Map<String, dynamic>>.from(results[2] as List);
