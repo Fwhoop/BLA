@@ -1,0 +1,30 @@
+# ── Stage 1: Build Flutter web ────────────────────────────────────────────────
+FROM ghcr.io/cirruslabs/flutter:3.35.3 AS builder
+
+WORKDIR /app
+
+ARG API_URL=https://bla-production-441d.up.railway.app
+
+RUN echo "API_URL=${API_URL}" > .env
+
+COPY pubspec.yaml pubspec.lock ./
+RUN flutter pub get
+
+COPY . .
+
+RUN echo "API_URL=${API_URL}" > .env
+
+RUN flutter build web --release \
+    --dart-define=API_URL=${API_URL}
+
+# ── Stage 2: Serve with nginx ─────────────────────────────────────────────────
+FROM nginx:alpine
+
+COPY --from=builder /app/build/web /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Bypass nginx's default entrypoint entirely so nothing runs before start.sh.
+# start.sh replaces RAILWAY_PORT with $PORT then exec's nginx.
+ENTRYPOINT ["/start.sh"]
