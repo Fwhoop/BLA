@@ -1,0 +1,123 @@
+enum UserRole { user, admin, superadmin }
+
+class User {
+  final String id;
+  final String email;
+  final String firstName;
+  final String lastName;
+  final String? middleName;
+  final DateTime? birthday;
+  final String? phone;
+  final String? gender;
+  final String? address;
+  final String? barangayName;
+  final UserRole role;
+  final String barangay;
+  final DateTime createdAt;
+
+  User({
+    required this.id,
+    required this.email,
+    required this.firstName,
+    required this.lastName,
+    this.middleName,
+    this.birthday,
+    this.phone,
+    this.gender,
+    this.address,
+    this.barangayName,
+    required this.role,
+    required this.barangay,
+    required this.createdAt,
+  });
+
+  bool get isAdmin => role == UserRole.admin || role == UserRole.superadmin;
+  bool get isSuperAdmin => role == UserRole.superadmin;
+
+  String? get middleInitial =>
+      (middleName != null && middleName!.isNotEmpty)
+          ? '${middleName![0].toUpperCase()}.'
+          : null;
+
+  String get fullName =>
+      middleInitial != null
+          ? '$firstName $middleInitial $lastName'
+          : '$firstName $lastName';
+
+  String get fullNameExpanded =>
+      (middleName != null && middleName!.isNotEmpty)
+          ? '$firstName $middleName $lastName'
+          : '$firstName $lastName';
+  String get roleDisplay {
+    switch (role) {
+      case UserRole.superadmin:
+        return 'Super Administrator';
+      case UserRole.admin:
+        return 'Administrator';
+      case UserRole.user:
+        return 'User';
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
+      'middleName': middleName,
+      'birthday': birthday?.toIso8601String(),
+      'phone': phone,
+      'gender': gender,
+      'address': address,
+      'barangayName': barangayName,
+      'role': role.toString().split('.').last,
+      'barangay': barangay,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] ?? '',
+      email: json['email'] ?? '',
+      firstName: json['firstName'] ?? '',
+      lastName: json['lastName'] ?? '',
+      middleName: json['middleName'] as String?,
+      birthday: json['birthday'] != null ? DateTime.tryParse(json['birthday']) : null,
+      phone: json['phone'] as String?,
+      gender: json['gender'] as String?,
+      address: json['address'] as String?,
+      barangayName: json['barangayName'] as String?,
+      role: _getRoleFromString(json['role'] ?? 'user'),
+      barangay: json['barangay'] ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+    );
+  }
+
+  static UserRole _getRoleFromString(String roleString) {
+    switch (roleString) {
+      case 'admin':
+        return UserRole.admin;
+      case 'superadmin':
+        return UserRole.superadmin;
+      default:
+        return UserRole.user;
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is User && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return 'User{id: $id, email: $email, name: $fullName, role: $role, barangay: $barangay}';
+  }
+}

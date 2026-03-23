@@ -1,0 +1,710 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
+from pydantic import BaseModel
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta, timezone, date
+from jose import JWTError, jwt
+from typing import Optional
+import bcrypt
+import re
+import os
+import uuid
+
+from .. import models, schemas
+from ..db import get_db
+from ..core.config import settings
+from ..utils.otp import generate_otp, hash_otp, verify_otp
+from ..utils.email import send_otp_email, send_password_reset_email
+from ..utils.sms import send_password_reset_sms
+from ..utils.firebase_init import verify_firebase_token
+from ..utils.audit import log_action
+from ..utils.phone import normalize_ph_phone
+
+
+SECRET_KEY = settings.jwt_secret
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+
+def verify_password(plain_password, hashed_password):
+    """Verify password using bcrypt directly (compatible with Python 3.13)"""
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception as e:
+        print(f"Password verification error: {e}")
+        return False
+
+def get_password_hash(password):
+    """Hash password using bcrypt directly (compatible with Python 3.13)"""
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
+
+def authenticate_user(db: Session, identifier: str, password: str):
+    """Authenticate by email OR phone number (accepts 09XX or +63XX format)."""
+    if "@" in identifier:
+        user = db.query(models.User).filter(models.User.email == identifier).first()
+    else:
+        # Normalize so 09559952920 and +639559952920 both match the stored number
+        normalized = normalize_ph_phone(identifier)
+        user = db.query(models.User).filter(
+            (models.User.phone == normalized) | (models.User.phone == identifier)
+        ).first()
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    if not user.is_active:
+        return "pending"
+    return user
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta if expires_delta else timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+@router.post("/login", response_model=schemas.Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    try:
+        user = authenticate_user(db, form_data.username, form_data.password)
+    except Exception as e:
+        print(f"Login DB error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable. Please try again later.",
+        )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if user == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by the barangay admin.",
+        )
+    access_token = create_access_token(data={"sub": user.email},
+                                       expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    log_action(db, "login_success", user.id, user.id)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials. Please login again.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {str(e)}. Please login again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User with email {email} not found. Please login again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+def _save_upload(upload: UploadFile, subfolder: str = "id_photos") -> Optional[str]:
+    """Save an UploadFile to disk and return its relative URL path. Returns None on failure."""
+    if not upload or not upload.filename:
+        return None
+    try:
+        upload_dir = os.path.join("uploads", subfolder)
+        os.makedirs(upload_dir, exist_ok=True)
+        ext = upload.filename.rsplit('.', 1)[-1].lower() if '.' in upload.filename else 'jpg'
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        contents = upload.file.read()
+        with open(os.path.join(upload_dir, filename), "wb") as f:
+            f.write(contents)
+        return f"/uploads/{subfolder}/{filename}"
+    except Exception:
+        return None
+
+
+@router.post("/register", response_model=schemas.UserRead)
+def register(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    middle_name: Optional[str] = Form(None),
+    birthday: Optional[date] = Form(None),
+    email: str = Form(...),
+    password: str = Form(...),
+    phone: Optional[str] = Form(None),
+    role: Optional[str] = Form("user"),
+    # Legacy single address
+    address: Optional[str] = Form(None),
+    # Philippine address components
+    house_number: Optional[str] = Form(None),
+    street_name:  Optional[str] = Form(None),
+    purok:        Optional[str] = Form(None),
+    city:         Optional[str] = Form(None),
+    province:     Optional[str] = Form(None),
+    zip_code:     Optional[str] = Form(None),
+    barangay: Optional[str] = Form(None),
+    gender: Optional[str] = Form('prefer_not_to_say'),
+    # Photo uploads
+    id_photo:        Optional[UploadFile] = File(None),
+    selfie_with_id:  Optional[UploadFile] = File(None),
+    profile_photo:   Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    """Public signup endpoint for residents and barangay admin self-registration."""
+    # Normalize phone to E.164 so login works regardless of format used
+    if phone:
+        phone = normalize_ph_phone(phone)
+
+    # Age gate — must be 18 or older
+    if birthday:
+        today = date.today()
+        age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+        if age < 18:
+            raise HTTPException(status_code=400, detail="You must be at least 18 years old to register.")
+
+    existing = db.query(models.User).filter(models.User.email == email).first()
+    if existing:
+        # Allow re-registration if:
+        #   (a) previously rejected, OR
+        #   (b) pending but NOT yet verified via email or phone
+        #       (e.g. user registered, no OTP email arrived, trying again)
+        can_reregister = (
+            existing.verification_status == "rejected"
+            or (
+                not existing.email_verified
+                and not existing.mobile_verified
+                and existing.is_active == False
+            )
+        )
+        if not can_reregister:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Block admin self-registration — admins must be created by a SuperAdmin
+    if role == "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin accounts can only be created by a Super Administrator.",
+        )
+
+    safe_role = "user"
+
+    base_username = re.sub(r'[^a-z0-9]', '', email.split('@')[0].lower()) or "user"
+    username = base_username
+    counter = 1
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    barangay_id = None
+    if barangay:
+        brgy = db.query(models.Barangay).filter(models.Barangay.name == barangay).first()
+        if brgy:
+            barangay_id = brgy.id
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="No administrator has been set up for this barangay yet. Please contact your local barangay office.",
+            )
+
+    # ── Anti-spam: block duplicate pending admin per barangay ─────────────────
+    if safe_role == "admin" and barangay_id:
+        existing_pending = db.query(models.User).filter(
+            models.User.barangay_id == barangay_id,
+            models.User.role == "admin",
+            models.User.is_active == False,
+            models.User.verification_status == "pending",
+        ).first()
+        if existing_pending:
+            raise HTTPException(
+                status_code=400,
+                detail="A pending admin registration already exists for this barangay. "
+                       "Please wait for the superadmin to review it before submitting again.",
+            )
+
+    # Re-registration: reuse the existing unverified/rejected record (same ID, fresh data)
+    if existing and (
+        existing.verification_status == "rejected"
+        or (not existing.email_verified and not existing.mobile_verified)
+    ):
+        new_user = existing
+        new_user.first_name = first_name
+        new_user.last_name = last_name
+        new_user.middle_name = middle_name.strip() if middle_name else None
+        new_user.birthday = birthday
+        new_user.hashed_password = get_password_hash(password)
+        new_user.phone = phone or ""
+        new_user.address = address or ""
+        new_user.house_number = house_number
+        new_user.street_name = street_name
+        new_user.purok = purok
+        new_user.city = city
+        new_user.province = province
+        new_user.zip_code = zip_code
+        new_user.gender = gender or 'prefer_not_to_say'
+        new_user.role = safe_role
+        new_user.barangay_id = barangay_id
+        new_user.is_active = False
+        new_user.verification_status = "pending"
+        new_user.rejected_by = None
+        new_user.rejected_at = None
+        new_user.rejection_reason = None
+        new_user.otp_code = None
+        new_user.otp_expiry = None
+        new_user.otp_attempts = 0
+        new_user.email_verified = False
+        new_user.mobile_verified = False
+        new_user.verification_method = None
+        if id_photo: new_user.id_photo_url = _save_upload(id_photo)
+        if selfie_with_id: new_user.selfie_with_id_path = _save_upload(selfie_with_id)
+        if profile_photo: new_user.profile_photo_path = _save_upload(profile_photo)
+    else:
+        new_user = models.User(
+            email=email,
+            username=username,
+            hashed_password=get_password_hash(password),
+            first_name=first_name,
+            last_name=last_name,
+            middle_name=middle_name.strip() if middle_name else None,
+            birthday=birthday,
+            phone=phone or "",
+            gender=gender or 'prefer_not_to_say',
+            address=address or "",
+            house_number=house_number,
+            street_name=street_name,
+            purok=purok,
+            city=city,
+            province=province,
+            zip_code=zip_code,
+            role=safe_role,
+            barangay_id=barangay_id,
+            is_active=False,
+            verification_status="pending",
+            id_photo_url=_save_upload(id_photo),
+            selfie_with_id_path=_save_upload(selfie_with_id),
+            profile_photo_path=_save_upload(profile_photo),
+            created_at=datetime.utcnow(),
+        )
+
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+    # Admin notification is deferred until the user verifies their email.
+    # See verify-email-otp endpoint below.
+
+    return new_user
+
+
+# ── SUPERADMIN: CREATE ADMIN (authenticated, multipart) ───────────────────────
+
+@router.post("/create-admin", response_model=schemas.UserRead)
+def create_admin_by_superadmin(
+    first_name:    str            = Form(...),
+    last_name:     str            = Form(...),
+    middle_name:   Optional[str]  = Form(None),
+    birthday:      Optional[date] = Form(None),
+    email:         str            = Form(...),
+    password:      str            = Form(...),
+    phone:         Optional[str]  = Form(None),
+    gender:        Optional[str]  = Form('prefer_not_to_say'),
+    purok:         Optional[str]  = Form(None),
+    street_name:   Optional[str]  = Form(None),
+    city:          Optional[str]  = Form(None),
+    province:      Optional[str]  = Form(None),
+    zip_code:      Optional[str]  = Form(None),
+    barangay_name: Optional[str]  = Form(None),
+    id_photo:       Optional[UploadFile] = File(None),
+    selfie_with_id: Optional[UploadFile] = File(None),
+    profile_photo:  Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin-only: create a barangay admin with full details, photos, and email OTP."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+
+    if db.query(models.User).filter(models.User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Auto-generate a unique username from the email (same logic as /register)
+    base_username = re.sub(r'[^a-z0-9]', '', email.split('@')[0].lower()) or "admin"
+    username = base_username
+    counter = 1
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    if birthday:
+        today = date.today()
+        age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+        if age < 18:
+            raise HTTPException(status_code=400, detail="Admin must be at least 18 years old.")
+
+    if phone:
+        phone = normalize_ph_phone(phone)
+
+    # Auto-create barangay if needed
+    barangay_id = None
+    if barangay_name:
+        name = barangay_name.strip()
+        brgy = db.query(models.Barangay).filter(models.Barangay.name.ilike(name)).first()
+        if brgy is None:
+            brgy = models.Barangay(name=name)
+            try:
+                db.add(brgy)
+                db.commit()
+                db.refresh(brgy)
+            except Exception:
+                db.rollback()
+                brgy = db.query(models.Barangay).filter(models.Barangay.name.ilike(name)).first()
+                if brgy is None:
+                    raise HTTPException(status_code=500, detail="Failed to create barangay.")
+        barangay_id = brgy.id
+
+    if barangay_id:
+        existing = db.query(models.User).filter(
+            models.User.barangay_id == barangay_id,
+            models.User.role == "admin",
+            models.User.is_active == True,
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="An active admin already exists for this barangay.")
+
+    new_user = models.User(
+        email=email,
+        username=username,
+        hashed_password=get_password_hash(password),
+        first_name=first_name,
+        last_name=last_name,
+        middle_name=middle_name.strip() if middle_name else None,
+        birthday=birthday,
+        phone=phone or "",
+        gender=gender or 'prefer_not_to_say',
+        purok=purok,
+        street_name=street_name,
+        city=city,
+        province=province,
+        zip_code=zip_code,
+        role="admin",
+        barangay_id=barangay_id,
+        is_active=True,
+        verification_status="approved",
+        email_verified=False,
+        id_photo_url=_save_upload(id_photo),
+        selfie_with_id_path=_save_upload(selfie_with_id),
+        profile_photo_path=_save_upload(profile_photo),
+        created_at=datetime.utcnow(),
+    )
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create admin: {str(e)}")
+
+    # Send email OTP for on-the-spot verification
+    otp = generate_otp()
+    new_user.otp_code = hash_otp(otp)
+    new_user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+    new_user.otp_attempts = 0
+    db.commit()
+    send_otp_email(new_user.email, otp)
+
+    return new_user
+
+
+# ── OTP ENDPOINTS ─────────────────────────────────────────────────────────────
+
+@router.post("/send-email-otp")
+def send_email_otp(payload: schemas.SendEmailOTPRequest, db: Session = Depends(get_db)):
+    """Generate and email a 6-digit OTP for signup verification.
+
+    Always returns 200 with user_id so the frontend can proceed to the OTP screen.
+    The `email_sent` flag tells the frontend whether the email actually went out.
+    If False, it means SMTP is not configured or the connection failed — the admin
+    must set SMTP_HOST / SMTP_USE_SSL env vars on Railway.
+    """
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    otp = generate_otp()
+    user.otp_code = hash_otp(otp)
+    user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    user.otp_attempts = 0
+    db.commit()
+
+    email_sent = send_otp_email(user.email, otp)
+    return {
+        "message": "OTP sent to your email" if email_sent else "OTP generated but email delivery failed",
+        "user_id": user.id,
+        "email_sent": email_sent,
+    }
+
+
+@router.post("/verify-email-otp")
+def verify_email_otp(payload: schemas.VerifyEmailOTPRequest, db: Session = Depends(get_db)):
+    """Verify the email OTP — sets email_verified=True on success."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.otp_code or not user.otp_expiry:
+        raise HTTPException(status_code=400, detail="No OTP requested. Please request a new one.")
+    if (user.otp_attempts or 0) >= 5:
+        raise HTTPException(status_code=400, detail="Too many failed attempts. Please request a new OTP.")
+    if datetime.now(timezone.utc) > user.otp_expiry.replace(tzinfo=timezone.utc) if user.otp_expiry.tzinfo is None else user.otp_expiry:
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+    if not verify_otp(payload.otp, user.otp_code):
+        user.otp_attempts = (user.otp_attempts or 0) + 1
+        db.commit()
+        remaining = 5 - user.otp_attempts
+        raise HTTPException(status_code=400, detail=f"Invalid OTP. {remaining} attempt(s) remaining.")
+
+    user.email_verified = True
+    user.verification_method = "email"
+    user.otp_code = None
+    user.otp_expiry = None
+    user.otp_attempts = 0
+    db.commit()
+
+    # Now that email is verified, notify the appropriate admins for approval
+    try:
+        full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        if user.role == "admin":
+            notify_users = db.query(models.User).filter(
+                models.User.role == "superadmin",
+                models.User.is_active == True,
+            ).all()
+            notif_title = "New Admin Registration Request"
+            notif_msg = f"{full_name} has applied to be a barangay admin and is awaiting your approval."
+            log_action(db, "admin_self_registered", user.id, user.id, {"barangay_id": user.barangay_id})
+        else:
+            notify_users = db.query(models.User).filter(
+                models.User.barangay_id == user.barangay_id,
+                models.User.role.in_(["admin", "superadmin"]),
+                models.User.is_active == True,
+            ).all() if user.barangay_id else []
+            notif_title = "New Resident Registration"
+            notif_msg = f"{full_name} has registered and is awaiting your approval."
+
+        for u in notify_users:
+            db.add(models.Notification(
+                user_id=u.id,
+                title=notif_title,
+                message=notif_msg,
+                notif_type="new_user",
+                reference_id=user.id,
+            ))
+        if notify_users:
+            db.commit()
+    except Exception:
+        pass
+
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/verify-firebase-phone")
+def verify_firebase_phone(payload: schemas.VerifyFirebasePhoneRequest, db: Session = Depends(get_db)):
+    """Verify a Firebase phone auth ID token — sets mobile_verified=True."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        claims = verify_firebase_token(payload.firebase_id_token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    phone_number = claims.get("phone_number", "")
+    user.mobile_verified = True
+    user.verification_method = "phone"
+    if phone_number:
+        user.phone = phone_number
+    db.commit()
+    return {"message": "Phone verified successfully"}
+
+
+# ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
+
+@router.post("/forgot-password")
+def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Initiate password reset via email OTP or Firebase phone OTP."""
+    if payload.method == "email":
+        user = db.query(models.User).filter(models.User.email == payload.identifier).first()
+    else:
+        normalized = normalize_ph_phone(payload.identifier)
+        user = db.query(models.User).filter(
+            (models.User.phone == normalized) | (models.User.phone == payload.identifier)
+        ).first()
+
+    if not user:
+        return {"message": "No account found.", "user_id": None,
+                "display_name": None, "masked_contact": None}
+
+    # Build masked contact for display (user already knows their own identifier)
+    if payload.method == "email":
+        em = user.email or ""
+        local, _, domain = em.partition("@")
+        masked_contact = local[:2] + "***@" + domain if len(local) > 2 else "***@" + domain
+    else:
+        ph = user.phone or ""
+        masked_contact = ph[:4] + "****" + ph[-3:] if len(ph) >= 7 else ph
+
+    display_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.username or "User"
+
+    # Generate and store OTP for both email and phone resets
+    otp = generate_otp()
+    user.otp_code = hash_otp(otp)
+    user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    user.otp_attempts = 0
+    db.commit()
+
+    if payload.method == "email":
+        send_password_reset_email(user.email, otp)
+    # For phone method: the Flutter client uses Firebase Phone Auth to send the SMS
+    # and verify the code.  We only need to return the user_id here so the client
+    # can call /reset-password-phone after Firebase verification completes.
+
+    return {
+        "message": "Reset code sent.",
+        "user_id": user.id,
+        "display_name": display_name,
+        "masked_contact": masked_contact,
+    }
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+def change_password(
+    req: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Verify current password, then email an OTP to confirm the change."""
+    if not verify_password(req.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+
+    otp = generate_otp()
+    current_user.otp_code = hash_otp(otp)
+    current_user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    current_user.otp_attempts = 0
+    db.commit()
+
+    email_sent = send_otp_email(current_user.email, otp)
+    return {"user_id": current_user.id, "email_sent": email_sent, "message": "OTP sent to your email."}
+
+
+@router.post("/reset-password")
+def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password using email OTP."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.otp_code or not user.otp_expiry:
+        raise HTTPException(status_code=400, detail="No reset code found. Please restart the process.")
+    if (user.otp_attempts or 0) >= 5:
+        raise HTTPException(status_code=400, detail="Too many failed attempts. Please restart.")
+    if datetime.now(timezone.utc) > user.otp_expiry.replace(tzinfo=timezone.utc) if user.otp_expiry.tzinfo is None else user.otp_expiry:
+        raise HTTPException(status_code=400, detail="Reset code has expired.")
+    if not verify_otp(payload.otp, user.otp_code):
+        user.otp_attempts = (user.otp_attempts or 0) + 1
+        db.commit()
+        raise HTTPException(status_code=400, detail="Invalid reset code.")
+
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    user.otp_code = None
+    user.otp_expiry = None
+    user.otp_attempts = 0
+    db.commit()
+    log_action(db, "password_reset", user.id, user.id, {"method": "email"})
+    return {"message": "Password reset successfully"}
+
+
+class VerifyPasswordRequest(BaseModel):
+    password: str
+
+
+@router.post("/verify-password")
+def verify_password_endpoint(
+    req: VerifyPasswordRequest,
+    current_user: models.User = Depends(get_current_user),
+):
+    """Check if the provided password matches the current user's password."""
+    if not verify_password(req.password, current_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    return {"valid": True}
+
+
+@router.post("/reset-password-phone")
+def reset_password_phone(payload: schemas.ResetPasswordFirebaseRequest, db: Session = Depends(get_db)):
+    """Reset password after Firebase phone OTP verification."""
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        verify_firebase_token(payload.firebase_id_token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    db.commit()
+    log_action(db, "password_reset", user.id, user.id, {"method": "phone"})
+    return {"message": "Password reset successfully"}
+
+
+# ── Maintenance Mode ──────────────────────────────────────────────────────────
+class MaintenanceRequest(BaseModel):
+    enabled: bool
+
+@router.post("/maintenance")
+def toggle_maintenance(
+    body: MaintenanceRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Superadmin-only: enable or disable maintenance mode."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin only")
+    row = db.query(models.SystemSetting).filter_by(key="maintenance_mode").first()
+    if row is None:
+        row = models.SystemSetting(key="maintenance_mode", value="false")
+        db.add(row)
+    row.value = "true" if body.enabled else "false"
+    db.commit()
+    return {"maintenance": row.value == "true"}

@@ -1,0 +1,23 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+python-multipart
+sqlalchemy
+pydantic
+pydantic-settings
+pymysql
+bcrypt
+passlib[bcrypt]
+python-jose[cryptography]
+email-validator
+requests
+firebase-admin
+
+# RAG dependencies
+faiss-cpu
+sentence-transformers
+httpx
+numpy
+
+# Signature image processing
+opencv-python

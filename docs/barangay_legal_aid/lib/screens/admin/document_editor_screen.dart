@@ -1,0 +1,1311 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
+import 'package:signature/signature.dart';
+import 'package:barangay_legal_aid/config/env_config.dart';
+import 'package:barangay_legal_aid/services/api_service.dart';
+import 'package:barangay_legal_aid/utils/document_templates.dart';
+import 'package:barangay_legal_aid/utils/top_snack.dart';
+
+// Document types that can be generated
+const _kGeneratableTypes = {
+  'Barangay Clearance',
+  'Certificate of Residency',
+  'Certificate of Good Moral Character',
+  'Certificate of Indigency',
+  'Certificate of No Income',
+  'Certificate of No Property',
+  'Certificate of Single Status',
+};
+
+bool isGeneratableDocumentType(String? type) =>
+    type != null && _kGeneratableTypes.contains(type);
+
+// Saved signatures — loaded from and persisted to SharedPreferences
+final List<SignatureStamp> _savedSignatures = [];
+
+const _kSavedSigsKey = 'bla_saved_signatures';
+
+Future<void> _loadSavedSignatures() async {
+  if (_savedSignatures.isNotEmpty) return; // already loaded
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kSavedSigsKey);
+    if (raw == null) return;
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    for (final item in list) {
+      _savedSignatures.add(SignatureStamp(
+        bytes: base64Decode(item['bytes'] as String),
+        name: item['name'] as String? ?? '',
+        widthPoints: (item['widthPoints'] as num?)?.toDouble() ?? 110,
+        xFraction: 0.5,
+        yFraction: 0.5,
+      ));
+    }
+  } catch (_) {}
+}
+
+Future<void> _persistSavedSignatures() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final list = _savedSignatures.map((s) => {
+      'name': s.name,
+      'bytes': base64Encode(s.bytes),
+      'widthPoints': s.widthPoints,
+    }).toList();
+    await prefs.setString(_kSavedSigsKey, jsonEncode(list));
+  } catch (_) {}
+}
+
+class DocumentEditorScreen extends StatefulWidget {
+  final Map<String, dynamic> request;
+
+  const DocumentEditorScreen({super.key, required this.request});
+
+  @override
+  DocumentEditorScreenState createState() => DocumentEditorScreenState();
+}
+
+class DocumentEditorScreenState extends State<DocumentEditorScreen>
+    with TickerProviderStateMixin {
+  bool _loading = true;
+  bool _generating = false;
+  bool _showPreview = false;
+
+  // Asset bytes
+  Uint8List? _logoLeftBytes;
+  Uint8List? _logoRightBytes;
+
+  // Stamps and text overlays placed interactively on the preview
+  final List<SignatureStamp> _stamps = [];
+  final List<TextOverlay> _textOverlays = [];
+  Uint8List? _rasterizedPage; // rasterized base page for interactive preview
+
+  // Zoom for the preview
+  double _zoomLevel = 1.0;
+  double _baseZoom = 1.0;
+
+  // Requester data (loaded from API)
+  String _fullName = '';
+  String _firstName = '';
+  String _lastName = '';
+  String _barangayName = '';
+  String _municipality = '';
+  String _province = '';
+  String _address = '';
+
+  // Editable field controllers
+  final _titleCtrl = TextEditingController(text: 'Mr.');
+  final _civilStatusCtrl = TextEditingController(text: 'Single');
+  final _purposeCtrl = TextEditingController();
+  final _dateDayCtrl = TextEditingController();
+  final _dateMonthCtrl = TextEditingController();
+  final _dateYearCtrl = TextEditingController();
+  final _punongNameCtrl = TextEditingController();
+  final _communityTaxCtrl = TextEditingController();
+  final _taxIssuedAtCtrl = TextEditingController();
+  final _taxIssuedOnCtrl = TextEditingController();
+  final _receiptNoCtrl = TextEditingController();
+  final _receiptIssuedAtCtrl = TextEditingController();
+  final _receiptIssuedOnCtrl = TextEditingController();
+  String _pronoun = 'he';
+  String _pronounPossessive = 'his';
+  String _gender = 'male';
+
+  String get _documentType =>
+      widget.request['document_type'] as String? ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _dateDayCtrl.text = ordinalDate(now.day);
+    _dateMonthCtrl.text = _monthName(now.month);
+    _dateYearCtrl.text = now.year.toString();
+    _purposeCtrl.text =
+        widget.request['purpose'] as String? ?? 'FOR ANY LEGAL PURPOSE';
+    _loadData();
+    _loadSavedSignatures().then((_) { if (mounted) setState(() {}); });
+  }
+
+  @override
+  void dispose() {
+    for (final c in [
+      _titleCtrl, _civilStatusCtrl, _purposeCtrl, _dateDayCtrl,
+      _dateMonthCtrl, _dateYearCtrl, _punongNameCtrl, _communityTaxCtrl,
+      _taxIssuedAtCtrl, _taxIssuedOnCtrl, _receiptNoCtrl,
+      _receiptIssuedAtCtrl, _receiptIssuedOnCtrl,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  double get _currentZoom => _zoomLevel;
+
+  void _zoomBy(double factor) {
+    setState(() => _zoomLevel = (_zoomLevel * factor).clamp(0.5, 3.0));
+  }
+
+  String _monthName(int m) => const [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December',
+      ][m - 1];
+
+  Future<void> _loadData() async {
+    // Capture ApiService before async gaps
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      // 1. Current admin info
+      final me = await api.getCurrentUser();
+      if (me != null) {
+        _punongNameCtrl.text =
+            '${me['first_name'] ?? ''} ${me['last_name'] ?? ''}'.trim();
+        final bid = me['barangay_id'] as int?;
+        if (bid != null) {
+          final bd = await api.getBarangay(bid);
+          _barangayName = bd['name'] as String? ?? '';
+          final logoUrl = bd['logo_url'] as String?;
+          final logoSecUrl = bd['logo_url_secondary'] as String?;
+          if (logoUrl != null && logoUrl.isNotEmpty) {
+            _logoLeftBytes = await _fetchImageBytes('$apiBaseUrl$logoUrl');
+          }
+          if (logoSecUrl != null && logoSecUrl.isNotEmpty) {
+            _logoRightBytes = await _fetchImageBytes('$apiBaseUrl$logoSecUrl');
+          }
+        }
+      }
+
+      // 2. Requester user profile
+      final requesterId = widget.request['requester_id'] as int?;
+      if (requesterId != null) {
+        final user = await api.getUser(requesterId);
+        if (user != null) {
+          final fn = user['first_name'] as String? ?? '';
+          final mn = user['middle_name'] as String? ?? '';
+          final ln = user['last_name'] as String? ?? '';
+          final mi = mn.isNotEmpty ? '${mn[0].toUpperCase()}.' : '';
+          _fullName = [fn, if (mi.isNotEmpty) mi, ln]
+              .where((p) => p.isNotEmpty)
+              .join(' ');
+          _firstName = fn;
+          _lastName = ln;
+
+          final purok = user['purok'] as String? ?? '';
+          final street = user['street_name'] as String? ?? '';
+          _address = [purok, street].where((s) => s.isNotEmpty).join(', ');
+          if (_address.isEmpty) _address = user['address'] as String? ?? '';
+
+          _municipality = user['city'] as String? ?? '';
+          _province = user['province'] as String? ?? '';
+          final bname = user['barangay_name'] as String?;
+          if (bname != null && bname.isNotEmpty) _barangayName = bname;
+        }
+      }
+    } catch (_) {
+      // proceed with whatever was loaded
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<Uint8List?> _fetchImageBytes(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) return response.bodyBytes;
+    } catch (_) {}
+    return null;
+  }
+
+  DocumentData _buildDocumentData() => DocumentData(
+        title: _titleCtrl.text,
+        fullName: _fullName.isNotEmpty
+            ? _fullName
+            : (widget.request['requester_name'] as String? ?? ''),
+        firstName: _firstName,
+        civilStatus: _civilStatusCtrl.text,
+        gender: _gender,
+        pronoun: _pronoun,
+        pronounPossessive: _pronounPossessive,
+        address: _address.isNotEmpty ? _address : '',
+        barangayName: _barangayName,
+        municipality: _municipality,
+        province: _province,
+        purpose: _purposeCtrl.text.isNotEmpty
+            ? _purposeCtrl.text
+            : 'FOR ANY LEGAL PURPOSE',
+        dateDay: _dateDayCtrl.text,
+        dateMonth: _dateMonthCtrl.text,
+        dateYear: _dateYearCtrl.text,
+        punongBarangayName: _punongNameCtrl.text,
+        communityTaxNo: _communityTaxCtrl.text,
+        taxIssuedAt: _taxIssuedAtCtrl.text,
+        taxIssuedOn: _taxIssuedOnCtrl.text,
+        officialReceiptNo: _receiptNoCtrl.text,
+        receiptIssuedAt: _receiptIssuedAtCtrl.text,
+        receiptIssuedOn: _receiptIssuedOnCtrl.text,
+      );
+
+  /// Generates the final PDF with stamps + text overlays baked in (used when sending).
+  Future<Uint8List> _generatePdf() => generateDocument(
+        _documentType,
+        _buildDocumentData(),
+        logoLeftBytes: _logoLeftBytes,
+        logoRightBytes: _logoRightBytes,
+        stamps: _stamps,
+        textOverlays: _textOverlays,
+      );
+
+  /// Generates the base PDF (no stamps) and rasterizes it for the interactive preview.
+  Future<void> _preview() async {
+    setState(() => _generating = true);
+    try {
+      final baseBytes = await generateDocument(
+        _documentType,
+        _buildDocumentData(),
+        logoLeftBytes: _logoLeftBytes,
+        logoRightBytes: _logoRightBytes,
+      );
+      final pages = await Printing.raster(baseBytes, dpi: 150).toList();
+      if (!mounted) return;
+      if (pages.isNotEmpty) {
+        final png = await pages.first.toPng();
+        if (!mounted) return;
+        setState(() {
+          _rasterizedPage = png;
+          _showPreview = true;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showTopSnack(context,
+          message: 'Preview error: ${e.toString().replaceAll('Exception: ', '')}',
+          backgroundColor: const Color(0xFF99272D),
+          icon: Icons.error_outline);
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  Future<void> _generateAndSend() async {
+    // Warn if no signature stamp has been placed
+    if (_stamps.isEmpty) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No Signature Added'),
+          content: const Text(
+              'You haven\'t added a signature stamp to this document. '
+              'Are you sure you want to send it without a signature?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF99272D),
+                  foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Send Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+    }
+    setState(() => _generating = true);
+    // Capture context-dependent refs before async
+    final api = Provider.of<ApiService>(context, listen: false);
+    final requestId = widget.request['id'] as int;
+    try {
+      final bytes = await _generatePdf();
+      final now = DateTime.now();
+      final dateStr = '${now.year}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}';
+      final docType = _documentType.replaceAll(' ', '_');
+      final lastName = _lastName.isNotEmpty ? _lastName : 'Unknown';
+      final firstName = _firstName.isNotEmpty ? _firstName : 'Unknown';
+      final filename = '${docType}_${lastName}_${firstName}_${dateStr}_$requestId.pdf';
+      await api.uploadRequestDocument(requestId, bytes, filename);
+      if (!mounted) return;
+      showTopSnack(context,
+          message: 'Document generated and sent!',
+          backgroundColor: const Color(0xFF36454F),
+          icon: Icons.check_circle_outline,
+          duration: const Duration(seconds: 3));
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      showTopSnack(context,
+          message: e.toString().replaceAll('Exception: ', ''),
+          backgroundColor: const Color(0xFF99272D),
+          icon: Icons.error_outline);
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  // ─── Text overlay editor ───────────────────────────────────────────────────
+
+  Future<void> _showAddTextSheet({TextOverlay? existing, int? index}) async {
+    final textCtrl = TextEditingController(text: existing?.text ?? '');
+    double fontSize = existing?.fontSize ?? 10;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(existing == null ? 'Add Text' : 'Edit Text',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              TextField(
+                controller: textCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Text (e.g. Juan dela Cruz)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text('Font size: ', style: TextStyle(fontSize: 13)),
+                  Text('${fontSize.round()} pt',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              Slider(
+                value: fontSize,
+                min: 7,
+                max: 24,
+                divisions: 17,
+                activeColor: const Color(0xFF99272D),
+                onChanged: (v) => setSheet(() => fontSize = v),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF99272D),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final t = textCtrl.text.trim();
+                    if (t.isEmpty) return;
+                    setState(() {
+                      final overlay = TextOverlay(
+                        text: t,
+                        xFraction: existing?.xFraction ?? 0.5,
+                        yFraction: existing?.yFraction ?? 0.5,
+                        fontSize: fontSize,
+                      );
+                      if (index != null) {
+                        _textOverlays[index] = overlay;
+                      } else {
+                        _textOverlays.add(overlay);
+                      }
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  child: Text(existing == null ? 'Add' : 'Save'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    textCtrl.dispose();
+  }
+
+  // ─── Stamp picker ──────────────────────────────────────────────────────────
+
+  Future<void> _showAddStampSheet() async {
+    final sigCtrl = SignatureController(
+      penStrokeWidth: 2,
+      penColor: Colors.black,
+      exportBackgroundColor: Colors.transparent,
+    );
+    final nameCtrl = TextEditingController();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  const Text('Add Signature Stamp',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const Text(
+                'Draw a signature. Drag to reposition, drag corner to resize.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              // ── Saved signatures section ──
+              if (_savedSignatures.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('Saved Signatures',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 80,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _savedSignatures.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (ctx2, i) {
+                      final saved = _savedSignatures[i];
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _stamps.add(SignatureStamp(
+                                  bytes: saved.bytes,
+                                  name: saved.name,
+                                  xFraction: 0.5,
+                                  yFraction: 0.5,
+                                  widthPoints: saved.widthPoints,
+                                ));
+                              });
+                              Navigator.pop(ctx);
+                            },
+                            child: Container(
+                              width: 100,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.grey[50],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.memory(saved.bytes,
+                                      height: 44, fit: BoxFit.contain),
+                                  if (saved.name.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      saved.name,
+                                      style: const TextStyle(
+                                          fontSize: 9, color: Colors.black87),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Delete button
+                          Positioned(
+                            top: -6,
+                            right: -6,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() => _savedSignatures.removeAt(i));
+                                setSheet(() {});
+                                _persistSavedSignatures();
+                              },
+                              child: Container(
+                                width: 18,
+                                height: 18,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close,
+                                    size: 11, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const Divider(height: 20),
+              ],
+              const SizedBox(height: 4),
+              // ── Draw canvas ──
+              SizedBox(
+                height: 180,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Signature(
+                            controller: sigCtrl,
+                            backgroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: sigCtrl.clear,
+                      icon: const Icon(Icons.clear, size: 14),
+                      label: const Text('Clear'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // ── Name field ──
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Name (optional, e.g. ACE JAMILON)',
+                  helperText: 'If filled, signature is saved for reuse this session.',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Stamp'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF99272D),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    if (!sigCtrl.isNotEmpty || !ctx.mounted) return;
+                    final bytes = await sigCtrl.toPngBytes();
+                    if (bytes == null || !ctx.mounted) return;
+                    final name = nameCtrl.text.trim();
+                    final stamp = SignatureStamp(
+                      bytes: bytes,
+                      xFraction: 0.5,
+                      yFraction: 0.5,
+                      name: name,
+                    );
+                    // Persist to device storage if name provided
+                    if (name.isNotEmpty) {
+                      _savedSignatures.add(stamp);
+                      _persistSavedSignatures();
+                    }
+                    setState(() => _stamps.add(stamp));
+                    Navigator.pop(ctx);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    sigCtrl.dispose();
+    nameCtrl.dispose();
+  }
+
+  // ─── Build ─────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Generate Document'),
+          backgroundColor: const Color(0xFF99272D),
+          foregroundColor: Colors.white,
+        ),
+        body: const Center(
+            child: CircularProgressIndicator(color: Color(0xFF99272D))),
+      );
+    }
+
+    if (_showPreview && _rasterizedPage != null) {
+      final displayW = MediaQuery.of(context).size.width;
+      final displayH = displayW * 1.4142; // A4 aspect ratio
+
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Preview'),
+          backgroundColor: const Color(0xFF99272D),
+          foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.zoom_out),
+              tooltip: 'Zoom Out',
+              onPressed: () => _zoomBy(1 / 1.25),
+            ),
+            Center(
+              child: Text(
+                '${(_currentZoom * 100).round()}%',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.zoom_in),
+              tooltip: 'Zoom In',
+              onPressed: () => _zoomBy(1.25),
+            ),
+            IconButton(
+              icon: const Icon(Icons.print),
+              tooltip: 'Print',
+              onPressed: _generating
+                  ? null
+                  : () async {
+                      final bytes = await _generatePdf();
+                      await Printing.layoutPdf(onLayout: (_) async => bytes);
+                    },
+            ),
+            IconButton(
+              icon: const Icon(Icons.draw),
+              tooltip: 'Add Signature Stamp',
+              onPressed: _showAddStampSheet,
+            ),
+            IconButton(
+              icon: const Icon(Icons.text_fields),
+              tooltip: 'Add Text',
+              onPressed: () => _showAddTextSheet(),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _showPreview = false),
+              child: const Text('Edit', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onScaleStart: (d) {
+                  if (d.pointerCount >= 2) _baseZoom = _zoomLevel;
+                },
+                onScaleUpdate: (d) {
+                  if (d.pointerCount >= 2) {
+                    setState(() =>
+                        _zoomLevel = (_baseZoom * d.scale).clamp(0.5, 3.0));
+                  }
+                },
+                child: SingleChildScrollView(
+                  child: Center(
+                    child: SizedBox(
+                      width: displayW * _zoomLevel,
+                      height: displayH * _zoomLevel,
+                      child: FittedBox(
+                        fit: BoxFit.fill,
+                        child: SizedBox(
+                          width: displayW,
+                          height: displayH,
+                          child: Stack(
+                            children: [
+                      // Rasterized base page
+                      Image.memory(
+                        _rasterizedPage!,
+                        width: displayW,
+                        height: displayH,
+                        fit: BoxFit.fill,
+                      ),
+                      // Draggable text overlays
+                      ..._textOverlays.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final o = entry.value;
+                        final scale = displayW / 595.28;
+                        final flutterSize = o.fontSize * scale;
+                        final left = (o.xFraction * displayW)
+                            .clamp(0.0, displayW * 0.88);
+                        final top = (o.yFraction * displayH)
+                            .clamp(0.0, displayH - flutterSize * 2);
+                        return Positioned(
+                          left: left,
+                          top: top,
+                          child: GestureDetector(
+                            onScaleUpdate: (d) {
+                              setState(() {
+                                if (d.pointerCount >= 2) {
+                                  // Pinch to resize
+                                  _textOverlays[idx] = TextOverlay(
+                                    text: o.text,
+                                    xFraction: o.xFraction,
+                                    yFraction: o.yFraction,
+                                    fontSize: (o.fontSize * d.scale).clamp(6.0, 48.0),
+                                  );
+                                } else {
+                                  // Single-finger drag to move
+                                  _textOverlays[idx] = TextOverlay(
+                                    text: o.text,
+                                    xFraction: (o.xFraction + d.focalPointDelta.dx / displayW).clamp(0.0, 1.0),
+                                    yFraction: (o.yFraction + d.focalPointDelta.dy / displayH).clamp(0.0, 1.0),
+                                    fontSize: o.fontSize,
+                                  );
+                                }
+                              });
+                            },
+                            onDoubleTap: () => _showAddTextSheet(existing: o, index: idx),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: Colors.blue.withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    o.text,
+                                    style: TextStyle(
+                                      fontSize: flutterSize,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                                // × delete button (top-right)
+                                Positioned(
+                                  top: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _textOverlays.removeAt(idx)),
+                                    child: Container(
+                                      width: 18,
+                                      height: 18,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                                // Resize handle (bottom-right)
+                                Positioned(
+                                  bottom: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onPanUpdate: (d) {
+                                      final delta = (d.delta.dx + d.delta.dy) / 2;
+                                      final pdfDelta = delta * 595.28 / displayW;
+                                      setState(() {
+                                        _textOverlays[idx] = TextOverlay(
+                                          text: o.text,
+                                          xFraction: o.xFraction,
+                                          yFraction: o.yFraction,
+                                          fontSize: (o.fontSize + pdfDelta).clamp(6.0, 48.0),
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: const Icon(Icons.open_in_full, size: 10, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      // Draggable stamp overlays
+                      ..._stamps.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final s = entry.value;
+                        // Convert PDF points → screen pixels (matches text overlay scaling)
+                        final stampW = s.widthPoints * displayW / 595.28;
+                        final stampH = stampW * 0.45;
+                        final left = (s.xFraction * displayW - stampW / 2)
+                            .clamp(0.0, displayW - stampW);
+                        final top = (s.yFraction * displayH - stampH / 2)
+                            .clamp(0.0, displayH - stampH);
+                        return Positioned(
+                          left: left,
+                          top: top,
+                          child: GestureDetector(
+                            onScaleUpdate: (d) {
+                              setState(() {
+                                if (d.pointerCount >= 2) {
+                                  // Pinch to resize
+                                  _stamps[idx] = SignatureStamp(
+                                    bytes: s.bytes,
+                                    name: s.name,
+                                    xFraction: s.xFraction,
+                                    yFraction: s.yFraction,
+                                    widthPoints: (s.widthPoints * d.scale)
+                                        .clamp(20.0, 300.0),
+                                  );
+                                } else {
+                                  // Single-finger drag to move
+                                  _stamps[idx] = SignatureStamp(
+                                    bytes: s.bytes,
+                                    name: s.name,
+                                    xFraction: (s.xFraction +
+                                            d.focalPointDelta.dx / displayW)
+                                        .clamp(0.0, 1.0),
+                                    yFraction: (s.yFraction +
+                                            d.focalPointDelta.dy / displayH)
+                                        .clamp(0.0, 1.0),
+                                    widthPoints: s.widthPoints,
+                                  );
+                                }
+                              });
+                            },
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Image.memory(s.bytes,
+                                    width: stampW, fit: BoxFit.contain),
+                                // × delete button (top-right)
+                                Positioned(
+                                  top: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        setState(() => _stamps.removeAt(idx)),
+                                    child: Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close,
+                                          size: 13, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                                // Resize handle (bottom-right)
+                                Positioned(
+                                  bottom: -8,
+                                  right: -8,
+                                  child: GestureDetector(
+                                    onPanUpdate: (d) {
+                                      final delta =
+                                          (d.delta.dx + d.delta.dy) / 2;
+                                      final pdfDelta =
+                                          delta * 595.28 / displayW;
+                                      setState(() {
+                                        _stamps[idx] = SignatureStamp(
+                                          bytes: s.bytes,
+                                          name: s.name,
+                                          xFraction: s.xFraction,
+                                          yFraction: s.yFraction,
+                                          widthPoints:
+                                              (s.widthPoints + pdfDelta)
+                                                  .clamp(20.0, 300.0),
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: const Icon(Icons.open_in_full,
+                                          size: 10, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _generating ? null : _generateAndSend,
+                      icon: _generating
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.send),
+                      label: const Text('Generate & Send'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF99272D),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Generate: $_documentType'),
+        backgroundColor: const Color(0xFF99272D),
+        foregroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildAutoFilledSection(),
+                  const SizedBox(height: 20),
+                  _buildEditableSection(),
+                  const SizedBox(height: 28),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _generating ? null : _preview,
+                          icon: const Icon(Icons.preview),
+                          label: const Text('Preview'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF99272D),
+                            side: const BorderSide(
+                                color: Color(0xFF99272D)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _generating ? null : _generateAndSend,
+                          icon: _generating
+                              ? const SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.send),
+                          label: const Text('Generate & Send'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF99272D),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAutoFilledSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.person, size: 18, color: Color(0xFF99272D)),
+                SizedBox(width: 8),
+                Text('Auto-filled from requester\'s profile',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF99272D))),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _readonlyRow('Full Name',
+                _fullName.isNotEmpty
+                    ? _fullName
+                    : (widget.request['requester_name'] as String? ?? '—')),
+            _readonlyRow('Address',
+                _address.isNotEmpty ? _address : '—'),
+            _readonlyRow('Barangay',
+                _barangayName.isNotEmpty ? _barangayName : '—'),
+            _readonlyRow('Municipality',
+                _municipality.isNotEmpty ? _municipality : '—'),
+            _readonlyRow('Province',
+                _province.isNotEmpty ? _province : '—'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _readonlyRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label,
+                style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditableSection() {
+    final type = _documentType;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.edit, size: 18, color: Color(0xFF99272D)),
+                SizedBox(width: 8),
+                Text('Fill in the blanks',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF99272D))),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Punong Barangay name (all docs)
+            _field(_punongNameCtrl, 'Punong Barangay Name'),
+            const SizedBox(height: 12),
+
+            // Date (all docs)
+            Row(children: [
+              Expanded(child: _field(_dateDayCtrl, 'Day (e.g. 3rd)')),
+              const SizedBox(width: 8),
+              Expanded(child: _field(_dateMonthCtrl, 'Month')),
+              const SizedBox(width: 8),
+              Expanded(child: _field(_dateYearCtrl, 'Year')),
+            ]),
+            const SizedBox(height: 12),
+
+            // Title (some docs)
+            if (_needsTitle(type)) ...[
+              _dropdownField(
+                label: 'Title',
+                value: _titleCtrl.text,
+                items: const ['Mr.', 'Mrs.', 'Ms.'],
+                onChanged: (v) =>
+                    setState(() => _titleCtrl.text = v ?? 'Mr.'),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Civil status (most docs)
+            if (_needsCivilStatus(type)) ...[
+              _dropdownField(
+                label: 'Civil Status',
+                value: _civilStatusCtrl.text,
+                items: const ['Single', 'Married', 'Widowed', 'Separated'],
+                onChanged: (v) =>
+                    setState(() => _civilStatusCtrl.text = v ?? 'Single'),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Pronoun (most docs)
+            if (_needsPronoun(type)) ...[
+              _dropdownField(
+                label: 'Gender Pronoun',
+                value: _pronoun,
+                items: const ['he', 'she'],
+                onChanged: (v) => setState(() {
+                  _pronoun = v ?? 'he';
+                  _pronounPossessive = _pronoun == 'he' ? 'his' : 'her';
+                  _gender = _pronoun == 'he' ? 'male' : 'female';
+                }),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Purpose (Barangay Clearance + No Income)
+            if (_needsPurpose(type)) ...[
+              _field(_purposeCtrl, 'Purpose', maxLines: 2),
+              const SizedBox(height: 12),
+            ],
+
+            // Community Tax (Barangay Clearance only)
+            if (type == 'Barangay Clearance') ...[
+              const Divider(),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('Community Tax Certificate',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13)),
+              ),
+              _field(_communityTaxCtrl, 'Community Tax Cert. No.'),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: _field(_taxIssuedAtCtrl, 'Issued At')),
+                const SizedBox(width: 8),
+                Expanded(child: _field(_taxIssuedOnCtrl, 'Issued On (date)')),
+              ]),
+              const SizedBox(height: 8),
+              _field(_receiptNoCtrl, 'Official Receipt No.'),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                    child: _field(_receiptIssuedAtCtrl, 'Receipt Issued At')),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: _field(_receiptIssuedOnCtrl, 'Receipt Issued On')),
+              ]),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _needsTitle(String type) => const [
+        'Certificate of Residency',
+        'Certificate of No Income',
+        'Certificate of No Property',
+        'Certificate of Single Status',
+      ].contains(type);
+
+  bool _needsCivilStatus(String type) => const [
+        'Barangay Clearance',
+        'Certificate of Residency',
+        'Certificate of Good Moral Character',
+        'Certificate of Indigency',
+        'Certificate of No Income',
+      ].contains(type);
+
+  bool _needsPronoun(String type) => const [
+        'Barangay Clearance',
+        'Certificate of Residency',
+        'Certificate of Good Moral Character',
+        'Certificate of Indigency',
+        'Certificate of No Income',
+      ].contains(type);
+
+  bool _needsPurpose(String type) => const [
+        'Barangay Clearance',
+        'Certificate of No Income',
+      ].contains(type);
+
+  Widget _field(TextEditingController ctrl, String label,
+      {int maxLines = 1}) {
+    return TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        isDense: true,
+      ),
+    );
+  }
+
+  Widget _dropdownField({
+    required String label,
+    required String value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        isDense: true,
+      ),
+      items: items
+          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+          .toList(),
+      onChanged: onChanged,
+    );
+  }
+}
